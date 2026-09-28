@@ -7,11 +7,12 @@
   "scripts": {
     "dev": "wrangler dev",
     "db:local": "wrangler d1 migrations apply DB --local",
-    "db:remote": "wrangler d1 migrations apply DB --remote",
+    "db:remote": "node scripts/deploy-remote.mjs --migrate-only",
     "deploy": "wrangler deploy",
     "test": "node --test tests/phattai-isolation.test.mjs",
     "check:d1": "node scripts/check-d1-ready.mjs",
-    "check:cloud": "node scripts/check-cloud-health.mjs"
+    "check:cloud": "node scripts/check-cloud-health.mjs",
+    "deploy:remote": "node scripts/deploy-remote.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

@@ -117,3 +117,27 @@ Giữ app offline 1.2.2 (`vn.lotusai.pos.handheld`) trên máy trong UAT để f
 8. Kiểm payment không sinh phiếu bếp lần hai.
 9. Mất Internet: không tạo order giả; sau khi mạng phục hồi mới gửi.
 10. Mất LAN máy bếp: order vẫn nằm D1; trạng thái in báo lỗi/không rõ, không tự in trùng.
+
+## One-click remote deploy (recommended)
+
+Do not use `wrangler d1 migrations apply DB --remote` for production PHAT TAI. Some trigger-heavy migration files can hit Cloudflare D1 statement-splitter error `SQLITE_ERROR 7500` on that path.
+
+Use one command instead:
+
+```bash
+npm run deploy:remote
+```
+
+`scripts/deploy-remote.mjs`:
+- verifies Worker `pos-phattai` and D1 `pos_phattai` before touching data;
+- reads `d1_migrations` and requires it to be a clean filename prefix;
+- applies only pending SQL files, in filename order, through `wrangler d1 execute --remote --file`;
+- appends the matching `d1_migrations` stamp into the same import file/transaction;
+- verifies history after every migration;
+- deploys the Worker only after all migrations succeed.
+
+Cloudflare Builds → Deploy command should therefore be exactly:
+
+```text
+npm run deploy:remote
+```

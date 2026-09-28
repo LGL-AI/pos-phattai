@@ -10,7 +10,7 @@
     "run_worker_first": true
   },
   "d1_databases": [
-    { "binding": "DB", "database_name": "pos_phattai", "database_id": "REPLACE_WITH_PHATTAI_D1_DATABASE_ID", "migrations_dir": "migrations" }
+    { "binding": "DB", "database_name": "pos_phattai", "database_id": "9f268f6c-591b-4517-806a-15ed4a0bfdbf", "migrations_dir": "migrations" }
   ],
   "vars": {
     "ORDERING_ENABLED": "true"

@@ -130,26 +130,26 @@ export async function handleOps(req,env,actor,deps){
    return saved.fingerprint===fingerprint?ok({refund:saved,duplicate:saved.id!==id},saved.id===id?201:200):bad(409,'REQUEST_ID_REUSED','Mã giao dịch đã dùng cho khoản hoàn khác');
   }
   if(path==='/api/staff/roles'&&method==='GET'){
-   if(!allowed(actor,'STAFF_MANAGE'))return deny();const {results=[]}=await env.DB.prepare('SELECT * FROM pos_roles ORDER BY system DESC,id').all();
+   if(actor.role!=='OWNER')return deny();const {results=[]}=await env.DB.prepare('SELECT * FROM pos_roles ORDER BY system DESC,id').all();
    return ok({availablePermissions:VALID,roles:results.map(r=>({id:r.id,name:r.name,permissions:permissions(r.permissions_json),active:!!r.active,system:!!r.system}))});
   }
   if(path==='/api/staff/roles'&&method==='POST'){
-   if(!allowed(actor,'ROLE_MANAGE'))return deny();const b=await deps.body(req),id=clean(b.id,32).toUpperCase(),name=clean(b.name,80);
+   if(actor.role!=='OWNER')return deny();const b=await deps.body(req),id=clean(b.id,32).toUpperCase(),name=clean(b.name,80);
    if(!/^[A-Z][A-Z0-9_]{2,31}$/.test(id)||!name||['OWNER','MANAGER','CASHIER','KITCHEN'].includes(id))throw Error('INVALID_ROLE');
    await env.DB.prepare('INSERT INTO pos_roles(id,name,permissions_json) VALUES(?,?,?)').bind(id,name,JSON.stringify(permissionList(b.permissions))).run();return ok({id},201);
   }
   const rolePath=path.match(/^\/api\/staff\/roles\/([A-Z][A-Z0-9_]{2,31})$/);
   if(rolePath&&(method==='PATCH'||method==='POST')){
-   if(!allowed(actor,'ROLE_MANAGE'))return deny();const id=rolePath[1];if(id==='OWNER')return bad(403,'OWNER_PROTECTED','Không thể thay đổi vai trò chủ cửa hàng');
+   if(actor.role!=='OWNER')return deny();const id=rolePath[1];if(id==='OWNER')return bad(403,'OWNER_PROTECTED','Không thể thay đổi vai trò chủ cửa hàng');
    const b=await deps.body(req),name=clean(b.name,80);if(!name||typeof b.active!=='boolean')throw Error('INVALID_ROLE');
    const r=await env.DB.prepare('UPDATE pos_roles SET name=?,permissions_json=?,active=? WHERE id=?').bind(name,JSON.stringify(permissionList(b.permissions)),b.active?1:0,id).run();return r.meta.changes?ok({id}):bad(404,'ROLE_NOT_FOUND','Không thấy vai trò');
   }
   if(path==='/api/staff/accounts'&&method==='GET'){
-   if(!allowed(actor,'STAFF_MANAGE'))return deny();const {results=[]}=await env.DB.prepare('SELECT id,username,display_name,role_id,active FROM pos_staff_users ORDER BY username').all();
+   if(actor.role!=='OWNER')return deny();const {results=[]}=await env.DB.prepare('SELECT id,username,display_name,role_id,active FROM pos_staff_users ORDER BY username').all();
    return ok({accounts:results.map(staffPublic)});
   }
   if(path==='/api/staff/accounts'&&method==='POST'){
-   if(!allowed(actor,'STAFF_MANAGE'))return deny();const b=await deps.body(req),username=clean(b.username,40).toLowerCase(),name=clean(b.name,80),pass=b.password,role=clean(b.role,32).toUpperCase();
+   if(actor.role!=='OWNER')return deny();const b=await deps.body(req),username=clean(b.username,40).toLowerCase(),name=clean(b.name,80),pass=b.password,role=clean(b.role,32).toUpperCase();
    if(!/^[a-z0-9._-]{3,40}$/.test(username)||username==='huang'||!name||typeof pass!=='string'||pass.length<10||pass.length>128||role==='OWNER')throw Error('INVALID_STAFF');
    const found=await env.DB.prepare('SELECT id FROM pos_roles WHERE id=? AND active=1').bind(role).first();if(!found)throw Error('INVALID_ROLE');
    const salt=b64(crypto.getRandomValues(new Uint8Array(16))),hash=await derive(pass,salt),id=crypto.randomUUID(),time=now();
@@ -158,7 +158,7 @@ export async function handleOps(req,env,actor,deps){
   }
   const accountPath=path.match(/^\/api\/staff\/accounts\/([a-f0-9-]{36})$/i);
   if(accountPath&&(method==='PATCH'||method==='POST')){
-   if(!allowed(actor,'STAFF_MANAGE'))return deny();if(!uuid(accountPath[1]))throw Error('INVALID_STAFF');const b=await deps.body(req),name=clean(b.name,80),role=clean(b.role,32).toUpperCase();
+   if(actor.role!=='OWNER')return deny();if(!uuid(accountPath[1]))throw Error('INVALID_STAFF');const b=await deps.body(req),name=clean(b.name,80),role=clean(b.role,32).toUpperCase();
    if(!name||role==='OWNER'||typeof b.active!=='boolean'||(b.password!==undefined&&(typeof b.password!=='string'||b.password.length<10||b.password.length>128)))throw Error('INVALID_STAFF');
    const found=await env.DB.prepare('SELECT id FROM pos_roles WHERE id=? AND active=1').bind(role).first();if(!found)throw Error('INVALID_ROLE');
    const salt=b.password?b64(crypto.getRandomValues(new Uint8Array(16))):null,hash=b.password?await derive(b.password,salt):null;

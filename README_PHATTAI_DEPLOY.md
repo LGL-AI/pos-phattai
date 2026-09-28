@@ -1,4 +1,4 @@
-# Lotus POS PHÁT TÀI v1.5.0 — Deploy & UAT
+# Lotus POS PHÁT TÀI v1.5.2 — Deploy & UAT
 
 ## 1. Kiến trúc riêng
 
@@ -29,7 +29,7 @@ npx wrangler deploy
 4. Mở `/api/health`. Kết quả cần có:
 
 ```json
-{"ok":true,"d1":"ok","storeReady":true,"acceptingOrders":true,"version":"2.6.0-phattai.3"}
+{"ok":true,"d1":"ok","storeReady":true,"acceptingOrders":true,"version":"2.6.0-phattai.4"}
 ```
 
 Migration mới của flow này là `0015_order_first_pay_later.sql`.
@@ -97,13 +97,31 @@ DDMMYYYY-STT-MAKH-TM
 
 ## 7. SUNMI / fallback
 
-Source Android v1.5.0:
+Source Android v1.5.2:
 
 - `applicationId = vn.lotusai.pos.phattaiapp`
-- `versionCode = 150`
-- `versionName = 1.5.0`
+- `versionCode = 152`
+- `versionName = 1.5.2`
 
 Giữ app offline 1.2.2 (`vn.lotusai.pos.handheld`) trên máy trong UAT để fallback. Hai package tách nhau.
+
+
+## 7A. Quản trị chủ tiệm trên SUNMI
+
+Tài khoản cloud role `OWNER` (hiện dùng `huang`) có portal quản trị ngay trên POS cầm tay:
+
+- báo cáo ngày D1, tải CSV và in báo cáo trên SUNMI;
+- quản lý món/giá, voucher, khách hàng, tài khoản/quyền;
+- cấu hình thông tin tiệm/ngân hàng;
+- xem trạng thái máy in SUNMI, kết nối lại;
+- nhập IP/cổng máy in bếp, in thử và xem nhật ký job;
+- mở kiểm tra phần cứng Android/SUNMI đầy đủ.
+
+Các tác vụ cấu hình phần cứng, chẩn đoán, báo cáo quản trị, tài khoản/quyền và voucher được khóa cho `OWNER`.
+
+### Chống in phiếu bếp lần hai khi thanh toán
+
+Auto kitchen queue chỉ trả job của order `UNPAID`. Khi nhân viên xác nhận CASH/BANK, order chuyển `PAID`, không sinh kitchen job mới và cũng không còn thuộc auto-kitchen queue. Callback thanh toán trên APK gọi native `printReceipt`, tách khỏi `printKitchen`.
 
 ## 8. Checklist UAT tại PHÁT TÀI
 

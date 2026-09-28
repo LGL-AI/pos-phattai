@@ -26,7 +26,7 @@ const guestBase=/^\d{8}-\d{4}-000000$/;
  assert.equal(db.prepare("SELECT COUNT(*) n FROM pos_products WHERE sku LIKE 'PT%' AND active=1").get().n,13);
  assert.equal(db.prepare("SELECT COUNT(*) n FROM pos_products WHERE sku LIKE 'EC_%'").get().n,0);
  const health=await call('/api/health');
- assert.equal(health.status,200);assert.equal(health.data.d1,'ok');assert.equal(health.data.storeReady,true);assert.equal(health.data.acceptingOrders,true);assert.equal(health.data.version,'2.6.0-phattai.3');
+ assert.equal(health.status,200);assert.equal(health.data.d1,'ok');assert.equal(health.data.storeReady,true);assert.equal(health.data.acceptingOrders,true);assert.equal(health.data.version,'2.6.0-phattai.4');
  const catalog=await call('/api/catalog');
  assert.equal(catalog.status,200);assert.equal(catalog.data.catalog.store.name,'TIỆM SÍU LẬP PHÁT TÀI');assert.equal(catalog.data.catalog.products.length,13);assert.ok(catalog.data.catalog.products.every(p=>String(p.sku).startsWith('PT')));
  db.close();
@@ -82,6 +82,12 @@ test('QR table -> kitchen first -> staff verifies table -> BANK payment appends 
  assert.equal(paid.data.order.paymentMethod,'BANK');
  assert.match(paid.data.order.code,/^\d{8}-\d{4}-000000-CK$/);
  assert.equal(db.prepare('SELECT COUNT(*) n FROM pos_kitchen_jobs WHERE order_id=?').get(created.data.order.id).n,1,'payment must not create a second kitchen ticket');
+ const afterPayQueue=await call('/api/staff/paid-labels','GET',null,auth);
+ assert.equal(afterPayQueue.status,200,JSON.stringify(afterPayQueue.data));
+ assert.equal(afterPayQueue.data.jobs.some(x=>x.order.id===created.data.order.id),false,'paid order must leave the automatic kitchen print queue');
+ db.prepare("UPDATE pos_kitchen_jobs SET status='PENDING' WHERE id=?").run(job.id);
+ const claimAfterPay=await call('/api/staff/jobs/'+encodeURIComponent(job.id)+'/claim','POST',{},auth);
+ assert.equal(claimAfterPay.status,409,'backend must refuse a kitchen claim after payment even if a stale client sees PENDING');
  db.close();
 });
 
@@ -120,5 +126,32 @@ test('customer UI requires table selection and contains no customer payment flow
  assert.match(staff,/async function pollAutoPrint/);
  assert.match(staff,/window\.setInterval\(pollAutoPrint,3000\)/);
  assert.match(staff,/printReceipt\(r\.order,paidBill\)/);
+ assert.match(staff,/Đã gửi HÓA ĐƠN tới máy in SUNMI; phiếu bếp không in lại/);
+ assert.match(staff,/o\.payment_status='UNPAID'|paymentStatus==='PAID'/);
+ assert.match(staff,/Báo cáo ngày/);
+ assert.match(staff,/IP \/ cổng máy in bếp \+ in thử/);
+ assert.match(staff,/Kiểm tra toàn bộ phần cứng/);
+ assert.match(staff,/Tài khoản & quyền/);
+ assert.match(staff,/Thông tin tiệm & ngân hàng/);
  assert.doesNotMatch(staff,/printJob\([^\n]*paid/i,'payment callback must not create/reprint kitchen ticket');
+});
+
+
+test('owner handheld admin is OWNER-only and native receipt path stays separate from kitchen path', async()=>{
+ const {call}=fixture();
+ const auth=await login(call);
+ const me=await call('/api/staff/me','GET',null,auth);
+ assert.equal(me.data.staff.role,'OWNER');
+ const staff=readFileSync(new URL('../public/staff/staff.js',import.meta.url),'utf8');
+ const server=readFileSync(new URL('../src/staff.js',import.meta.url),'utf8');
+ const ops=readFileSync(new URL('../src/ops.js',import.meta.url),'utf8');
+ const management=readFileSync(new URL('../src/management.js',import.meta.url),'utf8');
+ const nativeMain=readFileSync(new URL('../android/app/src/main/java/vn/lotusai/pos/phattaiapp/MainActivity.java',import.meta.url),'utf8');
+ assert.match(server,/o\.payment_status='UNPAID'/,'automatic kitchen queue must exclude already-paid orders');
+ assert.match(server,/reports\/(?:daily|analytics)[\s\S]{0,500}actor\.role!==['"]OWNER['"]/,'daily/analytics reports must be OWNER-only');
+ assert.match(ops,/api\/staff\/accounts[\s\S]{0,180}actor\.role!==['"]OWNER['"]/);
+ assert.match(ops,/api\/staff\/roles[\s\S]{0,180}actor\.role!==['"]OWNER['"]/);
+ assert.match(management,/api\/staff\/vouchers[\s\S]{0,180}actor\.role!==['"]OWNER['"]/);
+ assert.match(nativeMain,/printReceipt\(String id,String payload\)[\s\S]{0,80}submitPrint\(id,"RECEIPT",payload\)/);
+ assert.match(nativeMain,/printKitchen\(String id,String payload\)[\s\S]{0,100}kitchen\.submit\(id,payload\)/);
 });

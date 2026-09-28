@@ -1,6 +1,6 @@
 {
   "name": "lotus-pos-phattai-cloud-d1",
-  "version": "2.6.0-phattai.3",
+  "version": "2.6.0-phattai.4",
   "private": true,
   "type": "module",
   "description": "Lotus POS online riêng cho TIỆM SÍU LẬP PHÁT TÀI: Worker + D1 + SUNMI handheld source",
@@ -9,10 +9,13 @@
     "db:local": "wrangler d1 migrations apply DB --local",
     "db:remote": "node scripts/deploy-remote.mjs --migrate-only",
     "deploy": "wrangler deploy",
-    "test": "node --test tests/phattai-isolation.test.mjs",
+    "test": "node --test tests/phattai-v152-qa120.test.mjs",
     "check:d1": "node scripts/check-d1-ready.mjs",
     "check:cloud": "node scripts/check-cloud-health.mjs",
-    "deploy:remote": "node scripts/deploy-remote.mjs"
+    "deploy:remote": "node scripts/deploy-remote.mjs",
+    "test:qa120": "node --test tests/phattai-v152-qa120.test.mjs",
+    "test:legacy6": "node --test tests/phattai-isolation.test.mjs",
+    "test:all": "node --test tests/phattai-v152-qa120.test.mjs tests/phattai-isolation.test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

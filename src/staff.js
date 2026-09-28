@@ -72,8 +72,8 @@ export async function handleStaff(req,env,deps){
   if(path==='/api/staff/paid-labels'&&method==='GET'){
    if(!allowed(actor,'PRINT_KITCHEN'))return error(403,'PERMISSION_DENIED','Không có quyền in tem');
    const since=new Date(Date.now()-7*86400000).toISOString();
-   const {results:rows=[]}=await env.DB.prepare("SELECT j.id,j.revision,j.kind,j.status,j.items_json,j.created_at,o.id AS order_id,o.code,o.table_id FROM pos_kitchen_jobs j JOIN qr_orders o ON o.id=j.order_id JOIN pos_auto_print_config config ON config.id=1 WHERE o.status!='CANCELLED' AND j.status!='VOID' AND j.created_at>=? AND j.created_at>=config.since_at ORDER BY j.created_at DESC LIMIT 100").bind(since).all();
-   return result({jobs:rows.map(x=>({id:x.id,revision:x.revision,kind:x.kind,status:x.status,createdAt:x.created_at,items:JSON.parse(x.items_json),order:{id:x.order_id,code:x.code,table:x.table_id}}))});
+   const {results:rows=[]}=await env.DB.prepare("SELECT j.id,j.revision,j.kind,j.status,j.items_json,j.created_at,o.id AS order_id,o.code,o.table_id,o.payment_status FROM pos_kitchen_jobs j JOIN qr_orders o ON o.id=j.order_id JOIN pos_auto_print_config config ON config.id=1 WHERE o.status!='CANCELLED' AND o.payment_status='UNPAID' AND j.status!='VOID' AND j.created_at>=? AND j.created_at>=config.since_at ORDER BY j.created_at DESC LIMIT 100").bind(since).all();
+   return result({jobs:rows.map(x=>({id:x.id,revision:x.revision,kind:x.kind,status:x.status,createdAt:x.created_at,items:JSON.parse(x.items_json),order:{id:x.order_id,code:x.code,table:x.table_id,paymentStatus:x.payment_status}}))});
   }
   const serviceAck=path.match(/^\/api\/staff\/service-requests\/([a-f0-9-]{36})\/ack$/i);
   if(serviceAck&&method==='POST'){
@@ -82,7 +82,9 @@ export async function handleStaff(req,env,deps){
   }
   if(path.startsWith('/api/staff/display'))return await displayStaff(req,env,actor,deps);
   if((path==='/api/staff/summary'||path==='/api/staff/reports/daily'||path==='/api/staff/reports/analytics')&&method==='GET'){
-   if(!allowed(actor,'ORDER_VIEW'))return error(403,'PERMISSION_DENIED','Không có quyền xem báo cáo');
+   if(path==='/api/staff/summary'){
+    if(!allowed(actor,'ORDER_VIEW'))return error(403,'PERMISSION_DENIED','Không có quyền xem tổng quan');
+   }else if(actor.role!=='OWNER')return error(403,'OWNER_ONLY','Chỉ chủ tiệm được xem/xuất báo cáo quản trị');
    if(path==='/api/staff/reports/analytics'){
     const data=await analytics(env,new URL(req.url).searchParams.get('date'));
     return data?result({analytics:data}):error(400,'INVALID_DATE','Ngày báo cáo không hợp lệ');
@@ -185,13 +187,13 @@ export async function handleStaff(req,env,deps){
   const claimPath=path.match(/^\/api\/staff\/jobs\/(kitchen:[a-f0-9-]{36}:\d+)\/claim$/i);
   if(claimPath&&method==='POST'){
    const time=now(),stale=new Date(Date.now()-90000).toISOString();
-   const r=await env.DB.prepare("UPDATE pos_kitchen_jobs SET status='CLAIMED',updated_at=? WHERE id=? AND (status IN ('PENDING','FAILED') OR (status='CLAIMED' AND updated_at<?)) AND EXISTS(SELECT 1 FROM qr_orders o WHERE o.id=pos_kitchen_jobs.order_id AND o.status!='CANCELLED')").bind(time,claimPath[1],stale).run();
+   const r=await env.DB.prepare("UPDATE pos_kitchen_jobs SET status='CLAIMED',updated_at=? WHERE id=? AND (status IN ('PENDING','FAILED') OR (status='CLAIMED' AND updated_at<?)) AND EXISTS(SELECT 1 FROM qr_orders o WHERE o.id=pos_kitchen_jobs.order_id AND o.status!='CANCELLED' AND o.payment_status='UNPAID')").bind(time,claimPath[1],stale).run();
    return r.meta.changes?result({status:'CLAIMED'}):error(409,'JOB_ALREADY_SENT','Phiếu đã được thiết bị khác nhận hoặc gửi; kiểm tra giấy trước khi in lại');
   }
   const jobPath=path.match(/^\/api\/staff\/jobs\/(kitchen:[a-f0-9-]{36}:\d+)\/status$/i);
   if(jobPath&&method==='POST'){
    const b=await deps.body(req);if(!['SENT','FAILED','UNKNOWN','CONFIRMED'].includes(b.status))return error(400,'INVALID_STATUS','Trạng thái phiếu không hợp lệ');
-   const r=await env.DB.prepare("UPDATE pos_kitchen_jobs SET status=?,updated_at=? WHERE id=? AND (status='PENDING' OR status='CLAIMED' OR status='SENT' OR status='FAILED' OR status='UNKNOWN' OR status=?) AND EXISTS(SELECT 1 FROM qr_orders o WHERE o.id=pos_kitchen_jobs.order_id AND o.status!='CANCELLED')").bind(b.status,now(),jobPath[1],b.status).run();return r.meta.changes?result({status:b.status}):error(409,'JOB_CHANGED','Phiếu đã bị hủy hoặc đã được xử lý');
+   const r=await env.DB.prepare("UPDATE pos_kitchen_jobs SET status=?,updated_at=? WHERE id=? AND (status='PENDING' OR status='CLAIMED' OR status='SENT' OR status='FAILED' OR status='UNKNOWN' OR status=?) AND EXISTS(SELECT 1 FROM qr_orders o WHERE o.id=pos_kitchen_jobs.order_id AND o.status!='CANCELLED' AND o.payment_status='UNPAID')").bind(b.status,now(),jobPath[1],b.status).run();return r.meta.changes?result({status:b.status}):error(409,'JOB_CHANGED','Phiếu đã bị hủy hoặc đã được xử lý');
   }
   return error(404,'NOT_FOUND','Đường dẫn không tồn tại');
  }catch(e){

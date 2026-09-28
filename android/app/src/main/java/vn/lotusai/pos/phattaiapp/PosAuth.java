@@ -21,11 +21,12 @@ public final class PosAuth {
     private JSONObject account(int id)throws Exception{JSONArray a=accounts();for(int i=0;i<a.length();i++)if(a.getJSONObject(i).getInt("id")==id)return a.getJSONObject(i);return null;}
     public synchronized boolean allowed(String permission){
         if(cloudUser==null||System.currentTimeMillis()>=cloudExpiresAt)return false;
+        String role=cloudUser.optString("role","");
         if("kitchen".equals(permission))return cloudPermissions.contains("PRINT_KITCHEN");
         if("receipt".equals(permission)||"pay".equals(permission))return cloudPermissions.contains("PAYMENT_CONFIRM");
-        if("printer_config".equals(permission)||"diagnostics".equals(permission))return cloudPermissions.contains("INVENTORY_MANAGE");
-        if("reports".equals(permission))return cloudPermissions.contains("INVENTORY_VIEW");
-        return cloudPermissions.contains("ROLE_MANAGE");
+        if("printer_config".equals(permission)||"diagnostics".equals(permission)||"reports".equals(permission)||"accounts".equals(permission)||"vouchers".equals(permission)||"license".equals(permission))
+            return "OWNER".equals(role);
+        return "OWNER".equals(role)&&cloudPermissions.contains("ROLE_MANAGE");
     }
     /** Called only for a successful response from the pinned Worker HTTPS connection. */
     public synchronized void cloudLogin(JSONObject staff,long expiresAt)throws Exception{

@@ -4,7 +4,7 @@ async function main(){
   try{
    const response=await fetch(new URL('/api/health',endpoint),{signal:AbortSignal.timeout(8000)});
    const health=await response.json();
-   if(response.ok&&health.version==='2.6.0-phattai.3'&&health.d1==='ok'&&health.storeReady===true&&health.acceptingOrders===true){console.log('Worker PHÁT TÀI và D1 riêng đã sẵn sàng nhận đơn.');return}
+   if(response.ok&&health.version==='2.6.0-phattai.4'&&health.d1==='ok'&&health.storeReady===true&&health.acceptingOrders===true){console.log('Worker PHÁT TÀI và D1 riêng đã sẵn sàng nhận đơn.');return}
    console.error(`Health lần ${attempt}: version=${health.version}, d1=${health.d1}, storeReady=${health.storeReady}, acceptingOrders=${health.acceptingOrders}`);
   }catch(e){console.error(`Health lần ${attempt}: ${e.message}`)}
   if(attempt<5)await new Promise(resolve=>setTimeout(resolve,2000));

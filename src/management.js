@@ -57,15 +57,15 @@ export async function handleManagement(req,env,actor,deps){
    return r.meta.changes?ok({product:{...p,id:prod[1],version:b.version+1}}):bad(409,'PRODUCT_CHANGED','Món vừa được sửa ở máy khác, tải lại');
   }
   if(path==='/api/staff/vouchers'&&method==='GET'){
-   if(!allowed(actor,'VOUCHER_MANAGE'))return deny();const {results=[]}=await env.DB.prepare('SELECT * FROM vouchers ORDER BY code').all();return ok({vouchers:results.map(voucherPublic)});
+   if(actor.role!=='OWNER')return deny();const {results=[]}=await env.DB.prepare('SELECT * FROM vouchers ORDER BY code').all();return ok({vouchers:results.map(voucherPublic)});
   }
   if(path==='/api/staff/vouchers'&&method==='POST'){
-   if(!allowed(actor,'VOUCHER_MANAGE'))return deny();const v=parseVoucher(await deps.body(req)),id=crypto.randomUUID();
+   if(actor.role!=='OWNER')return deny();const v=parseVoucher(await deps.body(req)),id=crypto.randomUUID();
    await env.DB.prepare('INSERT INTO vouchers(id,code,title_vi,title_zh,kind,value,min_spend,max_discount,member_only,active,listed,starts_at,ends_at,max_uses,per_member_limit) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,v.code,v.titleVi,v.titleZh,v.kind,v.value,v.minSpend,v.maxDiscount,+v.memberOnly,+v.active,+v.listed,v.startsAt,v.endsAt,v.maxUses,v.perMemberLimit).run();return ok({id},201);
   }
   const voucher=path.match(/^\/api\/staff\/vouchers\/([a-zA-Z0-9-]{1,70})$/);
   if(voucher&&method==='PATCH'){
-   if(!allowed(actor,'VOUCHER_MANAGE'))return deny();const v=parseVoucher(await deps.body(req));
+   if(actor.role!=='OWNER')return deny();const v=parseVoucher(await deps.body(req));
    const r=await env.DB.prepare('UPDATE vouchers SET title_vi=?,title_zh=?,kind=?,value=?,min_spend=?,max_discount=?,member_only=?,active=?,listed=?,starts_at=?,ends_at=?,max_uses=?,per_member_limit=? WHERE id=? AND code=? COLLATE NOCASE AND (?>=reserved_count+redeemed_count OR ?=0)').bind(v.titleVi,v.titleZh,v.kind,v.value,v.minSpend,v.maxDiscount,+v.memberOnly,+v.active,+v.listed,v.startsAt,v.endsAt,v.maxUses,v.perMemberLimit,voucher[1],v.code,v.maxUses,v.maxUses).run();
    return r.meta.changes?ok({id:voucher[1]}):bad(409,'VOUCHER_CHANGED','Voucher đã đổi mã, đã dùng quá giới hạn mới hoặc không tồn tại');
   }

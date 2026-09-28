@@ -10,8 +10,8 @@ android {
         applicationId = "vn.lotusai.pos.phattaiapp"
         minSdk = 23
         targetSdk = 35
-        versionCode = 150
-        versionName = "1.5.0"
+        versionCode = 152
+        versionName = "1.5.2"
     }
 
     buildTypes {

@@ -361,7 +361,7 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void logout(){auth.logout();}
         @JavascriptInterface public boolean authorize(String permission){return auth.allowed(permission);}
         @JavascriptInterface public void printDailyReport(String id,String raw){submitPrint(id,"REPORT",raw);}
-        @JavascriptInterface public String getAppInfo(){return "{\"native\":true,\"version\":\"2.3.0-cloud\",\"sunmiSdk\":\"1.0.18\"}";}
+        @JavascriptInterface public String getAppInfo(){return "{\"native\":true,\"version\":\"1.5.2-cloud\",\"sunmiSdk\":\"1.0.18\"}";}
         @JavascriptInterface public void openCloudConnectivity(){runOnUiThread(()->startActivity(new Intent(MainActivity.this,CloudConnectivityActivity.class)));}
         @JavascriptInterface public void openKitchenSettings(){requireRole("printer_config");kitchen.openSettings();}
         @JavascriptInterface public void openKitchenJobs(){requireRole("kitchen");kitchen.openJobs();}

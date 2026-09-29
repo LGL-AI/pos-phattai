@@ -5,7 +5,7 @@ import {displayPublic} from './display.js';
 import {getStore,publicStore,bankSnapshot,priceTotals,logoResponse} from './settings.js';
 import {nextOrderCode,codeForMethod} from './order-code.js';
 
-const VERSION='2.6.0-phattai.4';
+const VERSION='2.6.0-phattai.7';
 const COOKIE='__Host-lotus_qr_member';
 const ERR={
  METHOD_NOT_ALLOWED:['Phương thức không được hỗ trợ','不支持此请求方式'],

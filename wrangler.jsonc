@@ -15,6 +15,12 @@
   "vars": {
     "ORDERING_ENABLED": "true"
   },
+  "previews": {
+    "vars": {
+      "ORDERING_ENABLED": "false"
+    },
+    "d1_databases": []
+  },
   "secrets": {
     "required": ["SESSION_SECRET", "POS_STAFF_PASSWORD"]
   }

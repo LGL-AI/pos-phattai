@@ -14,7 +14,7 @@ PRINTER_JAR="$BUILD_DIR/vendor/printerlibrary-1.0.18.jar"
 ASSETS="$BUILD_DIR/assets"
 KEYSTORE="${LOTUS_KEYSTORE:-$PROJECT_DIR/signing/lotus-phattai-uat.jks}"
 JAVAC_BIN="${JAVAC_BIN:-$(command -v javac)}"
-OUTPUT_APK="$PROJECT_DIR/dist/LotusPOS_PhatTai_Handheld_v1.5.2_OWNER_PRINT_FIX.apk"
+OUTPUT_APK="$PROJECT_DIR/dist/LotusPOS_PhatTai_Handheld_v1.5.6_D1_BRIDGE_FINAL_UAT.apk"
 
 for required in "$TOOLS/aapt2" "$TOOLS/d8" "$TOOLS/zipalign" "$TOOLS/apksigner" "$ANDROID_JAR" "$PRINTER_AAR" "$JAVAC_BIN"; do
   if [[ ! -e "$required" ]]; then
@@ -40,8 +40,8 @@ unzip -p "$PRINTER_AAR" classes.jar > "$PRINTER_JAR"
   --manifest "$APP_DIR/AndroidManifest.xml" \
   --min-sdk-version 23 \
   --target-sdk-version 35 \
-  --version-code 152 \
-  --version-name 1.5.2 \
+  --version-code 156 \
+  --version-name 1.5.6 \
   -A "$ASSETS" \
   --java "$BUILD_DIR/generated" \
   "$BUILD_DIR/compiled/resources.zip"

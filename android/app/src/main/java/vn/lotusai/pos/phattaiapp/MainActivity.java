@@ -101,7 +101,7 @@ public class MainActivity extends Activity {
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         s.setCacheMode(WebSettings.LOAD_NO_CACHE);
         webView.clearCache(true);
-        s.setUserAgentString(s.getUserAgentString() + " LotusPOSPhatTai/1.3.0");
+        s.setUserAgentString(s.getUserAgentString() + " LotusPOSPhatTai/1.5.6");
         webView.setWebChromeClient(new WebChromeClient(){
             @Override public boolean onJsAlert(WebView v,String url,String message,JsResult result){
                 new AlertDialog.Builder(MainActivity.this).setMessage(message).setPositiveButton("OK",(d,w)->result.confirm()).setOnCancelListener(d->result.cancel()).show();return true;
@@ -155,9 +155,12 @@ public class MainActivity extends Activity {
     // The packaged staff HTML calls this bridge. Every request is pinned to the single
     // Worker origin; there is no file:// CORS exception and no arbitrary URL proxy.
     private void cloudApi(String requestId,String method,String path,String raw,String token) {
+        method=method==null?"":method.toUpperCase(Locale.ROOT);
+        int maxRaw="/api/staff/store".equals(path)?500000:20000;
+        boolean allowedMethod="GET".equals(method)||"POST".equals(method)||"PUT".equals(method)||"PATCH".equals(method)||"DELETE".equals(method);
         if(requestId==null||!requestId.matches("[a-fA-F0-9-]{36}")||path==null||
            !path.matches("/api/(staff/[A-Za-z0-9_/?=&%:-]*|catalog)")||
-           !("GET".equals(method)||"POST".equals(method))||raw==null||raw.length()>20000||
+           !allowedMethod||raw==null||raw.length()>maxRaw||
            token==null||token.length()>100){returnApi(requestId,0,"{\"ok\":false,\"message\":\"Yêu cầu không hợp lệ\"}");return;}
         worker.execute(()->{
             HttpsURLConnection conn=null;
@@ -168,8 +171,9 @@ public class MainActivity extends Activity {
                 conn.setConnectTimeout(8000);conn.setReadTimeout(8000);
                 conn.setRequestMethod(method);conn.setRequestProperty("Accept","application/json");
                 if(!token.isEmpty())conn.setRequestProperty("Authorization","Bearer "+token);
-                if("POST".equals(method)){
-                    conn.setDoOutput(true);conn.setRequestProperty("Content-Type","application/json");
+                boolean sendsJsonBody="POST".equals(method)||"PUT".equals(method)||"PATCH".equals(method);
+                if(sendsJsonBody){
+                    conn.setDoOutput(true);conn.setRequestProperty("Content-Type","application/json; charset=utf-8");
                     try(OutputStream os=conn.getOutputStream()){os.write(raw.getBytes(StandardCharsets.UTF_8));}
                 }
                 int status=conn.getResponseCode();

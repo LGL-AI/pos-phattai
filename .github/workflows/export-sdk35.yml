@@ -1,0 +1,33 @@
+name: Export Android SDK 35 Toolchain
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/export-sdk35.yml
+
+jobs:
+  export-sdk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure Android SDK 35
+        shell: bash
+        run: |
+          SDKMANAGER="$(find /usr/local/lib/android/sdk/cmdline-tools -type f -name sdkmanager 2>/dev/null | sort -V | tail -1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.1"
+          mkdir -p sdk-min/build-tools sdk-min/platforms sdk-min/licenses
+          cp -a /usr/local/lib/android/sdk/build-tools/35.0.1 sdk-min/build-tools/
+          mkdir -p sdk-min/platforms/android-35
+          cp /usr/local/lib/android/sdk/platforms/android-35/android.jar sdk-min/platforms/android-35/
+          cp /usr/local/lib/android/sdk/platforms/android-35/package.xml sdk-min/platforms/android-35/ || true
+          cp /usr/local/lib/android/sdk/platforms/android-35/source.properties sdk-min/platforms/android-35/ || true
+          cp -a /usr/local/lib/android/sdk/licenses/. sdk-min/licenses/ || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-sdk35-min
+          path: sdk-min
+          if-no-files-found: error

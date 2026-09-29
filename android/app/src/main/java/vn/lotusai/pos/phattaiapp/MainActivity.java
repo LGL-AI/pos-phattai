@@ -155,9 +155,9 @@ public class MainActivity extends Activity {
     // The packaged staff HTML calls this bridge. Every request is pinned to the single
     // Worker origin; there is no file:// CORS exception and no arbitrary URL proxy.
     private void cloudApi(String requestId,String method,String path,String raw,String token) {
-        method=method==null?"":method.toUpperCase(Locale.ROOT);
+        final String httpMethod=method==null?"":method.toUpperCase(Locale.ROOT);
         int maxRaw="/api/staff/store".equals(path)?500000:20000;
-        boolean allowedMethod="GET".equals(method)||"POST".equals(method)||"PUT".equals(method)||"PATCH".equals(method)||"DELETE".equals(method);
+        boolean allowedMethod="GET".equals(httpMethod)||"POST".equals(httpMethod)||"PUT".equals(httpMethod)||"PATCH".equals(httpMethod)||"DELETE".equals(httpMethod);
         if(requestId==null||!requestId.matches("[a-fA-F0-9-]{36}")||path==null||
            !path.matches("/api/(staff/[A-Za-z0-9_/?=&%:-]*|catalog)")||
            !allowedMethod||raw==null||raw.length()>maxRaw||
@@ -169,9 +169,9 @@ public class MainActivity extends Activity {
                 conn=(HttpsURLConnection)new URL(cloud+path).openConnection();
                 conn.setInstanceFollowRedirects(false);
                 conn.setConnectTimeout(8000);conn.setReadTimeout(8000);
-                conn.setRequestMethod(method);conn.setRequestProperty("Accept","application/json");
+                conn.setRequestMethod(httpMethod);conn.setRequestProperty("Accept","application/json");
                 if(!token.isEmpty())conn.setRequestProperty("Authorization","Bearer "+token);
-                boolean sendsJsonBody="POST".equals(method)||"PUT".equals(method)||"PATCH".equals(method);
+                boolean sendsJsonBody="POST".equals(httpMethod)||"PUT".equals(httpMethod)||"PATCH".equals(httpMethod);
                 if(sendsJsonBody){
                     conn.setDoOutput(true);conn.setRequestProperty("Content-Type","application/json; charset=utf-8");
                     try(OutputStream os=conn.getOutputStream()){os.write(raw.getBytes(StandardCharsets.UTF_8));}

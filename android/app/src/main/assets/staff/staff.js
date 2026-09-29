@@ -20,7 +20,7 @@ function message(s){st.error=s;render();window.setTimeout(()=>{if(st.error===s){
 async function api(method,path,data){let status,text;
  if(native?.apiRequest){const requestId=id();const response=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{pending.delete(requestId);reject(Error('Hết thời gian chờ Worker; tải lại đơn trước khi thử tiếp'))},15000);pending.set(requestId,{resolve,reject,timer});native.apiRequest(requestId,method,path,data===undefined?'':JSON.stringify(data),st.token||'')});status=response.status;text=response.text}
  else{const r=await fetch(path,{method,headers:{...(data===undefined?{}:{'Content-Type':'application/json'}),...(st.token?{'Authorization':'Bearer '+st.token}:{})},body:data===undefined?undefined:JSON.stringify(data),cache:'no-store',signal:AbortSignal.timeout(12000)});status=r.status;text=await r.text()}
- let payload;try{payload=JSON.parse(text)}catch{throw Error('Máy chủ trả về dữ liệu không hợp lệ')}
+ let payload;try{payload=JSON.parse(text)}catch{const code=status||0;throw Error(`Worker trả về HTTP ${code||'không xác định'} thay vì JSON tại ${path} / Worker 在 ${path} 返回 HTTP ${code||'未知'}，不是 JSON`)}
  st.online=true;connection();if(status===401&&path!=='/api/staff/login'){st.token=null;st.staff=null;store.del('staff-session');native?.logout?.();render()}
  if(status<200||status>=300||!payload.ok){const err=Error(payload.message||payload.code||'Lỗi máy chủ '+status);err.status=status;err.code=payload.code;throw err}
  return payload;

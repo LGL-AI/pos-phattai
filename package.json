@@ -1,6 +1,6 @@
 {
   "name": "lotus-pos-phattai-cloud-d1",
-  "version": "2.6.0-phattai.7",
+  "version": "2.6.0-phattai.8",
   "private": true,
   "type": "module",
   "description": "Lotus POS online riêng cho TIỆM SÍU LẬP PHÁT TÀI: Worker + D1 + SUNMI handheld source",
@@ -15,7 +15,7 @@
     "deploy:remote": "node scripts/deploy-remote.mjs",
     "test:qa120": "node --test tests/phattai-v152-qa120.test.mjs",
     "test:legacy6": "node --test tests/phattai-isolation.test.mjs",
-    "test:all": "node --test tests/phattai-v152-qa120.test.mjs tests/phattai-isolation.test.mjs tests/phattai-qr-zh.test.mjs tests/phattai-crossflow-deep.test.mjs",
+    "test:all": "node --test tests/phattai-v152-qa120.test.mjs tests/phattai-isolation.test.mjs tests/phattai-qr-zh.test.mjs tests/phattai-crossflow-deep.test.mjs tests/phattai-bridge-d1.test.mjs",
     "test:qrzh": "node --test tests/phattai-qr-zh.test.mjs",
     "test:deep": "node --test tests/phattai-crossflow-deep.test.mjs"
   },

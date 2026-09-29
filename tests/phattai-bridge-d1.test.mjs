@@ -20,8 +20,8 @@ function fixture(){
 }
 async function owner(fx){const r=await fx.call('/api/staff/login','POST',{username:'huang',password:'phattai-test-password'});assert.equal(r.status,200);return {Authorization:'Bearer '+r.data.token};}
 
-test('BRIDGE supports GET POST PUT PATCH DELETE',()=>{for(const method of ['GET','POST','PUT','PATCH','DELETE'])assert.match(MAIN,new RegExp('"'+method+'"\\.equals\\(method\\)'));});
-test('BRIDGE forwards JSON bodies for POST PUT PATCH',()=>{assert.match(MAIN,/boolean sendsJsonBody="POST"\.equals\(method\)\|\|"PUT"\.equals\(method\)\|\|"PATCH"\.equals\(method\)/);assert.match(MAIN,/conn\.setRequestProperty\("Content-Type","application\/json; charset=utf-8"\)/);});
+test('BRIDGE supports GET POST PUT PATCH DELETE',()=>{for(const method of ['GET','POST','PUT','PATCH','DELETE'])assert.match(MAIN,new RegExp('"'+method+'"\\.equals\\(httpMethod\\)'));});
+test('BRIDGE forwards JSON bodies for POST PUT PATCH',()=>{assert.match(MAIN,/boolean sendsJsonBody="POST"\.equals\(httpMethod\)\|\|"PUT"\.equals\(httpMethod\)\|\|"PATCH"\.equals\(httpMethod\)/);assert.match(MAIN,/conn\.setRequestProperty\("Content-Type","application\/json; charset=utf-8"\)/);});
 test('BRIDGE store payload ceiling matches large logo\/config API',()=>assert.match(MAIN,/maxRaw="\/api\/staff\/store"\.equals\(path\)\?500000:20000/));
 test('BRIDGE remains pinned to PHAT TAI HTTPS Worker',()=>assert.match(MAIN,/DEFAULT_CLOUD = "https:\/\/pos-phattai\.lgl247-ai\.workers\.dev"/));
 test('APK keeps same package and LAN kitchen preferences',()=>{assert.match(GRADLE,/applicationId = "vn\.lotusai\.pos\.phattaiapp"/);assert.match(LAN,/getSharedPreferences\("lotus_kitchen_lan",0\)/);assert.match(MAIN,/InnerPrinterManager\.getInstance\(\)\.bindService/);});

@@ -22,7 +22,21 @@ public final class LanKitchenPrinter {
     private final Set<String> active=Collections.synchronizedSet(new HashSet<>());
     private final Set<String> queued=Collections.synchronizedSet(new HashSet<>());
     private volatile boolean scanning=false;
-    public LanKitchenPrinter(Activity a,Events e){activity=a;events=e;prefs=a.getSharedPreferences("lotus_kitchen_lan",0);}
+    // Every ticket used to stay in SharedPreferences forever; the file is rewritten on each
+    // commit, so after weeks of service every print slowed the app down. Keep three days.
+    private static final long KEEP_MS=3L*24*60*60*1000;
+    private int sendsSincePrune=0;
+    public LanKitchenPrinter(Activity a,Events e){activity=a;events=e;prefs=a.getSharedPreferences("lotus_kitchen_lan",0);queue.execute(this::prune);}
+    private void prune(){
+        long cutoff=System.currentTimeMillis()-KEEP_MS;SharedPreferences.Editor edit=prefs.edit();boolean changed=false;
+        for(Map.Entry<String,?> entry:prefs.getAll().entrySet()){
+            String key=entry.getKey();if(!key.startsWith("payload:"))continue;
+            String id=key.substring(8);if(active.contains(id)||queued.contains(id))continue;
+            if(prefs.getLong("at:"+id,0)>=cutoff||"SENDING".equals(prefs.getString("status:"+id,"")))continue;
+            edit.remove(key).remove("status:"+id).remove("at:"+id);changed=true;
+        }
+        if(changed)edit.apply();
+    }
     public String config(){
         try{return new JSONObject().put("ip",prefs.getString("ip","")).put("port",prefs.getInt("port",9100))
             .put("width",prefs.getInt("width",576)).put("cut",prefs.getBoolean("cut",true)).toString();}catch(Exception e){return "{}";}
@@ -36,8 +50,8 @@ public final class LanKitchenPrinter {
         String prior=prefs.getString("payload:"+id,null);
         if(prior!=null&&!prior.equals(raw)){events.emit("LAN-009","FAIL","Mã phiếu đã gắn với nội dung khác",id);return;}
         if(!queued.add(id))return;
-        if(!prefs.edit().putString("payload:"+id,raw).commit()){queued.remove(id);events.emit("LAN-010","FAIL","Không lưu được phiếu. Chưa gửi in",id);return;}
-        queue.execute(()->{try{send(id,raw);}finally{queued.remove(id);}});
+        if(!prefs.edit().putString("payload:"+id,raw).putLong("at:"+id,System.currentTimeMillis()).commit()){queued.remove(id);events.emit("LAN-010","FAIL","Không lưu được phiếu. Chưa gửi in",id);return;}
+        queue.execute(()->{try{send(id,raw);}finally{queued.remove(id);if(++sendsSincePrune>=25){sendsSincePrune=0;prune();}}});
     }
     private void state(String id,String value)throws IOException {
         if(!prefs.edit().putString("status:"+id,value).commit())throw new IOException("LAN-010: Không lưu được trạng thái in");

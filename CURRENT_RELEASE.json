@@ -1,7 +1,0 @@
-{
-  "release": "1.6.3",
-  "worker": "2.7.0-phattai.3",
-  "buildRevision": "APP_UPDATE_RELEASE_GUARD_2026-09-30",
-  "manifest": "RELEASE_MANIFEST_v1.6.3.json",
-  "report": "FIX_AND_DELIVERY_REPORT_v1.6.3.md"
-}

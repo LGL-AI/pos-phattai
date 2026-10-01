@@ -55,7 +55,12 @@ import java.io.FileOutputStream;
 public class MainActivity extends Activity {
     private static final String STAFF_URL = "file:///android_asset/staff/index.html";
     private static final String DEFAULT_CLOUD = "https://pos-phattai.lgl247-ai.workers.dev";
+    // Printing must stay serialized; network calls must never wait behind a print job.
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private final ExecutorService network = Executors.newFixedThreadPool(4);
+    // A request that waited longer than this is not sent: the WebView may already have given up on it.
+    private static final long API_MAX_QUEUE_MS = 2000;
+    private static final long PRINT_LEDGER_KEEP_MS = 7L * 24 * 60 * 60 * 1000;
     private final Set<String> pending = Collections.synchronizedSet(new HashSet<>());
     private WebView webView;
     private SunmiPrinterService printer;
@@ -86,6 +91,31 @@ public class MainActivity extends Activity {
         });
         buildWebView();
         bindPrinter();
+        worker.execute(this::prunePrintLedger);
+    }
+
+    private String installedVersionName() {
+        try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
+        catch (Exception ignored) { return "unknown"; }
+    }
+
+    // Receipt de-duplication keys used to accumulate forever in SharedPreferences, which is
+    // rewritten in full on every commit. Keep one week; older receipts may be reprinted on purpose.
+    private void prunePrintLedger() {
+        long cutoff = System.currentTimeMillis() - PRINT_LEDGER_KEEP_MS;
+        SharedPreferences.Editor edit = preferences.edit();
+        Set<String> done = new HashSet<>(preferences.getStringSet("done", Collections.emptySet()));
+        boolean changed = false;
+        for (java.util.Map.Entry<String, ?> entry : preferences.getAll().entrySet()) {
+            String key = entry.getKey();
+            if (!key.startsWith("started:")) continue;
+            Object value = entry.getValue();
+            if (value instanceof Long && (Long) value >= cutoff) continue;
+            String id = key.substring("started:".length());
+            if (pending.contains(id)) continue;
+            edit.remove(key); done.remove(id); changed = true;
+        }
+        if (changed) edit.putStringSet("done", done).apply();
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -103,7 +133,7 @@ public class MainActivity extends Activity {
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         s.setCacheMode(WebSettings.LOAD_NO_CACHE);
         webView.clearCache(true);
-        s.setUserAgentString(s.getUserAgentString() + " LotusPOSPhatTai/1.6.3");
+        s.setUserAgentString(s.getUserAgentString() + " LotusPOSPhatTai/" + installedVersionName());
         webView.setWebChromeClient(new WebChromeClient(){
             @Override public boolean onJsAlert(WebView v,String url,String message,JsResult result){
                 new AlertDialog.Builder(MainActivity.this).setMessage(message).setPositiveButton("OK",(d,w)->result.confirm()).setOnCancelListener(d->result.cancel()).show();return true;
@@ -193,16 +223,22 @@ public class MainActivity extends Activity {
         int maxRaw="/api/staff/store".equals(path)?500000:20000;
         boolean allowedMethod="GET".equals(httpMethod)||"POST".equals(httpMethod)||"PUT".equals(httpMethod)||"PATCH".equals(httpMethod)||"DELETE".equals(httpMethod);
         if(requestId==null||!requestId.matches("[a-fA-F0-9-]{36}")||path==null||
-           !path.matches("/api/(staff/[A-Za-z0-9_/?=&%:-]*|catalog)")||
+           !path.matches("/api/(staff/[A-Za-z0-9_/?=&%:.~!*'()-]*|catalog(/meta)?)")||path.contains("..")||
            !allowedMethod||raw==null||raw.length()>maxRaw||
            token==null||token.length()>100){returnApi(requestId,0,"{\"ok\":false,\"message\":\"Yêu cầu không hợp lệ\"}");return;}
-        worker.execute(()->{
-            HttpsURLConnection conn=null;
+        final long queuedAt=android.os.SystemClock.elapsedRealtime();
+        network.execute(()->{
+            HttpsURLConnection conn=null;boolean reusable=false;
             try{
+                if(android.os.SystemClock.elapsedRealtime()-queuedAt>API_MAX_QUEUE_MS){
+                    returnApi(requestId,0,new JSONObject().put("ok",false).put("code","NETWORK_BUSY").put("message","Mạng đang bận, chưa gửi yêu cầu; thử lại").toString());
+                    return;
+                }
                 String cloud=cloudBase();
                 conn=(HttpsURLConnection)new URL(cloud+path).openConnection();
                 conn.setInstanceFollowRedirects(false);
-                conn.setConnectTimeout(8000);conn.setReadTimeout(8000);
+                // Worst case 6 s + 7 s stays below the 20 s WebView timeout, so a late reply is never lost.
+                conn.setConnectTimeout(6000);conn.setReadTimeout(7000);
                 conn.setRequestMethod(httpMethod);conn.setRequestProperty("Accept","application/json");
                 if(!token.isEmpty())conn.setRequestProperty("Authorization","Bearer "+token);
                 boolean sendsJsonBody="POST".equals(httpMethod)||"PUT".equals(httpMethod)||"PATCH".equals(httpMethod);
@@ -216,7 +252,7 @@ public class MainActivity extends Activity {
                 if(stream==null)throw new Exception("Không nhận được phản hồi từ Worker");
                 ByteArrayOutputStream output=new ByteArrayOutputStream();byte[] buf=new byte[4096];int read;
                 try(InputStream input=stream){while((read=input.read(buf))!=-1){output.write(buf,0,read);if(output.size()>524288)throw new Exception("Dữ liệu Worker quá lớn");}}
-                String responseText=output.toString("UTF-8");
+                String responseText=output.toString("UTF-8");reusable=true;
                 if(status>=200&&status<300&&path.equals("/api/staff/login")){
                     JSONObject response=new JSONObject(responseText);
                     auth.cloudLogin(response.getJSONObject("staff"),response.getLong("expiresAt"));
@@ -227,7 +263,10 @@ public class MainActivity extends Activity {
             }catch(Exception ex){
                 String reason=ex.getClass().getSimpleName()+": "+String.valueOf(ex.getMessage());
                 try{returnApi(requestId,0,new JSONObject().put("ok",false).put("code","NETWORK_ERROR").put("message","Không kết nối được Worker: "+reason).toString());}catch(Exception ignored){}
-            }finally{if(conn!=null)conn.disconnect();}
+            }finally{
+                // disconnect() closes the socket; skip it after a fully read body so TLS connections are reused.
+                if(conn!=null&&!reusable)conn.disconnect();
+            }
         });
     }
 
@@ -305,7 +344,7 @@ public class MainActivity extends Activity {
                     return;
                 }
                 JSONObject data = new JSONObject(raw);
-                if(!preferences.edit().putBoolean("started:"+requestId,true).commit())throw new Exception("Không lưu được mã chống trùng");
+                if(!preferences.edit().putLong("started:"+requestId,System.currentTimeMillis()).commit())throw new Exception("Không lưu được mã chống trùng");
                 printer.enterPrinterBuffer(true);
                 printer.printerInit(null);
                 if ("RECEIPT".equals(type)||"REPORT".equals(type)) {
@@ -431,5 +470,5 @@ public class MainActivity extends Activity {
     }
 
     @Override public void onBackPressed(){if(webView!=null)webView.evaluateJavascript("window.LotusHandheld&&window.LotusHandheld.back()",result->{if(!"true".equals(result))new AlertDialog.Builder(this).setMessage("Trở về bảng kiểm tra kết nối mạng?").setPositiveButton("Về kiểm tra",(d,w)->finish()).setNegativeButton("Ở lại",null).show();});}
-    @Override protected void onDestroy(){updateTimer.removeCallbacksAndMessages(null);if(updater!=null)updater.close();if(printerCallback!=null)try{InnerPrinterManager.getInstance().unBindService(this,printerCallback);}catch(Throwable ignored){}worker.shutdown();if(kitchen!=null)kitchen.close();if(webView!=null)webView.destroy();super.onDestroy();}
+    @Override protected void onDestroy(){updateTimer.removeCallbacksAndMessages(null);network.shutdownNow();if(updater!=null)updater.close();if(printerCallback!=null)try{InnerPrinterManager.getInstance().unBindService(this,printerCallback);}catch(Throwable ignored){}worker.shutdown();if(kitchen!=null)kitchen.close();if(webView!=null)webView.destroy();super.onDestroy();}
 }

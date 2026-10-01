@@ -8,7 +8,10 @@ export function resolveAndroidIdentity(env=process.env){
  const applicationId=env.LOTUS_APP_ID===undefined?androidIdentityConfig.productionApplicationId:env.LOTUS_APP_ID;
  if(!Object.hasOwn(androidIdentityConfig.profiles,applicationId))throw Error(`Unsupported LOTUS_APP_ID=${JSON.stringify(applicationId)}. Select one of the pinned Android profiles.`);
  if(applicationId!==androidIdentityConfig.productionApplicationId&&env.LOTUS_ALLOW_ALT_APP_ID!=='1')throw Error(`LOTUS_APP_ID=${applicationId} is an alternate install profile. Set LOTUS_ALLOW_ALT_APP_ID=1 only when intentionally updating that package.`);
- return {applicationId,namespace:androidIdentityConfig.namespace,versionName:androidIdentityConfig.versionName,versionCode:androidIdentityConfig.versionCode,...androidIdentityConfig.profiles[applicationId]};
+ const versionName=env.LOTUS_VERSION_NAME===undefined?androidIdentityConfig.versionName:env.LOTUS_VERSION_NAME;
+ const versionCode=env.LOTUS_VERSION_CODE===undefined?androidIdentityConfig.versionCode:Number(env.LOTUS_VERSION_CODE);
+ if(!/^\d+\.\d+\.\d+$/.test(versionName)||!Number.isSafeInteger(versionCode)||versionCode<1||versionCode>2100000000)throw Error('LOTUS_VERSION_NAME must be X.Y.Z and LOTUS_VERSION_CODE a positive integer.');
+ return {applicationId,namespace:androidIdentityConfig.namespace,versionName,versionCode,...androidIdentityConfig.profiles[applicationId]};
 }
 
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){

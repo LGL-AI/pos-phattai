@@ -18,3 +18,7 @@ bridge/jobs.local.json.tmp
 
 backups/
 .runtime-smoke-*/
+
+# CI outputs
+dist/
+public/releases/

@@ -8,6 +8,9 @@ val identityConfig = JsonSlurper().parse(rootProject.file("app-identity.json")) 
 val productionAppId = identityConfig["productionApplicationId"] as String
 val installProfiles = identityConfig["profiles"] as Map<*, *>
 val selectedAppId = providers.environmentVariable("LOTUS_APP_ID").getOrElse(productionAppId)
+// CI injects a fresh, increasing version for every published APK; local builds use app-identity.json.
+val releaseVersionCode = providers.environmentVariable("LOTUS_VERSION_CODE").getOrElse((identityConfig["versionCode"] as Number).toString()).toInt()
+val releaseVersionName = providers.environmentVariable("LOTUS_VERSION_NAME").getOrElse(identityConfig["versionName"] as String)
 val allowUnsignedProof = providers.environmentVariable("LOTUS_UNSIGNED_BUILD").getOrElse("0") == "1"
 val releaseKeystore = providers.environmentVariable("LOTUS_KEYSTORE").orNull
 val releaseAlias = providers.environmentVariable("LOTUS_KEY_ALIAS").orNull
@@ -30,8 +33,8 @@ android {
         applicationId = selectedAppId
         minSdk = 23
         targetSdk = 35
-        versionCode = 163
-        versionName = "1.6.3"
+        versionCode = releaseVersionCode
+        versionName = releaseVersionName
     }
 
     signingConfigs {

@@ -1,16 +1,12 @@
 {
   "namespace": "vn.lotusai.pos.phattaiapp",
   "productionApplicationId": "vn.lotusai.pos.phattaiapp",
-  "versionName": "1.6.3",
-  "versionCode": 163,
+  "versionName": "1.7.0",
+  "versionCode": 170,
   "profiles": {
     "vn.lotusai.pos.phattaiapp": {
-      "artifactStem": "LotusPOS_PhatTai_Production",
-      "signerSha256": "9a3049ab6b940be51cea4e22ba4d0ecc8a1d6490f0827d461b7a1f3c3ae860ae"
-    },
-    "vn.lotusai.pos.handheld": {
-      "artifactStem": "LotusPOS_PhatTai_LegacyHandheld",
-      "signerSha256": "5ae9e233ab523408bd61d1e81e2de799227c9fbd3a88d8196226421ffc11368a"
+      "artifactStem": "LotusPOS_PhatTai",
+      "signerSha256": "e66d9870204bcfef827e3b3ef2d601fb83160a4927619e1354411bc6b7f484b4"
     }
   }
 }

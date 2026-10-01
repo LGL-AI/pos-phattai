@@ -14,7 +14,8 @@ import {renderAndroidManifest} from '../scripts/android-manifest.mjs';
 import worker from '../src/worker.js';
 import {parseApkMinSdk} from '../scripts/apk-identity.mjs';
 
-const production=identity.productionApplicationId,legacy='vn.lotusai.pos.handheld',signer=identity.profiles[production].signerSha256;
+const production=identity.productionApplicationId,legacy='vn.lotusai.pos.other',signer=identity.profiles[production].signerSha256,retiredSigner='9a3049ab6b940be51cea4e22ba4d0ecc8a1d6490f0827d461b7a1f3c3ae860ae';
+const twoProfiles={...identity.profiles,[legacy]:{artifactStem:'Other',signerSha256:'c'.repeat(64)}};
 const release=(extra={})=>{const data={applicationId:production,signerSha256:signer,versionName:'1.6.3',versionCode:163,signatureVerified:true,minSdk:23,sizeBytes:100,sha256:'a'.repeat(64),publishedAt:'2026-09-30T10:00:00Z',notesVi:'Sửa và cập nhật',notesZh:'修复与更新',...extra};data.path=releasePath(data);return data};
 const catalog=data=>({schemaVersion:1,releases:data?[data]:[]});
 const params=(extra={})=>new URLSearchParams({applicationId:production,signerSha256:signer,versionCode:'162',sdk:'30',...extra});
@@ -26,14 +27,14 @@ test('UPDATE an installed production app gets only a newer matching signed relea
 test('UPDATE an empty catalog reports NOT_PUBLISHED instead of claiming up to date',()=>{assert.equal(selectAndroidRelease(params(),catalog()).status,'NOT_PUBLISHED')});
 test('UPDATE the live Worker endpoint needs no D1 probe or staff login',async()=>{const response=await worker.fetch(new Request('https://pos.test/api/android/update?'+params()),{});assert.equal(response.status,200);const data=await response.json(),expected=selectAndroidRelease(params());assert.equal(data.status,expected.status);assert.equal(data.available,expected.available);assert.equal(data.release?.sha256,expected.release?.sha256);assert.match(response.headers.get('Cache-Control'),/no-store/)});
 test('UPDATE the production channel never serves a release to a different signer',()=>{assert.equal(selectAndroidRelease(params({signerSha256:'b'.repeat(64)}),catalog(release())).status,'UNSUPPORTED_IDENTITY')});
-test('UPDATE package profiles do not cross even when both are published',()=>{const c={schemaVersion:1,releases:[release(),release({applicationId:legacy,signerSha256:identity.profiles[legacy].signerSha256})]};const p=params({applicationId:legacy,signerSha256:identity.profiles[legacy].signerSha256});assert.equal(selectAndroidRelease(p,c).release.applicationId,legacy)});
+test('UPDATE package profiles do not cross even when both are published',()=>{const c={schemaVersion:1,releases:[release(),release({applicationId:legacy,signerSha256:'c'.repeat(64)})]};const p=params({applicationId:legacy,signerSha256:'c'.repeat(64)});assert.equal(selectAndroidRelease(p,c,twoProfiles).release.applicationId,legacy);assert.equal(selectAndroidRelease(params(),c,twoProfiles).release.applicationId,production)});
 test('UPDATE an unknown package cannot request the production channel',()=>{assert.equal(selectAndroidRelease(params({applicationId:'vn.lotusai.other'}),catalog(release())).status,'UNSUPPORTED_IDENTITY')});
 test('UPDATE duplicate identity parameters are rejected',()=>{const p=params();p.append('applicationId',legacy);assert.equal(selectAndroidRelease(p,catalog(release())).httpStatus,400)});
 test('UPDATE malformed numeric identity is rejected',()=>{for(const value of ['0','-1','162.5','2147483648','1e3'])assert.equal(selectAndroidRelease(params({versionCode:value}),catalog(release())).httpStatus,400)});
 test('UPDATE no downgrade or reinstall of the same version is offered',()=>{for(const code of ['163','164'])assert.equal(selectAndroidRelease(params({versionCode:code}),catalog(release())).status,'UP_TO_DATE')});
 test('UPDATE incompatible Android gets no download offer',()=>{assert.equal(selectAndroidRelease(params(),catalog(release({minSdk:31}))).status,'INCOMPATIBLE_ANDROID')});
 test('UPDATE unsigned catalog entries fail closed',()=>assert.throws(()=>validateReleaseCatalog(catalog(release({signatureVerified:false}))),/Unverified/));
-test('UPDATE catalog entries signed by another profile fail closed',()=>assert.throws(()=>validateReleaseCatalog(catalog(release({signerSha256:identity.profiles[legacy].signerSha256}))),/signer/));
+test('UPDATE catalog entries signed by another profile fail closed',()=>assert.throws(()=>validateReleaseCatalog(catalog(release({signerSha256:retiredSigner}))),/signer/));
 test('UPDATE external and mutable download paths fail closed',()=>{for(const path of ['https://evil.test/x.apk','//evil.test/x.apk','/releases/android/latest.apk']){const r=release();r.path=path;assert.throws(()=>validateReleaseCatalog(catalog(r)),/path/)}});
 test('UPDATE oversized and missing file metadata fail closed',()=>{for(const sizeBytes of [0,-1,MAX_APK_BYTES+1])assert.throws(()=>validateReleaseCatalog(catalog(release({sizeBytes}))),/metadata/)});
 test('UPDATE malformed SHA-256 fails closed',()=>assert.throws(()=>validateReleaseCatalog(catalog(release({sha256:'bad'}))),/metadata/));

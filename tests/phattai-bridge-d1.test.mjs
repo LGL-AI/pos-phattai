@@ -31,10 +31,9 @@ test('BRIDGE forwards JSON bodies for POST PUT PATCH',()=>{
 });
 test('BRIDGE store payload ceiling matches large logo/config API',()=>assert.match(MAIN,/maxRaw="\/api\/staff\/store"\.equals\(path\)\?500000:20000/));
 test('BRIDGE remains pinned to PHAT TAI HTTPS Worker',()=>assert.match(MAIN,/DEFAULT_CLOUD = "https:\/\/pos-phattai\.lgl247-ai\.workers\.dev"/));
-test('Android production default and explicit legacy profile preserve LAN kitchen preferences',()=>{
+test('Android builds only the production package and keeps LAN kitchen preferences',()=>{
  assert.equal(resolveAndroidIdentity({}).applicationId,'vn.lotusai.pos.phattaiapp');
- assert.throws(()=>resolveAndroidIdentity({LOTUS_APP_ID:'vn.lotusai.pos.handheld'}),/LOTUS_ALLOW_ALT_APP_ID=1/);
- assert.equal(resolveAndroidIdentity({LOTUS_APP_ID:'vn.lotusai.pos.handheld',LOTUS_ALLOW_ALT_APP_ID:'1'}).applicationId,'vn.lotusai.pos.handheld');
+ assert.throws(()=>resolveAndroidIdentity({LOTUS_APP_ID:'vn.lotusai.pos.handheld',LOTUS_ALLOW_ALT_APP_ID:'1'}),/Unsupported/);
  assert.match(LAN,/getSharedPreferences\("lotus_kitchen_lan",0\)/);assert.match(MAIN,/InnerPrinterManager\.getInstance\(\)\.bindService/);
 });
 test('Staff UI uses bridge verbs PUT PATCH DELETE and reports non-JSON status/path',()=>{assert.match(STAFF,/api\('PUT','\/api\/staff\/store'/);assert.match(STAFF,/api\('PATCH','\/api\/staff\/customers\//);assert.match(STAFF,/api\('DELETE','\/api\/staff\/display\//);assert.match(STAFF,/Worker trả về HTTP \$\{code\|\|'không xác định'\} thay vì JSON tại \$\{path\}/)});
@@ -79,4 +78,4 @@ test('readiness cache is isolated per D1 binding',async()=>{
  const r=await worker.fetch(new Request('https://pos-phattai.test/api/health'),broken),data=await r.json();assert.equal(data.d1,'unavailable');
  fx.db.close();
 });
-test('release versions are v1.6.3 / 2.7.0-phattai.3',()=>{assert.match(GRADLE,/versionCode = 163/);assert.match(GRADLE,/versionName = "1\.6\.3"/);assert.match(MAIN,/LotusPOSPhatTai\/1\.6\.3/)});
+test('Android version comes from app-identity/CI, never a hardcoded string',()=>{assert.match(GRADLE,/versionCode = releaseVersionCode/);assert.doesNotMatch(MAIN,/LotusPOSPhatTai\/\d/)});

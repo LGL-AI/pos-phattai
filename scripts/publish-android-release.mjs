@@ -3,7 +3,6 @@ import {dirname,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {inspectApk} from './verify-apk-identity.mjs';
-import identity from '../android/app-identity.json' with {type:'json'};
 import {validateReleaseCatalog,releasePath,MAX_APK_BYTES} from '../src/android-update.js';
 const root=fileURLToPath(new URL('../',import.meta.url));
 
@@ -33,14 +32,6 @@ export function publishVerifiedRelease(project,apk,release){
  try{
   writeFileSync(temporary,data);renameSync(temporary,destination);
   writeFileSync(path+'.tmp',JSON.stringify(next,null,2)+'\n');renameSync(path+'.tmp',path);
-  const manifestPath=resolve(project,`RELEASE_MANIFEST_v${identity.versionName}.json`);
-  if(existsSync(manifestPath)){
-   const manifest=JSON.parse(readFileSync(manifestPath,'utf8'));
-   const signed=next.releases.filter(item=>item.versionCode===identity.versionCode&&item.versionName===identity.versionName);
-   manifest.signedApkProduced=signed.length>0;manifest.signedApkBlocker=signed.length?null:'No verified signed APK for the current source version';manifest.signedApks=signed;
-   if(manifest.autoUpdater){manifest.autoUpdater.publicationStatus=signed.length?'SIGNED_APK_READY_TO_DEPLOY':'NOT_PUBLISHED';manifest.autoUpdater.catalogEntries=next.releases.length;}
-   writeFileSync(manifestPath,JSON.stringify(manifest,null,2)+'\n');
-  }
  }finally{rmSync(temporary,{force:true});rmSync(path+'.tmp',{force:true})}
  return release;
 }

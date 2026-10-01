@@ -10,7 +10,7 @@ const MAIN=readFileSync(new URL('../android/app/src/main/java/vn/lotusai/pos/pha
 const HEALTH=readFileSync(new URL('../scripts/check-cloud-health.mjs',import.meta.url),'utf8');
 const BUILD=readFileSync(new URL('../android/build-local.sh',import.meta.url),'utf8');
 const WRANGLER=JSON.parse(readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8'));
-test('v1.6.3 release versions are aligned',()=>{assert.equal(pkg.version,'2.7.0-phattai.3');assert.match(GRADLE,/versionCode = 163/);assert.match(GRADLE,/versionName = "1\.6\.3"/);assert.match(MAIN,/LotusPOSPhatTai\/1\.6\.3/)});
+test('Worker version is semver-like and Android version is not hardcoded',()=>{assert.match(pkg.version,/^\d+\.\d+\.\d+-phattai\.\d+$/);assert.match(GRADLE,/versionCode = releaseVersionCode/)});
 test('npm test covers full suite',()=>assert.equal(pkg.scripts.test,'npm run test:all'));
 test('public staff is the Android source of truth',()=>{assert.equal(STAFF,APK_STAFF);assert.match(BUILD,/release:gate/);assert.match(GRADLE,/syncStaffAssets/)});
 test('single scheduler replaced independent polling intervals',()=>{assert.match(STAFF,/function schedulerTick\(\)/);assert.match(STAFF,/window\.setInterval\(schedulerTick,1000\)/);assert.doesNotMatch(STAFF,/setInterval\(syncLive,10000\)/);assert.doesNotMatch(STAFF,/setInterval\(pollAutoPrint,3000\)/)});

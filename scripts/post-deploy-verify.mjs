@@ -8,12 +8,23 @@ async function read(path){
  if(!response.ok)throw Error(`Production check HTTP ${response.status}`);
  return response.json();
 }
-try{
+// Cloudflare needs a few seconds to serve a new deployment everywhere, so retry for up to a minute.
+async function verify(){
  const health=await read('/api/health');
  const requiredMigration='0018_sync_revisions_append_requests.sql';
- if(health.version!==packageInfo.version||health.d1!=='ok'||health.requiredMigration!==requiredMigration)throw Error('Production health does not match this Worker/migration');
+ if(health.version!==packageInfo.version||health.d1!=='ok'||health.requiredMigration!==requiredMigration)throw Error(`Production health ${JSON.stringify({version:health.version,d1:health.d1,requiredMigration:health.requiredMigration})} does not match Worker ${packageInfo.version}`);
  const query=new URLSearchParams({applicationId:identity.productionApplicationId,signerSha256:identity.profiles[identity.productionApplicationId].signerSha256,versionCode:'1',sdk:'30'});
  const update=await read('/api/android/update?'+query),expected=selectAndroidRelease(query,catalog);
- if(update.status!==expected.status||update.available!==expected.available||update.release?.sha256!==expected.release?.sha256)throw Error('Production updater differs from the verified release catalog');
- console.log(`Production verified: Worker ${packageInfo.version}; updater ${update.status}.`);
-}catch(error){console.error('Production verification failed: '+error.message);process.exitCode=1;}
+ if(update.status!==expected.status||update.available!==expected.available||update.release?.sha256!==expected.release?.sha256)throw Error(`Production updater (${update.status} ${update.release?.sha256||''}) differs from the verified catalog (${expected.status} ${expected.release?.sha256||''})`);
+ return update.status;
+}
+let lastError;
+for(let attempt=1;attempt<=12;attempt++){
+ try{const status=await verify();console.log(`Production verified: Worker ${packageInfo.version}; updater ${status}.`);lastError=null;break}
+ catch(error){lastError=error;console.error(`Production check ${attempt}/12: ${error.message}`);if(attempt<12)await new Promise(resolve=>setTimeout(resolve,5000))}
+}
+if(lastError){
+ console.error('Production verification failed: '+lastError.message);
+ if(process.env.GITHUB_ACTIONS)console.log('::error::Production verification failed: '+lastError.message);
+ process.exitCode=1;
+}

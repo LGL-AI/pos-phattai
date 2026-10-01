@@ -15,6 +15,8 @@ const wrangler = resolve(root, 'node_modules', 'wrangler', 'bin', 'wrangler.js')
 
 function fail(message) {
   console.error(`\n[PHATTAI DEPLOY] ERROR: ${message}`);
+  // Annotations are readable without signing in; logs are not.
+  if (process.env.GITHUB_ACTIONS) console.log(`::error::${message.replace(/\r?\n/g, ' | ').slice(0, 900)}`);
   process.exit(1);
 }
 function run(args, { capture = false } = {}) {

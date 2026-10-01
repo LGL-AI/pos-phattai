@@ -51,9 +51,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - run: npx playwright install --with-deps chromium
       - name: Staff UI + QR end-to-end on a SUNMI-sized phone (local Worker + D1)
-        run: npm run test:e2e
+        # The runner image already ships Google Chrome; installing Playwright's browser with apt deps took ~8 min.
+        run: |
+          if [ -x /usr/bin/google-chrome ]; then export E2E_CHROMIUM=/usr/bin/google-chrome; else npx playwright install --with-deps chromium; fi
+          npm run test:e2e
 
   android-compile:
     if: github.ref != 'refs/heads/main'

@@ -17,7 +17,9 @@ const env={...process.env,WRANGLER_SEND_METRICS:'false',CI:'1'};
 const MAIN=readFileSync(resolve(root,'android/app/src/main/java/vn/lotusai/pos/phattaiapp/MainActivity.java'),'utf8');
 const filterSource=MAIN.match(/!path\.matches\("((?:[^"\\]|\\.)*)"\)/)[1].replaceAll('\\\\','\\');
 const failures=[];let server,browser;
-const check=(ok,label)=>{console.log(`${ok?'PASS':'FAIL'}  ${label}`);if(!ok)failures.push(label)};
+// In GitHub Actions every failure also becomes an annotation, readable without signing in.
+const annotate=label=>{if(process.env.GITHUB_ACTIONS)console.log('::error::E2E: '+String(label).replace(/\r?\n/g,' | ').replace(/\x1b\[[0-9;]*m/g,'').slice(0,900))};
+const check=(ok,label)=>{console.log(`${ok?'PASS':'FAIL'}  ${label}`);if(!ok){failures.push(label);annotate(label)}};
 
 async function startWorker(){
  const migrate=spawnSync(process.execPath,[wrangler,'d1','migrations','apply','DB','--local','--persist-to',persist],{cwd:root,env,encoding:'utf8'});
@@ -120,7 +122,7 @@ try{
  const rejected=await hp.evaluate(()=>window.__rejected);
  check(rejected.length===0,`APK bridge rejected no Staff UI request${rejected.length?': '+rejected.join(', '):''}`);
  check(hand.errors.length===0&&cust.errors.length===0,`no uncaught page errors${[...hand.errors,...cust.errors].map(e=>'\n  '+e).join('')}`);
-}catch(error){failures.push(error.message);console.error('FAIL  '+error.message)}
+}catch(error){failures.push(error.message);console.error('FAIL  '+error.message);annotate(error.message)}
 finally{
  await browser?.close();server?.kill('SIGTERM');rmSync(persist,{recursive:true,force:true});
 }

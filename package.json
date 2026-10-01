@@ -1,6 +1,6 @@
 {
   "name": "lotus-pos-phattai-cloud-d1",
-  "version": "2.7.0-phattai.3",
+  "version": "2.8.0-phattai.1",
   "private": true,
   "type": "module",
   "description": "Lotus POS online riêng cho TIỆM SÍU LẬP PHÁT TÀI: Worker + D1 + SUNMI handheld source",
@@ -26,12 +26,14 @@
     "benchmark:sync": "node scripts/benchmark-sync.mjs",
     "verify:apk:identity": "node scripts/verify-apk-identity.mjs",
     "publish:android": "node scripts/publish-android-release.mjs",
-    "verify:android:catalog": "node scripts/verify-android-release-catalog.mjs"
+    "verify:android:catalog": "node scripts/verify-android-release-catalog.mjs",
+    "test:e2e": "node scripts/e2e-staff.mjs"
   },
   "devDependencies": {
-    "wrangler": "4.144.0",
+    "esbuild": "0.28.1",
     "miniflare": "5.20260926.1-alpha",
-    "esbuild": "0.28.1"
+    "playwright": "^1.63.0",
+    "wrangler": "4.144.0"
   },
   "engines": {
     "node": ">=22"

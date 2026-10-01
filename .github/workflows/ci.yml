@@ -1,6 +1,6 @@
 name: CI / Deploy
 
-# Every push: full test suite.
+# Every push: full test suite + browser end-to-end run of the Staff UI and QR page.
 # Other branches: compile the Android app (unsigned) to prove the Java builds.
 # main: build + sign the APK when the app changed, publish it as a GitHub Release,
 #       back up D1, apply migrations, deploy the Worker with the APK on the update channel.
@@ -41,6 +41,20 @@ jobs:
       - name: Android staff assets must be committed in sync with public/staff
         run: git diff --exit-code -- android/app/src/main/assets/staff
 
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Staff UI + QR end-to-end on a SUNMI-sized phone (local Worker + D1)
+        run: npm run test:e2e
+
   android-compile:
     if: github.ref != 'refs/heads/main'
     needs: test
@@ -72,7 +86,7 @@ jobs:
 
   release:
     if: github.ref == 'refs/heads/main'
-    needs: test
+    needs: [test, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {applyCurrentSchema} from './helpers/schema.mjs';
+const PKG_VERSION=JSON.parse(readFileSync(new URL('../package.json',import.meta.url),'utf8')).version;
 import worker from '../src/worker.js';
 
 function fixture(){
@@ -26,7 +27,7 @@ const guestBase=/^\d{8}-\d{4}-000000$/;
  assert.equal(db.prepare("SELECT COUNT(*) n FROM pos_products WHERE sku LIKE 'PT%' AND active=1").get().n,13);
  assert.equal(db.prepare("SELECT COUNT(*) n FROM pos_products WHERE sku LIKE 'EC_%'").get().n,0);
  const health=await call('/api/health');
- assert.equal(health.status,200);assert.equal(health.data.d1,'ok');assert.equal(health.data.storeReady,true);assert.equal(health.data.acceptingOrders,true);assert.equal(health.data.version,'2.7.0-phattai.3');
+ assert.equal(health.status,200);assert.equal(health.data.d1,'ok');assert.equal(health.data.storeReady,true);assert.equal(health.data.acceptingOrders,true);assert.equal(health.data.version,PKG_VERSION);
  const catalog=await call('/api/catalog');
  assert.equal(catalog.status,200);assert.equal(catalog.data.catalog.store.name,'TIỆM SÍU LẬP PHÁT TÀI');assert.equal(catalog.data.catalog.products.length,13);assert.ok(catalog.data.catalog.products.every(p=>String(p.sku).startsWith('PT')));
  db.close();

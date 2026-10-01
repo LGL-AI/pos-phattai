@@ -57,14 +57,46 @@ test('SHIFTS report counts only payments inside the shift, including a shift tha
  assert.equal((await q('10:00','10:00')).status,400);
  fx.db.close();
 });
+test('STAFF report covers the hours a person clocked in, falls back to the schedule, and caps a forgotten clock-out',async()=>{
+ const fx=fixture(),h=await owner(fx);
+ const before=await paidOrderAt(fx,h,'2026-10-01T00:30:00.000Z');  // 07:30 VN
+ const first=await paidOrderAt(fx,h,'2026-10-01T02:00:00.000Z');   // 09:00 VN
+ const gap=await paidOrderAt(fx,h,'2026-10-01T05:30:00.000Z');     // 12:30 VN
+ const second=await paidOrderAt(fx,h,'2026-10-01T08:00:00.000Z');  // 15:00 VN
+ const now=Date.parse('2026-10-01T20:00:00.000Z');
+ fx.db.prepare("INSERT INTO pos_staff_users(id,username,display_name,role_id,password_salt,password_hash,active,created_at,updated_at) VALUES('u-lan','lan','Lan','MANAGER','s','h',1,'x','x'),('u-minh','minh','Minh','MANAGER','s','h',1,'x','x'),('u-ha','ha','Hà','MANAGER','s','h',1,'x','x')").run();
+ // Lan: two clock-ins 08:00–12:00 and 14:00–16:00 VN, plus a schedule that must be ignored because she clocked in.
+ fx.db.prepare("INSERT INTO pos_attendance(id,staff_id,work_date,clock_in,clock_out,status) VALUES('a1','u-lan','2026-10-01','2026-10-01T01:00:00.000Z','2026-10-01T05:00:00.000Z','CLOSED'),('a2','u-lan','2026-10-01','2026-10-01T07:00:00.000Z','2026-10-01T09:00:00.000Z','CLOSED')").run();
+ fx.db.prepare("INSERT INTO pos_shift_schedules(id,staff_id,work_date,start_time,end_time,created_by,created_at) VALUES('s1','u-lan','2026-10-01','06:00','22:00','OWNER','x'),('s2','u-minh','2026-10-01','12:00','13:00','OWNER','x')").run();
+ // Hà clocked in at 08:00 VN and never clocked out: counted for at most 16 hours.
+ fx.db.prepare("INSERT INTO pos_attendance(id,staff_id,work_date,clock_in,status) VALUES('a3','u-ha','2026-10-01','2026-10-01T01:00:00.000Z','OPEN')").run();
+ const {workedPeriods,staffReport}=await import('../src/reports.js');
+ const people=await workedPeriods(fx.env,'2026-10-01',now);
+ assert.deepEqual(people.map(p=>[p.name,p.source,p.periods.map(x=>x.start+'-'+x.end+(x.open?'*':''))]),[['Hà','ATTENDANCE',['08:00-00:00*']],['Lan','ATTENDANCE',['08:00-12:00','14:00-16:00']],['Minh','SCHEDULE',['12:00-13:00']]]);
+ const lan=await staffReport(fx.env,'2026-10-01','u-lan',now);
+ assert.deepEqual(lan.payments.map(p=>p.orderId).sort(),[first.id,second.id].sort());assert.equal(lan.gross,first.total+second.total);
+ assert.deepEqual((await staffReport(fx.env,'2026-10-01','u-minh',now)).payments.map(p=>p.orderId),[gap.id]);
+ assert.deepEqual((await staffReport(fx.env,'2026-10-01','u-ha',now)).payments.map(p=>p.orderId).sort(),[first.id,gap.id,second.id].sort());
+ assert.ok(!(await staffReport(fx.env,'2026-10-01','u-ha',now)).payments.some(p=>p.orderId===before.id));
+ const listed=await fx.call('/api/staff/reports/workers?date=2026-10-01','GET',null,h);assert.equal(listed.status,200);assert.equal(listed.data.staff.length,3);
+ assert.equal((await fx.call('/api/staff/reports/staff?date=2026-10-01&staffId=u-lan','GET',null,h)).data.report.reportType,'STAFF');
+ assert.equal((await fx.call('/api/staff/reports/staff?date=2026-10-01&staffId=nobody','GET',null,h)).status,404);
+ assert.equal((await fx.call('/api/staff/reports/staff?date=bad&staffId=u-lan','GET',null,h)).status,400);
+ fx.db.close();
+});
 test('SHIFTS parser keeps names and times exactly, max 12, case-insensitive unique names',()=>{
  assert.deepEqual(parseReportShifts([{name:' Ca trưa ',start:'11:00',end:'16:00'}]),[{name:'Ca trưa',start:'11:00',end:'16:00'}]);
  assert.equal(parseReportShifts(null),null);assert.equal(parseReportShifts([{name:'X',start:'24:00',end:'01:00'}]),null);
 });
-test('SHIFTS Staff UI: shop shifts, custom range and editor are wired to the report flow',()=>{
+test('SHIFTS Staff UI: day → one tap on a shift or a staff member; custom hours stay optional',()=>{
  assert.match(STAFF,/api\('GET','\/api\/staff\/report-shifts'\)/);
  assert.match(STAFF,/api\('PUT','\/api\/staff\/report-shifts',\{shifts\}\)/);
- assert.match(STAFF,/<option value="CUSTOM"/);
- assert.match(STAFF,/const chosen=chosenReportShift\(\)/);
+ assert.match(STAFF,/api\('GET','\/api\/staff\/reports\/workers\?date='/);
+ assert.match(STAFF,/if\(b\.dataset\.reportShift!==undefined\)\{[^}]*await loadReport\(\)/);
+ assert.match(STAFF,/if\(b\.dataset\.reportStaff!==undefined\)\{[^}]*await loadReport\(\)/);
+ assert.match(STAFF,/<details class="report-custom"/);
+ // Chip and remove buttons carry no data-action, so they must be handled before the action guard.
+ const guard=STAFF.indexOf('const action=b.dataset.action;if(!action)return;');
+ for(const key of ['b.dataset.reportMode','b.dataset.reportShift!==','b.dataset.reportStaff!==','b.dataset.tplRemove!=='])assert.ok(STAFF.indexOf('if('+key)>0&&STAFF.indexOf('if('+key)<guard,key);
  assert.match(STAFF,/\$\{reportShiftEditor\(\)\}/);
 });

@@ -24,15 +24,21 @@ Bản offline cũ: dùng bản online song song ít nhất một ngày bán hàn
 - App chỉ cho cài khi giỏ món trống, không có thanh toán đang chờ và không có lệnh in đang chạy. Cấu hình IP máy in và phiên đăng nhập được giữ nguyên.
 - Trước khi cài, app kiểm tra file tải về: đúng package, đúng khóa ký, version mới hơn, đúng SHA-256. Sai bất kỳ điều nào thì từ chối cài.
 
-## 3. Báo cáo theo ca
+## 3. Báo cáo theo ca và theo nhân viên
 
-Vào **Quản trị chủ tiệm → Báo cáo ngày & ca**:
+Vào **Quản trị chủ tiệm → Báo cáo ngày & ca**, chọn **ngày**, rồi bấm một ô là ra báo cáo ngay:
 
-1. **Khai báo ca một lần:** mở mục *Danh sách ca của quán* → *+ Thêm ca* → nhập tên ca, giờ bắt đầu, giờ kết thúc → *Lưu danh sách ca*. Nếu giờ kết thúc nhỏ hơn giờ bắt đầu (ví dụ 18:00–02:00), hệ thống hiểu là ca qua đêm và cộng doanh thu sang tới sáng hôm sau. Tối đa 12 ca. Sửa hoặc xóa ca bất cứ lúc nào; báo cáo cũ không bị ảnh hưởng.
-2. **Chọn ngày** → **chọn ca** trong ô *Phạm vi báo cáo*. Có thể chọn *Cả ngày*, hoặc *Tự chọn giờ…* để xem một khoảng giờ bất kỳ.
-3. Bấm **Xem báo cáo**, rồi **In SUNMI** để in ra máy in trên SUNMI, hoặc **Tải CSV** để mở bằng Excel. Trên POS quầy (`/counter/`), nút in dùng máy in của máy tính.
+- **Theo ca:** bấm *Cả ngày* hoặc một ca của quán. Mục *Tự chọn giờ (không bắt buộc)* bên dưới dùng khi cần xem một khoảng giờ bất kỳ.
+- **Theo nhân viên:** hiện những người có làm trong ngày đó. Bấm vào tên là ra báo cáo cho đúng khoảng giờ người đó làm:
+  - có **chấm công vào/ra** thì lấy giờ chấm công (đã tính các lần điều chỉnh chấm công); vào/ra nhiều lần trong ngày thì cộng các khoảng lại;
+  - chưa chấm công ra thì tính tới hiện tại, tối đa 16 tiếng kể từ lúc vào;
+  - không chấm công mà có **lịch ca** trong *Chấm công* thì lấy giờ theo lịch (ô hiện chữ "theo lịch").
 
-Doanh thu của ca tính theo **thời điểm thanh toán** (giờ Việt Nam): đơn chốt trong ca này nhưng thanh toán ở ca sau thì được tính cho ca sau. Nếu đã xếp lịch nhân viên cho ca có cùng tên và giờ trong *Chấm công*, báo cáo hiện thêm tên nhân viên của ca đó.
+Có báo cáo rồi thì bấm **In SUNMI** để in ra máy in trên SUNMI, hoặc **Tải CSV** để mở bằng Excel. Trên POS quầy (`/counter/`), nút in dùng máy in của máy tính.
+
+**Khai báo ca (làm một lần):** mở mục *Danh sách ca của quán* → *+ Thêm ca* → nhập tên ca, giờ bắt đầu, giờ kết thúc → *Lưu danh sách ca*. Giờ kết thúc nhỏ hơn giờ bắt đầu (ví dụ 18:00–02:00) là ca qua đêm. Tối đa 12 ca. Sửa hay xóa ca không ảnh hưởng báo cáo cũ.
+
+Doanh thu tính theo **thời điểm thanh toán** (giờ Việt Nam): đơn gọi trong ca này nhưng thanh toán ở ca sau thì tính cho ca sau. Hai nhân viên làm cùng giờ thì cùng thấy các đơn thanh toán trong giờ đó; báo cáo nhân viên là doanh thu **trong giờ người đó làm**, không phải doanh thu do riêng người đó thu.
 
 ## 4. Checklist nghiệm thu tại quán
 
@@ -46,7 +52,8 @@ Làm trên máy thật, đánh dấu từng mục:
 - [ ] Thanh toán chuyển khoản MB (QR) → chỉ xác nhận sau khi thấy tiền về → mã đuôi `-CK`.
 - [ ] Tách bill 2 phần → thanh toán từng bill → đơn gốc đóng khi bill cuối trả xong.
 
-- [ ] Khai báo 2 ca, chọn ngày hôm nay → chọn từng ca → Xem → In SUNMI. Tổng doanh thu các ca bằng báo cáo *Cả ngày* (nếu các ca phủ kín giờ bán trong ngày).
+- [ ] Khai báo 2 ca, chọn ngày hôm nay → bấm từng ca → In SUNMI. Tổng doanh thu các ca bằng báo cáo *Cả ngày* (nếu các ca phủ kín giờ bán trong ngày).
+- [ ] Nhân viên chấm công vào → bán vài đơn → chấm công ra. Chọn ngày → *Theo nhân viên* → bấm tên → thấy đúng các đơn trong giờ đó → In SUNMI.
 
 **Đồng bộ**
 - [ ] Khách quét QR, chọn bàn, gọi món → đơn hiện trên SUNMI trong vài giây và phiếu bếp tự in.

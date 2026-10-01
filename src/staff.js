@@ -3,7 +3,7 @@ import {allowed,handleOps,loginActor,sessionActor} from './ops.js';
 import {displayStaff} from './display.js';
 import {handleManagement} from './management.js';
 import {settingsStaff} from './settings.js';
-import {daily,analytics,shiftReport,reportShifts,saveReportShifts} from './reports.js';
+import {daily,analytics,shiftReport,workedPeriods,staffReport,reportShifts,saveReportShifts} from './reports.js';
 import {handleShiftOps} from './shift-ops.js';
 import {nextOrderCode,codeForMethod,codeForBill} from './order-code.js';
 import {handleCustomers} from './customers.js';
@@ -91,7 +91,7 @@ export async function handleStaff(req,env,deps){
    if(method==='PUT'){const b=await deps.body(req),shifts=await saveReportShifts(env,b.shifts,actor.id);return shifts?result({shifts}):error(400,'INVALID_SHIFTS','Mỗi ca cần tên (tối đa 40 ký tự, không trùng), giờ bắt đầu và kết thúc khác nhau; tối đa 12 ca')}
    return error(405,'METHOD_NOT_ALLOWED','Phương thức không được hỗ trợ');
   }
-  if((path==='/api/staff/summary'||path==='/api/staff/reports/daily'||path==='/api/staff/reports/analytics'||path==='/api/staff/reports/shift')&&method==='GET'){
+  if((path==='/api/staff/summary'||path==='/api/staff/reports/daily'||path==='/api/staff/reports/analytics'||path==='/api/staff/reports/shift'||path==='/api/staff/reports/workers'||path==='/api/staff/reports/staff')&&method==='GET'){
    if(path==='/api/staff/summary'){
     if(!allowed(actor,'ORDER_VIEW'))return error(403,'PERMISSION_DENIED','Không có quyền xem tổng quan');
    }else if(actor.role!=='OWNER')return error(403,'OWNER_ONLY','Chỉ chủ tiệm được xem/xuất báo cáo quản trị');
@@ -102,6 +102,15 @@ export async function handleStaff(req,env,deps){
    if(path==='/api/staff/reports/shift'){
     const q=new URL(req.url).searchParams,data=await shiftReport(env,q.get('date'),q.get('start'),q.get('end'),q.get('name')||'');
     return data?result({report:data}):error(400,'INVALID_SHIFT','Ngày hoặc giờ ca không hợp lệ');
+   }
+   if(path==='/api/staff/reports/workers'){
+    const staff=await workedPeriods(env,new URL(req.url).searchParams.get('date'));
+    return staff?result({staff}):error(400,'INVALID_DATE','Ngày báo cáo không hợp lệ');
+   }
+   if(path==='/api/staff/reports/staff'){
+    const q=new URL(req.url).searchParams,data=await staffReport(env,q.get('date'),q.get('staffId'));
+    if(data===null)return error(400,'INVALID_DATE','Ngày báo cáo không hợp lệ');
+    return data?result({report:data}):error(404,'STAFF_NOT_WORKING','Nhân viên này không có chấm công hay lịch ca trong ngày đã chọn');
    }
    const data=await daily(env,new URL(req.url).searchParams.get('date'));
    if(!data)return error(400,'INVALID_DATE','Ngày báo cáo không hợp lệ');

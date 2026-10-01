@@ -17,15 +17,51 @@ export async function shiftReport(env,date,start,end,name=''){
  if(!validDay(day)||!validClock(start)||!validClock(end)||start===end)return null;
  // A shift that ends at or before it starts runs past midnight into the next day (e.g. 18:00–02:00).
  const endDay=end>start?day:new Date(Date.parse(day+'T00:00:00Z')+86400000).toISOString().slice(0,10);
- const from=day+' '+start+':00',to=endDay+' '+end+':00';
- const orders=(await env.DB.prepare("SELECT o.id,o.id AS orderId,o.code,o.table_id AS tableName,o.source,o.total,o.tax_amount AS taxAmount,o.payment_method AS method,o.paid_at AS paidAt,'ORDER' AS kind FROM qr_orders o WHERE o.payment_status='PAID' AND datetime(o.paid_at,'+7 hours')>=? AND datetime(o.paid_at,'+7 hours')<? AND NOT EXISTS(SELECT 1 FROM pos_bills b WHERE b.order_id=o.id) ORDER BY o.paid_at,o.id").bind(from,to).all()).results;
- const bills=(await env.DB.prepare("SELECT b.id,b.order_id AS orderId,o.code AS parentCode,b.sequence,o.table_id AS tableName,o.source,b.total,b.tax_amount AS taxAmount,b.payment_method AS method,b.paid_at AS paidAt,'BILL' AS kind FROM pos_bills b JOIN qr_orders o ON o.id=b.order_id WHERE b.payment_status='PAID' AND datetime(b.paid_at,'+7 hours')>=? AND datetime(b.paid_at,'+7 hours')<? ORDER BY b.paid_at,b.id").bind(from,to).all()).results.map(b=>({...b,code:codeForBill(b.parentCode,b.method,b.sequence)}));
- const refunds=(await env.DB.prepare("SELECT r.id,r.order_id AS orderId,r.bill_id AS billId,r.amount,r.method,r.reason,r.created_at AS createdAt FROM pos_refunds r WHERE datetime(r.created_at,'+7 hours')>=? AND datetime(r.created_at,'+7 hours')<? ORDER BY r.created_at,r.id").bind(from,to).all()).results;
+ const ledger=await windowLedger(env,[{from:day+' '+start+':00',to:endDay+' '+end+':00'}]);
+ const staffRows=(await env.DB.prepare("SELECT s.staff_id AS id,COALESCE(u.display_name,CASE WHEN s.staff_id='OWNER' THEN 'Chủ cửa hàng' END,s.staff_id) AS name FROM pos_shift_schedules s LEFT JOIN pos_staff_users u ON u.id=s.staff_id WHERE s.work_date=? AND s.start_time=? AND s.end_time=? AND s.shift_name=? ORDER BY name").bind(day,start,end,shiftName).all()).results;
+ return {date:day,reportType:'SHIFT',shift:{name:shiftName||('Ca '+start+'–'+end),start,end,staff:staffRows},...ledger};
+}
+
+// Paid orders/bills, refunds and still-open orders inside one or more Vietnam-time windows
+// ('YYYY-MM-DD HH:MM:SS', end exclusive). Windows of one report never overlap.
+async function windowLedger(env,ranges){
+ const within=col=>'('+ranges.map(()=>`(datetime(${col},'+7 hours')>=? AND datetime(${col},'+7 hours')<?)`).join(' OR ')+')';
+ const args=ranges.flatMap(r=>[r.from,r.to]);
+ const orders=(await env.DB.prepare(`SELECT o.id,o.id AS orderId,o.code,o.table_id AS tableName,o.source,o.total,o.tax_amount AS taxAmount,o.payment_method AS method,o.paid_at AS paidAt,'ORDER' AS kind FROM qr_orders o WHERE o.payment_status='PAID' AND ${within('o.paid_at')} AND NOT EXISTS(SELECT 1 FROM pos_bills b WHERE b.order_id=o.id) ORDER BY o.paid_at,o.id`).bind(...args).all()).results;
+ const bills=(await env.DB.prepare(`SELECT b.id,b.order_id AS orderId,o.code AS parentCode,b.sequence,o.table_id AS tableName,o.source,b.total,b.tax_amount AS taxAmount,b.payment_method AS method,b.paid_at AS paidAt,'BILL' AS kind FROM pos_bills b JOIN qr_orders o ON o.id=b.order_id WHERE b.payment_status='PAID' AND ${within('b.paid_at')} ORDER BY b.paid_at,b.id`).bind(...args).all()).results.map(b=>({...b,code:codeForBill(b.parentCode,b.method,b.sequence)}));
+ const refunds=(await env.DB.prepare(`SELECT r.id,r.order_id AS orderId,r.bill_id AS billId,r.amount,r.method,r.reason,r.created_at AS createdAt FROM pos_refunds r WHERE ${within('r.created_at')} ORDER BY r.created_at,r.id`).bind(...args).all()).results;
  const payments=[...orders,...bills].sort((a,b)=>a.paidAt.localeCompare(b.paidAt)||a.id.localeCompare(b.id));
  const gross=payments.reduce((n,p)=>n+p.total,0),refunded=refunds.reduce((n,r)=>n+r.amount,0);
- const open=(await env.DB.prepare("SELECT COUNT(*) AS n FROM qr_orders WHERE payment_status!='PAID' AND status IN ('NEW','ACCEPTED','SPLIT') AND datetime(created_at,'+7 hours')>=? AND datetime(created_at,'+7 hours')<?").bind(from,to).first()).n;
- const staffRows=(await env.DB.prepare("SELECT s.staff_id AS id,COALESCE(u.display_name,CASE WHEN s.staff_id='OWNER' THEN 'Chủ cửa hàng' END,s.staff_id) AS name FROM pos_shift_schedules s LEFT JOIN pos_staff_users u ON u.id=s.staff_id WHERE s.work_date=? AND s.start_time=? AND s.end_time=? AND s.shift_name=? ORDER BY name").bind(day,start,end,shiftName).all()).results;
- return {date:day,reportType:'SHIFT',shift:{name:shiftName||('Ca '+start+'–'+end),start,end,staff:staffRows},paidOrders:new Set(payments.map(x=>x.orderId)).size,paidBills:payments.length,gross,refunded,net:gross-refunded,tax:payments.reduce((n,p)=>n+(p.taxAmount||0),0),cash:payments.filter(p=>p.method==='CASH').reduce((n,p)=>n+p.total,0),bank:payments.filter(p=>p.method==='BANK').reduce((n,p)=>n+p.total,0),openOrders:open,payments,refunds};
+ const open=(await env.DB.prepare(`SELECT COUNT(*) AS n FROM qr_orders WHERE payment_status!='PAID' AND status IN ('NEW','ACCEPTED','SPLIT') AND ${within('created_at')}`).bind(...args).first()).n;
+ return {paidOrders:new Set(payments.map(x=>x.orderId)).size,paidBills:payments.length,gross,refunded,net:gross-refunded,tax:payments.reduce((n,p)=>n+(p.taxAmount||0),0),cash:payments.filter(p=>p.method==='CASH').reduce((n,p)=>n+p.total,0),bank:payments.filter(p=>p.method==='BANK').reduce((n,p)=>n+p.total,0),openOrders:open,payments,refunds};
+}
+
+const OPEN_ATTENDANCE_MAX_MS=16*3600000;
+const vnTime=ms=>new Date(ms+7*3600000).toISOString().slice(0,19).replace('T',' ');
+// Who worked on a day and when. Clock-in/clock-out (after corrections) is what actually happened,
+// so it wins; a person who did not clock in that day falls back to the published schedule.
+// A clock-in still open counts until now, at most 16 hours, so a forgotten clock-out cannot swallow the next day.
+export async function workedPeriods(env,date,now=Date.now()){
+ const day=date||today();if(!validDay(day))return null;
+ const name="COALESCE(u.display_name,CASE WHEN x.staff_id='OWNER' THEN 'Chủ cửa hàng' END,x.staff_id)";
+ const [att,sch]=await Promise.all([
+  env.DB.prepare(`SELECT x.staff_id AS id,${name} AS name,x.clock_in,x.clock_out FROM pos_attendance x LEFT JOIN pos_staff_users u ON u.id=x.staff_id WHERE x.work_date=? ORDER BY x.clock_in`).bind(day).all(),
+  env.DB.prepare(`SELECT x.staff_id AS id,${name} AS name,x.start_time,x.end_time FROM pos_shift_schedules x LEFT JOIN pos_staff_users u ON u.id=x.staff_id WHERE x.work_date=? ORDER BY x.start_time`).bind(day).all()
+ ]);
+ const people=new Map(),person=(id,name,source)=>{if(!people.has(id))people.set(id,{id,name,source,periods:[]});return people.get(id)};
+ for(const a of att.results){const from=Date.parse(a.clock_in);if(Number.isNaN(from))continue;
+  const out=a.clock_out?Date.parse(a.clock_out):Math.min(now,from+OPEN_ATTENDANCE_MAX_MS);if(!(out>from))continue;
+  const f=vnTime(from),t=vnTime(out);person(a.id,a.name,'ATTENDANCE').periods.push({from:f,to:t,start:f.slice(11,16),end:t.slice(11,16),open:!a.clock_out})}
+ for(const s of sch.results){if(people.has(s.id)&&people.get(s.id).source==='ATTENDANCE')continue;
+  person(s.id,s.name,'SCHEDULE').periods.push({from:day+' '+s.start_time+':00',to:day+' '+s.end_time+':00',start:s.start_time,end:s.end_time,open:false})}
+ return [...people.values()].sort((a,b)=>a.periods[0].from.localeCompare(b.periods[0].from)||a.name.localeCompare(b.name,'vi'));
+}
+
+export async function staffReport(env,date,staffId,now=Date.now()){
+ const people=await workedPeriods(env,date,now);if(!people)return null;
+ const p=people.find(x=>x.id===String(staffId||''));if(!p)return undefined;
+ const ledger=await windowLedger(env,p.periods);
+ return {date:date||today(),reportType:'STAFF',person:{id:p.id,name:p.name,source:p.source,periods:p.periods.map(({start,end,open})=>({start,end,open}))},...ledger};
 }
 
 // Aggregates the same paid bill/order ledger as daily(). Unpaid and split parent

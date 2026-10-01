@@ -66,6 +66,11 @@ try{
  await startWorker();
  browser=await chromium.launch(process.env.E2E_CHROMIUM?{executablePath:process.env.E2E_CHROMIUM}:{});
 
+ // The owner clocks in first, so the cash order below falls inside their working hours.
+ const login=await (await fetch(BASE+'/api/staff/login',{method:'POST',headers:{'Content-Type':'application/json',Origin:BASE},body:JSON.stringify({username:'huang',password:PASSWORD})})).json();
+ const clockIn=await fetch(BASE+'/api/staff/attendance/in',{method:'POST',headers:{'Content-Type':'application/json',Origin:BASE,Authorization:'Bearer '+login.token},body:'{}'});
+ check(clockIn.status===201,'owner clocks in');
+
  // 1. Handheld (through the APK bridge): order → add items → pay cash
  const hand=await device({native:true}),hp=hand.page;
  await hp.goto(BASE+'/staff/');await hp.fill('input[name=username]','huang');await hp.fill('input[name=password]',PASSWORD);
@@ -87,19 +92,25 @@ try{
  await hp.waitForFunction(()=>/-TM\b/.test(document.querySelector('#app').innerText));
  check(true,'cash payment closes the order with a -TM code');
 
- // 2. Shift report: owner defines a shift, picks day + shift, views it and prints on SUNMI
- await hp.click('[data-screen="owner"]');await hp.locator('[data-screen="dashboard"]').first().click();await hp.waitForSelector('#report-shift');
+ // 2. Reports: owner defines a shift, picks day → shift (one tap), prints; then day → staff (one tap), prints
+ await hp.click('[data-screen="owner"]');await hp.locator('[data-screen="dashboard"]').first().click();await hp.waitForSelector('[data-report-mode]');
  await hp.click('.shift-templates summary');await hp.click('[data-action=report-shift-add]');
  await hp.fill('[data-tpl-name="0"]','Ca cả ngày');await hp.fill('[data-tpl-start="0"]','00:00');await hp.fill('[data-tpl-end="0"]','23:59');
+ await hp.click('[data-action=report-shift-add]');await hp.click('[data-tpl-remove="1"]');
+ check(await hp.locator('[data-tpl-name]').count()===1,'a shift row can be removed from the list');
  await hp.click('[data-action=report-shifts-save]');
- await hp.waitForFunction(()=>[...document.querySelectorAll('#report-shift option')].some(o=>o.textContent.startsWith('Ca cả ngày')));
- const shiftKey=await hp.evaluate(()=>[...document.querySelectorAll('#report-shift option')].find(o=>o.textContent.startsWith('Ca cả ngày')).value);
- await hp.selectOption('#report-shift',shiftKey);await hp.click('[data-action=report-load]');
- await hp.waitForFunction(()=>!document.querySelector('[data-action=report-print]')?.disabled&&/Ca cả ngày/.test(document.querySelector('#app').innerText));
- check(/Ca cả ngày[\s\S]*00:00–23:59/.test(await text(hp)),'shift report shows the chosen shift');
+ await hp.click('[data-report-shift]:has-text("Ca cả ngày")');
+ await hp.waitForFunction(()=>document.querySelector('[data-action=report-print]')&&/Ca cả ngày[\s\S]*00:00–23:59/.test(document.querySelector('#app').innerText));
+ check(true,'one tap on a shift shows its report');
  await hp.click('[data-action=report-print]');
- const printed=await hp.evaluate(()=>window.__printed||[]);
+ let printed=await hp.evaluate(()=>window.__printed||[]);
  check(printed.length===1&&printed[0].id.startsWith('shift-report:')&&/BÁO CÁO CA[\s\S]*Ca cả ngày[\s\S]*Tiền mặt \/ 现金: [1-9]/.test(printed[0].text),'shift report prints on SUNMI with the paid cash order');
+ await hp.click('[data-report-mode=STAFF]');await hp.click('[data-report-staff]');
+ await hp.waitForFunction(()=>document.querySelector('[data-action=report-print]')&&/Giờ làm theo chấm công/.test(document.querySelector('#app').innerText));
+ check(true,'one tap on a staff member shows the report for their clocked-in hours');
+ await hp.click('[data-action=report-print]');
+ printed=await hp.evaluate(()=>window.__printed||[]);
+ check(printed.length===2&&printed[1].id.startsWith('staff-report:')&&/BÁO CÁO NHÂN VIÊN[\s\S]*Giờ làm[\s\S]*Tiền mặt \/ 现金: [1-9]/.test(printed[1].text),'staff report prints on SUNMI with the cash taken during their hours');
 
  // 3. Customer QR order reaches the handheld through realtime sync
  await hp.click('[data-screen="orders"]');await hp.waitForTimeout(1000);

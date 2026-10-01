@@ -16,7 +16,19 @@ public final class PosAuth {
     private JSONObject cloudUser=null;
     private Set<String> cloudPermissions=Collections.emptySet();
     private long cloudExpiresAt=0;
-    public PosAuth(Context context){prefs=context.getSharedPreferences("lotus_auth_v2",0);}
+    // The Worker-issued session survives Android killing the app in the background;
+    // before, every restart silently logged staff out in the middle of service.
+    public PosAuth(Context context){prefs=context.getSharedPreferences("lotus_auth_v2",0);restoreCloud();}
+    private synchronized void restoreCloud(){
+        try{
+            String raw=prefs.getString("cloud_session",null);if(raw==null)return;
+            JSONObject saved=new JSONObject(raw);long expiresAt=saved.getLong("expiresAt");
+            if(System.currentTimeMillis()>=expiresAt){prefs.edit().remove("cloud_session").apply();return;}
+            JSONArray perms=saved.getJSONArray("permissions");Set<String> parsed=new HashSet<>();
+            for(int i=0;i<perms.length();i++)parsed.add(perms.getString(i));
+            cloudUser=saved.getJSONObject("user");cloudPermissions=parsed;cloudExpiresAt=expiresAt;
+        }catch(Exception ignored){prefs.edit().remove("cloud_session").apply();}
+    }
     private JSONArray accounts()throws Exception{return new JSONArray(prefs.getString("accounts","[]"));}
     private JSONObject account(int id)throws Exception{JSONArray a=accounts();for(int i=0;i<a.length();i++)if(a.getJSONObject(i).getInt("id")==id)return a.getJSONObject(i);return null;}
     public synchronized boolean allowed(String permission){
@@ -36,6 +48,7 @@ public final class PosAuth {
         cloudUser=new JSONObject().put("id",staff.getString("id")).put("name",staff.getString("name"))
             .put("username",staff.getString("username")).put("role",staff.getString("role"));
         cloudPermissions=parsed;cloudExpiresAt=expiresAt;
+        prefs.edit().putString("cloud_session",new JSONObject().put("user",cloudUser).put("permissions",perms).put("expiresAt",expiresAt).toString()).apply();
     }
     public synchronized void cloudRefresh(JSONObject staff)throws Exception{
         if(cloudUser!=null)cloudLogin(staff,cloudExpiresAt);
@@ -73,7 +86,7 @@ public final class PosAuth {
         }
         prefs.edit().putInt("failures",0).remove("lockedUntil").commit();sessionId=found.getInt("id");return state();
     }catch(Exception e){return error(e);}}
-    public synchronized void logout(){sessionId=0;cloudUser=null;cloudPermissions=Collections.emptySet();cloudExpiresAt=0;}
+    public synchronized void logout(){sessionId=0;cloudUser=null;cloudPermissions=Collections.emptySet();cloudExpiresAt=0;prefs.edit().remove("cloud_session").apply();}
     public synchronized String saveAccount(String raw){try{
         if(!allowed("accounts"))throw new Exception("Không có quyền / 无权限");JSONObject data=new JSONObject(raw);JSONArray list=accounts();int id=data.optInt("id",0),index=-1,max=100;
         for(int i=0;i<list.length();i++){JSONObject x=list.getJSONObject(i);max=Math.max(max,x.getInt("id"));if(x.getInt("id")==id)index=i;}

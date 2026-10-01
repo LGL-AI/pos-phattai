@@ -74,7 +74,7 @@ public final class LanKitchenPrinter {
             EscPosTransport.send(CloudNetwork.wifi(activity),ip,port,bytes,()->{state(id,"SENDING");started[0]=true;});
             state(id,"SENT");
             events.emit("LAN-000","INFO","Đã gửi TCP tới "+ip+":"+port+". Cần kiểm tra phiếu giấy; đây không phải xác nhận đã in",id);
-        } catch(Exception ex){
+        } catch(Throwable ex){ // OutOfMemoryError on a long ticket must not kill the app
             try{state(id,started[0]?"UNKNOWN":"FAILED");}catch(IOException ignored){}
             events.emit(started[0]?"LAN-007":"LAN-002","FAIL",(started[0]?"Chưa rõ đã in; không tự gửi lại. ":"Chưa gửi phiếu. ")+ex.getMessage(),id);
         } finally {active.remove(id);if(bitmap!=null)bitmap.recycle();}

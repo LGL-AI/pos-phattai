@@ -22,3 +22,6 @@ nav button small,.item-chooser h2 small{font-size:1em!important;line-height:inhe
 @media(max-width:430px){.owner-grid{grid-template-columns:1fr}.modifier-grid,.spice-grid{grid-template-columns:1fr}.item-chooser{padding:16px}.item-footer{align-items:stretch;flex-direction:column}.item-footer button{width:100%}}
 
 .staff-checklist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0 14px;max-height:220px;overflow:auto;-webkit-overflow-scrolling:touch}.staff-checklist .perm{margin:0;padding:8px;border:1px solid #e5e7eb;border-radius:8px;background:#fff}.report-controls label{min-width:150px}.report-controls select{width:100%;min-width:180px}@media(max-width:430px){.staff-checklist{grid-template-columns:1fr}.report-controls .row{align-items:stretch;flex-direction:column}.report-controls label{width:100%}}
+
+/* Handheld: keep the menu near the top; member/voucher open on demand */
+.member-voucher{margin-top:10px}.member-voucher>summary{cursor:pointer;font-weight:700;padding:10px 0;color:#203b39}

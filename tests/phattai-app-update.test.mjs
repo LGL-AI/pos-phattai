@@ -8,7 +8,7 @@ import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import vm from 'node:vm';
 import identity from '../android/app-identity.json' with {type:'json'};
-import {selectAndroidRelease,validateReleaseCatalog,releasePath,handleAndroidUpdate,handleAndroidApk,MAX_APK_BYTES} from '../src/android-update.js';
+import {selectAndroidRelease,validateReleaseCatalog,releasePath,handleAndroidUpdate,handleAndroidApk,handleAndroidDownload,MAX_APK_BYTES} from '../src/android-update.js';
 import {releaseMetadata,publishVerifiedRelease} from '../scripts/publish-android-release.mjs';
 import {renderAndroidManifest} from '../scripts/android-manifest.mjs';
 import worker from '../src/worker.js';
@@ -71,3 +71,11 @@ function ui(canInstall=true){
 test('UPDATE UI supports explicit check and installation',()=>{const u=ui();u.controller.check();u.controller.install();assert.equal(u.calls.check,1);assert.equal(u.calls.install,1)});
 test('UPDATE UI never invokes installation with an unfinished draft',()=>{const u=ui(false);u.controller.install();assert.equal(u.calls.install,0);assert.equal(u.calls.notice,1)});
 test('UPDATE progress changes only its panel and escapes server text',()=>{const u=ui();u.event({message:'<img onerror=alert(1)>',releaseVersion:'<script>',busy:true,available:true});assert.ok(u.panel.innerHTML.includes('&lt;img'));assert.ok(!u.panel.innerHTML.includes('<script>'));assert.match(u.panel.innerHTML,/disabled/)});
+test('DOWNLOAD /app redirects the device browser to the current verified APK only',async()=>{
+ const published=handleAndroidDownload(new Request('https://pos.test/app'),catalog(release()));
+ assert.equal(published.status,302);assert.equal(published.headers.get('Location'),'https://pos.test'+release().path);
+ assert.equal(handleAndroidDownload(new Request('https://pos.test/app'),catalog()).status,404);
+ assert.equal(handleAndroidDownload(new Request('https://pos.test/app',{method:'POST'}),catalog(release())).status,405);
+ assert.equal(handleAndroidDownload(new Request('https://pos.test/app'),catalog(release({signatureVerified:false}))).status,503);
+ const live=await worker.fetch(new Request('https://pos.test/app'),{});assert.ok([302,404].includes(live.status));
+});

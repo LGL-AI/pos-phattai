@@ -7,7 +7,7 @@ import {displayPublic} from './display.js';
 import {getStore,publicStore,bankSnapshot,priceTotals,logoResponse} from './settings.js';
 import {nextOrderCode,codeForMethod} from './order-code.js';
 import {mutationScopes} from './sync.js';
-import {handleAndroidUpdate,handleAndroidApk} from './android-update.js';
+import {handleAndroidUpdate,handleAndroidApk,handleAndroidDownload} from './android-update.js';
 
 const VERSION=packageInfo.version;
 const REQUIRED_MIGRATION='0018_sync_revisions_append_requests.sql';
@@ -182,6 +182,7 @@ const apiRoutes={'/api/health':['GET'],'/api/catalog':['GET'],'/api/catalog/meta
 export default {async fetch(request,env,ctx){const url=new URL(request.url),p=url.pathname,method=request.method;
  if(p==='/api/android/update')return handleAndroidUpdate(request);
  if(p.startsWith('/releases/android/'))return handleAndroidApk(request,env);
+ if(p==='/app'||p==='/app/')return handleAndroidDownload(request);
  if(p==='/kitchen'||p.startsWith('/kitchen/')||p.startsWith('/assets/kitchen'))return new Response('Not found',{status:404,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
  if(p==='/api/realtime'){
   if(request.method!=='GET'||request.headers.get('Upgrade')!=='websocket'||!env.REALTIME)return fail(426,'SERVICE_UNAVAILABLE');

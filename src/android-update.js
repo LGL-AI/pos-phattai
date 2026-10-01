@@ -63,3 +63,15 @@ export async function handleAndroidApk(request,env,catalog=published){
   return new Response(response.body,{status:200,headers:result});
  }catch{return new Response('APK unavailable',{status:503,headers})}
 }
+// Short, stable link for the first install (or a reinstall) from the device browser:
+// /app redirects to the current verified APK. The in-app updater never uses this route.
+export function handleAndroidDownload(request,catalog=published){
+ const headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
+ if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405,headers:{...headers,Allow:'GET, HEAD'}});
+ try{
+  validateReleaseCatalog(catalog);
+  const release=catalog.releases.find(release=>release.applicationId===identity.productionApplicationId);
+  if(!release)return new Response('Chưa có bản APK được phát hành / 尚未发布 APK',{status:404,headers:{...headers,'Content-Type':'text/plain; charset=utf-8'}});
+  return new Response(null,{status:302,headers:{...headers,Location:new URL(release.path,request.url).toString()}});
+ }catch{return new Response('APK unavailable',{status:503,headers})}
+}

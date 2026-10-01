@@ -14,8 +14,10 @@ export async function daily(env,date){const day=date||today();if(!validDay(day))
 const validClock=s=>/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(s||'');
 export async function shiftReport(env,date,start,end,name=''){
  const day=date||today(),shiftName=String(name||'').trim().slice(0,80);
- if(!validDay(day)||!validClock(start)||!validClock(end)||start>=end)return null;
- const from=day+' '+start+':00',to=day+' '+end+':00';
+ if(!validDay(day)||!validClock(start)||!validClock(end)||start===end)return null;
+ // A shift that ends at or before it starts runs past midnight into the next day (e.g. 18:00–02:00).
+ const endDay=end>start?day:new Date(Date.parse(day+'T00:00:00Z')+86400000).toISOString().slice(0,10);
+ const from=day+' '+start+':00',to=endDay+' '+end+':00';
  const orders=(await env.DB.prepare("SELECT o.id,o.id AS orderId,o.code,o.table_id AS tableName,o.source,o.total,o.tax_amount AS taxAmount,o.payment_method AS method,o.paid_at AS paidAt,'ORDER' AS kind FROM qr_orders o WHERE o.payment_status='PAID' AND datetime(o.paid_at,'+7 hours')>=? AND datetime(o.paid_at,'+7 hours')<? AND NOT EXISTS(SELECT 1 FROM pos_bills b WHERE b.order_id=o.id) ORDER BY o.paid_at,o.id").bind(from,to).all()).results;
  const bills=(await env.DB.prepare("SELECT b.id,b.order_id AS orderId,o.code AS parentCode,b.sequence,o.table_id AS tableName,o.source,b.total,b.tax_amount AS taxAmount,b.payment_method AS method,b.paid_at AS paidAt,'BILL' AS kind FROM pos_bills b JOIN qr_orders o ON o.id=b.order_id WHERE b.payment_status='PAID' AND datetime(b.paid_at,'+7 hours')>=? AND datetime(b.paid_at,'+7 hours')<? ORDER BY b.paid_at,b.id").bind(from,to).all()).results.map(b=>({...b,code:codeForBill(b.parentCode,b.method,b.sequence)}));
  const refunds=(await env.DB.prepare("SELECT r.id,r.order_id AS orderId,r.bill_id AS billId,r.amount,r.method,r.reason,r.created_at AS createdAt FROM pos_refunds r WHERE datetime(r.created_at,'+7 hours')>=? AND datetime(r.created_at,'+7 hours')<? ORDER BY r.created_at,r.id").bind(from,to).all()).results;
@@ -64,4 +66,25 @@ export async function analytics(env,date){const day=date||today();if(!validDay(d
  LEFT JOIN pos_staff_users u2 ON u2.id=r.actor_id
  WHERE date(r.created_at,'+7 hours')=? ORDER BY r.created_at DESC,r.id,l.category`).bind(day).all();
  return {report,hours,history,topProducts,shifts,attendance,refundDetails};
+}
+
+// Owner-defined shifts used by the Reports screen. Stored as JSON on the single store row.
+export function parseReportShifts(value){
+ if(!Array.isArray(value)||value.length>12)return null;
+ const out=[],names=new Set();
+ for(const item of value){
+  const name=String(item?.name??'').trim(),start=String(item?.start??''),end=String(item?.end??'');
+  if(!name||name.length>40||!validClock(start)||!validClock(end)||start===end||names.has(name.toLocaleLowerCase('vi-VN')))return null;
+  names.add(name.toLocaleLowerCase('vi-VN'));out.push({name,start,end});
+ }
+ return out;
+}
+export async function reportShifts(env){
+ const row=await env.DB.prepare('SELECT report_shifts FROM pos_store_config WHERE id=1').first();
+ try{return parseReportShifts(JSON.parse(row?.report_shifts||'[]'))||[]}catch{return []}
+}
+export async function saveReportShifts(env,value,actorId){
+ const shifts=parseReportShifts(value);if(!shifts)return null;
+ await env.DB.prepare('UPDATE pos_store_config SET report_shifts=?,updated_at=?,updated_by=? WHERE id=1').bind(JSON.stringify(shifts),new Date().toISOString(),actorId).run();
+ return shifts;
 }

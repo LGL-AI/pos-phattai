@@ -28,6 +28,8 @@ test('NATIVE dynamic ids and searches keep working when they contain characters 
  const filter=nativePathFilter();
  for(const value of ['ORD-20261001-0001','0909.123.456','Nguyễn Văn A','a.b@c.vn','Cơm (lớn)!*~\''])
   assert.ok(filter.test('/api/staff/customers?query='+encodeURIComponent(value)),value);
+ // URLSearchParams turns spaces into '+': shift names such as "Ca sáng" must still pass.
+ assert.ok(filter.test('/api/staff/reports/shift?'+new URLSearchParams({date:'2026-10-01',start:'06:00',end:'14:00',name:'Ca sáng tối'})));
  for(const path of ['/api/android/update','/api/staff/../../x','https://evil.test/api/staff/me','/api/staff/me#x','/api/staff/a b'])
   assert.ok(!filter.test(path),path);
 });

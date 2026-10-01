@@ -2,6 +2,7 @@ import identity from '../android/app-identity.json' with {type:'json'};
 import packageInfo from '../package.json' with {type:'json'};
 import catalog from '../src/android-releases.json' with {type:'json'};
 import {selectAndroidRelease} from '../src/android-update.js';
+import {readdirSync} from 'node:fs';
 const origin=process.env.POS_CLOUDFLARE_URL||'https://pos-phattai.lgl247-ai.workers.dev';
 async function read(path){
  const response=await fetch(origin+path,{headers:{Accept:'application/json','User-Agent':'Mozilla/5.0'},signal:AbortSignal.timeout(15000)});
@@ -11,7 +12,7 @@ async function read(path){
 // Cloudflare needs a few seconds to serve a new deployment everywhere, so retry for up to a minute.
 async function verify(){
  const health=await read('/api/health');
- const requiredMigration='0018_sync_revisions_append_requests.sql';
+ const requiredMigration=readdirSync(new URL('../migrations/',import.meta.url)).filter(name=>/^\d+_.+\.sql$/.test(name)).sort().at(-1);
  if(health.version!==packageInfo.version||health.d1!=='ok'||health.requiredMigration!==requiredMigration)throw Error(`Production health ${JSON.stringify({version:health.version,d1:health.d1,requiredMigration:health.requiredMigration})} does not match Worker ${packageInfo.version}`);
  const query=new URLSearchParams({applicationId:identity.productionApplicationId,signerSha256:identity.profiles[identity.productionApplicationId].signerSha256,versionCode:'1',sdk:'30'});
  const update=await read('/api/android/update?'+query),expected=selectAndroidRelease(query,catalog);

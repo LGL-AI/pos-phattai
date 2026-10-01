@@ -10,7 +10,7 @@ import {mutationScopes} from './sync.js';
 import {handleAndroidUpdate,handleAndroidApk,handleAndroidDownload} from './android-update.js';
 
 const VERSION=packageInfo.version;
-const REQUIRED_MIGRATION='0018_sync_revisions_append_requests.sql';
+const REQUIRED_MIGRATION='0019_report_shift_templates.sql';
 const COOKIE='__Host-lotus_qr_member';
 const ERR={
  METHOD_NOT_ALLOWED:['Phương thức không được hỗ trợ','不支持此请求方式'],

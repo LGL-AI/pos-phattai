@@ -223,7 +223,7 @@ public class MainActivity extends Activity {
         int maxRaw="/api/staff/store".equals(path)?500000:20000;
         boolean allowedMethod="GET".equals(httpMethod)||"POST".equals(httpMethod)||"PUT".equals(httpMethod)||"PATCH".equals(httpMethod)||"DELETE".equals(httpMethod);
         if(requestId==null||!requestId.matches("[a-fA-F0-9-]{36}")||path==null||
-           !path.matches("/api/(staff/[A-Za-z0-9_/?=&%:.~!*'()-]*|catalog(/meta)?)")||path.contains("..")||
+           !path.matches("/api/(staff/[A-Za-z0-9_/?=&%:.~!*'()+-]*|catalog(/meta)?)")||path.contains("..")||
            !allowedMethod||raw==null||raw.length()>maxRaw||
            token==null||token.length()>100){returnApi(requestId,0,"{\"ok\":false,\"message\":\"Yêu cầu không hợp lệ\"}");return;}
         final long queuedAt=android.os.SystemClock.elapsedRealtime();

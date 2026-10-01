@@ -3,7 +3,7 @@ import {allowed,handleOps,loginActor,sessionActor} from './ops.js';
 import {displayStaff} from './display.js';
 import {handleManagement} from './management.js';
 import {settingsStaff} from './settings.js';
-import {daily,analytics,shiftReport} from './reports.js';
+import {daily,analytics,shiftReport,reportShifts,saveReportShifts} from './reports.js';
 import {handleShiftOps} from './shift-ops.js';
 import {nextOrderCode,codeForMethod,codeForBill} from './order-code.js';
 import {handleCustomers} from './customers.js';
@@ -85,6 +85,12 @@ export async function handleStaff(req,env,deps){
    await env.DB.prepare("UPDATE pos_service_requests SET status='ACKNOWLEDGED',acknowledged_at=?,acknowledged_by=? WHERE id=? AND status='PENDING'").bind(now(),actor.id,serviceAck[1]).run();return result({});
   }
   if(path.startsWith('/api/staff/display'))return await displayStaff(req,env,actor,deps);
+  if(path==='/api/staff/report-shifts'){
+   if(actor.role!=='OWNER')return error(403,'OWNER_ONLY','Chỉ chủ tiệm được xem/sửa danh sách ca');
+   if(method==='GET')return result({shifts:await reportShifts(env)});
+   if(method==='PUT'){const b=await deps.body(req),shifts=await saveReportShifts(env,b.shifts,actor.id);return shifts?result({shifts}):error(400,'INVALID_SHIFTS','Mỗi ca cần tên (tối đa 40 ký tự, không trùng), giờ bắt đầu và kết thúc khác nhau; tối đa 12 ca')}
+   return error(405,'METHOD_NOT_ALLOWED','Phương thức không được hỗ trợ');
+  }
   if((path==='/api/staff/summary'||path==='/api/staff/reports/daily'||path==='/api/staff/reports/analytics'||path==='/api/staff/reports/shift')&&method==='GET'){
    if(path==='/api/staff/summary'){
     if(!allowed(actor,'ORDER_VIEW'))return error(403,'PERMISSION_DENIED','Không có quyền xem tổng quan');

@@ -24,7 +24,17 @@ Bản offline cũ: dùng bản online song song ít nhất một ngày bán hàn
 - App chỉ cho cài khi giỏ món trống, không có thanh toán đang chờ và không có lệnh in đang chạy. Cấu hình IP máy in và phiên đăng nhập được giữ nguyên.
 - Trước khi cài, app kiểm tra file tải về: đúng package, đúng khóa ký, version mới hơn, đúng SHA-256. Sai bất kỳ điều nào thì từ chối cài.
 
-## 3. Checklist nghiệm thu tại quán
+## 3. Báo cáo theo ca
+
+Vào **Quản trị chủ tiệm → Báo cáo ngày & ca**:
+
+1. **Khai báo ca một lần:** mở mục *Danh sách ca của quán* → *+ Thêm ca* → nhập tên ca, giờ bắt đầu, giờ kết thúc → *Lưu danh sách ca*. Nếu giờ kết thúc nhỏ hơn giờ bắt đầu (ví dụ 18:00–02:00), hệ thống hiểu là ca qua đêm và cộng doanh thu sang tới sáng hôm sau. Tối đa 12 ca. Sửa hoặc xóa ca bất cứ lúc nào; báo cáo cũ không bị ảnh hưởng.
+2. **Chọn ngày** → **chọn ca** trong ô *Phạm vi báo cáo*. Có thể chọn *Cả ngày*, hoặc *Tự chọn giờ…* để xem một khoảng giờ bất kỳ.
+3. Bấm **Xem báo cáo**, rồi **In SUNMI** để in ra máy in trên SUNMI, hoặc **Tải CSV** để mở bằng Excel. Trên POS quầy (`/counter/`), nút in dùng máy in của máy tính.
+
+Doanh thu của ca tính theo **thời điểm thanh toán** (giờ Việt Nam): đơn chốt trong ca này nhưng thanh toán ở ca sau thì được tính cho ca sau. Nếu đã xếp lịch nhân viên cho ca có cùng tên và giờ trong *Chấm công*, báo cáo hiện thêm tên nhân viên của ca đó.
+
+## 4. Checklist nghiệm thu tại quán
 
 Làm trên máy thật, đánh dấu từng mục:
 
@@ -36,6 +46,8 @@ Làm trên máy thật, đánh dấu từng mục:
 - [ ] Thanh toán chuyển khoản MB (QR) → chỉ xác nhận sau khi thấy tiền về → mã đuôi `-CK`.
 - [ ] Tách bill 2 phần → thanh toán từng bill → đơn gốc đóng khi bill cuối trả xong.
 
+- [ ] Khai báo 2 ca, chọn ngày hôm nay → chọn từng ca → Xem → In SUNMI. Tổng doanh thu các ca bằng báo cáo *Cả ngày* (nếu các ca phủ kín giờ bán trong ngày).
+
 **Đồng bộ**
 - [ ] Khách quét QR, chọn bàn, gọi món → đơn hiện trên SUNMI trong vài giây và phiếu bếp tự in.
 - [ ] Hai máy (SUNMI + POS quầy) mở cùng một đơn; một máy thêm món, máy kia thấy ngay.
@@ -46,7 +58,7 @@ Làm trên máy thật, đánh dấu từng mục:
 - [ ] Bấm nút Home, mở app khác vài phút rồi quay lại → vẫn còn đăng nhập.
 - [ ] Khởi động lại máy SUNMI → mở app → vẫn còn IP máy in bếp, vẫn đăng nhập (phiên đăng nhập có hạn 12 giờ).
 
-## 4. Khi có sự cố
+## 5. Khi có sự cố
 
 | Hiện tượng | Kiểm tra |
 |---|---|

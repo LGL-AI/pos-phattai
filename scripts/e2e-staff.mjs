@@ -47,7 +47,7 @@ async function device({native}){
    },
    getAuthState:()=>JSON.stringify(auth),getCloudBase:()=>location.origin,logout(){auth.user=null},
    getAppUpdateState:()=>'{"status":"IDLE"}',checkAppUpdate(){},installAppUpdate(){},getKitchenJobStatus:()=>'QUEUED',
-   printKitchen(){},retryKitchen(){},getReceiptState:()=>'NEW',printReceipt:()=>'OK',reprintReceipt(){},printDailyReport(){},
+   printKitchen(){},retryKitchen(){},getReceiptState:()=>'NEW',printReceipt:()=>'OK',reprintReceipt(){},printDailyReport(id,raw){(window.__printed=window.__printed||[]).push({id,text:JSON.parse(raw).text})},
    getPrinterStatus:()=>'{"state":1}',checkPrinter(){},reconnectPrinter(){},openKitchenSettings(){},openKitchenJobs(){},
    openDiagnostics(){},openCloudConnectivity(){},savePng(){},getAppInfo:()=>'{"native":true}'
   };
@@ -85,7 +85,21 @@ try{
  await hp.waitForFunction(()=>/-TM\b/.test(document.querySelector('#app').innerText));
  check(true,'cash payment closes the order with a -TM code');
 
- // 2. Customer QR order reaches the handheld through realtime sync
+ // 2. Shift report: owner defines a shift, picks day + shift, views it and prints on SUNMI
+ await hp.click('[data-screen="owner"]');await hp.locator('[data-screen="dashboard"]').first().click();await hp.waitForSelector('#report-shift');
+ await hp.click('.shift-templates summary');await hp.click('[data-action=report-shift-add]');
+ await hp.fill('[data-tpl-name="0"]','Ca cả ngày');await hp.fill('[data-tpl-start="0"]','00:00');await hp.fill('[data-tpl-end="0"]','23:59');
+ await hp.click('[data-action=report-shifts-save]');
+ await hp.waitForFunction(()=>[...document.querySelectorAll('#report-shift option')].some(o=>o.textContent.startsWith('Ca cả ngày')));
+ const shiftKey=await hp.evaluate(()=>[...document.querySelectorAll('#report-shift option')].find(o=>o.textContent.startsWith('Ca cả ngày')).value);
+ await hp.selectOption('#report-shift',shiftKey);await hp.click('[data-action=report-load]');
+ await hp.waitForFunction(()=>!document.querySelector('[data-action=report-print]')?.disabled&&/Ca cả ngày/.test(document.querySelector('#app').innerText));
+ check(/Ca cả ngày[\s\S]*00:00–23:59/.test(await text(hp)),'shift report shows the chosen shift');
+ await hp.click('[data-action=report-print]');
+ const printed=await hp.evaluate(()=>window.__printed||[]);
+ check(printed.length===1&&printed[0].id.startsWith('shift-report:')&&/BÁO CÁO CA[\s\S]*Ca cả ngày[\s\S]*Tiền mặt \/ 现金: [1-9]/.test(printed[0].text),'shift report prints on SUNMI with the paid cash order');
+
+ // 3. Customer QR order reaches the handheld through realtime sync
  await hp.click('[data-screen="orders"]');await hp.waitForTimeout(1000);
  const cust=await device({native:false}),cp=cust.page;
  await cp.goto(BASE+'/qr/');await cp.click('[data-pick=T08]');await cp.click('[data-action=confirm-table]');
@@ -95,7 +109,7 @@ try{
  try{await hp.waitForFunction(()=>/T08/.test(document.querySelector('#app').innerText),null,{timeout:10000});check(true,`QR order visible on the handheld after ${Date.now()-sent} ms`)}
  catch{check(false,'QR order visible on the handheld within 10 s')}
 
- // 3. Network drop: the handheld must say it is offline, then recover by itself
+ // 4. Network drop: the handheld must say it is offline, then recover by itself
  await hand.context.setOffline(true);
  try{await hp.waitForFunction(()=>document.querySelector('#connection').textContent.includes('Chưa kết nối'),null,{timeout:25000});check(true,'offline state is shown while the network is down')}
  catch{check(false,'offline state is shown while the network is down')}

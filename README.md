@@ -1,47 +1,36 @@
-# Lotus POS PHÁT TÀI · Order First / Pay Later · v1.5.0
+# Lotus POS Phát Tài — v1.6.3
 
-Bản PHÁT TÀI tách riêng hoàn toàn khỏi Echo Coffee:
+Worker source `2.7.0-phattai.3`; Android `1.6.3` / `163`. Source revision
+`APP_UPDATE_RELEASE_GUARD_2026-09-30`. Package mặc định `vn.lotusai.pos.phattaiapp`.
 
-- Android package: `vn.lotusai.pos.phattaiapp`
-- Worker: `pos-phattai`
-- D1: `pos_phattai`
-- Customer QR UI: `https://pos-phattai.lgl247-ai.workers.dev/qr/`
-- Catalog mặc định: `PT001`–`PT013`
+Bản này bổ sung updater Android + UI VN/ZH + endpoint Worker + công cụ phát hành
+APK ký đúng certificate. Đã tìm lại đúng khóa production và ký APK v1.6.3; catalog chứa bản production
+đã kiểm chữ ký. Chưa deploy production, chưa UAT cài trên SUNMI. Không dùng các APK `_UNSIGNED`
+để cài tại quán.
 
-## Flow nghiệp vụ chính
+Bản được gửi lại trong lần “làm tiếp” trước có SHA-256
+`7bf5df957bf31785ab7fd97c97d2b2381bdb0ef2c3a368ec62f9d18564f33bf3` và không
+được sửa thêm ở lần đó. Đây là bản có thay đổi mã nguồn thật, version mới và
+đối chiếu file riêng.
 
-```text
-Khách quét QR chung
-→ chọn bàn trên UI
-→ chọn món
-→ chốt order
-→ Worker ghi order UNPAID vào D1
-→ D1 đồng thời tạo kitchen job
-→ SUNMI / print bridge lấy job và in phiếu bếp
-→ khách dùng món
-→ gọi nhân viên
-→ nhân viên mở Đơn hàng trên SUNMI
-→ đối chiếu bàn + món + tổng tiền
-→ Thanh toán
-   ├─ Tiền mặt → nhận tiền → xác nhận → mã ...-TM
-   └─ Chuyển khoản → hiện VietQR trên SUNMI → kiểm tra tiền vào → xác nhận → mã ...-CK
-→ D1 PAID
-→ SUNMI in hóa đơn
-```
+- [Manifest của đúng bản hiện tại](RELEASE_MANIFEST_v1.6.3.json)
+- [Báo cáo sửa và bàn giao](FIX_AND_DELIVERY_REPORT_v1.6.3.md)
+- [Build, phát hành và sử dụng updater](docs/ANDROID_UPDATE_v163.md)
+- [Profile SUNMI để tạo AVD trong Android Studio](docs/SUNMI_AVD_SETUP.md)
+- [Hash trước/sau từng file](DELIVERY_COMPARISON_v1.6.2_to_v1.6.3.json)
 
-Khách **không có chức năng thanh toán** trên QR UI. Thanh toán chỉ do nhân viên thực hiện trên POS cầm tay.
+Cần Node 22+, JDK 17, Android SDK API 35 / build-tools 35.0.1. `npm ci`, rồi
+`npm test` chạy toàn bộ regression; `npm run release:gate` sync và kiểm assets,
+catalog release cùng regression. Android Studio mở thư mục `android`; có Gradle
+wrapper 8.9 với checksum distribution pin.
 
-## Mã đơn
+Build release mặc định cần keystore gốc. Local unsigned: `bash android/build-local.sh
+--unsigned`; Gradle unsigned proof: đặt `LOTUS_UNSIGNED_BUILD=1` trước
+`./gradlew assembleRelease`. Đây chỉ là kiểm compile/binary.
 
-Khi khách vừa chốt món, phương thức thanh toán chưa biết nên mã nền là:
+Deploy từ máy đã đăng nhập Cloudflare bằng `DEPLOY_CLOUDFLARE_V163.cmd` / `.sh`
+hoặc `npm run deploy:remote`. Pipeline backup D1, kiểm migration 0018, deploy và
+xác minh remote. Toàn bộ flow đơn trước, thanh toán sau và hàng đợi in được giữ.
 
-`DDMMYYYY-STT-MAKH`
-
-Khi nhân viên xác nhận thanh toán, mã chính thức trở thành:
-
-- Chuyển khoản: `DDMMYYYY-STT-MAKH-CK`
-- Tiền mặt: `DDMMYYYY-STT-MAKH-TM`
-
-Khách vãng lai dùng `MAKH=000000`; hội viên dùng mã ổn định dẫn xuất từ member ID hiện có.
-
-Xem `README_PHATTAI_DEPLOY.md` và `TEST_REPORT_PHATTAI_ORDER_FIRST_v1.5.0.md`.
+Các manifest/report/log của v1.6.2 ở `history/v1.6.2`; không dùng chúng để xác
+định trạng thái bản này. `CURRENT_RELEASE.json` trỏ đúng manifest v1.6.3.

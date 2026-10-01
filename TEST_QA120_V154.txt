@@ -1,0 +1,736 @@
+
+> lotus-pos-phattai-cloud-d1@2.6.0-phattai.6 test
+> node --test tests/phattai-v152-qa120.test.mjs
+
+TAP version 13
+# (node:6793) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: A01 huang authenticates as OWNER
+ok 1 - A01 huang authenticates as OWNER
+  ---
+  duration_ms: 67.614087
+  type: 'test'
+  ...
+# Subtest: A02 OWNER can load daily report
+ok 2 - A02 OWNER can load daily report
+  ---
+  duration_ms: 35.801601
+  type: 'test'
+  ...
+# Subtest: A03 cashier is blocked from daily report
+ok 3 - A03 cashier is blocked from daily report
+  ---
+  duration_ms: 32.158208
+  type: 'test'
+  ...
+# Subtest: A04 OWNER can load analytics report
+ok 4 - A04 OWNER can load analytics report
+  ---
+  duration_ms: 33.947336
+  type: 'test'
+  ...
+# Subtest: A05 manager is blocked from analytics report
+ok 5 - A05 manager is blocked from analytics report
+  ---
+  duration_ms: 31.757104
+  type: 'test'
+  ...
+# Subtest: A06 OWNER can read store/bank configuration
+ok 6 - A06 OWNER can read store/bank configuration
+  ---
+  duration_ms: 31.022898
+  type: 'test'
+  ...
+# Subtest: A07 non-owner cannot read store/bank configuration
+ok 7 - A07 non-owner cannot read store/bank configuration
+  ---
+  duration_ms: 26.895999
+  type: 'test'
+  ...
+# Subtest: A08 store update rejects tableCount 0
+ok 8 - A08 store update rejects tableCount 0
+  ---
+  duration_ms: 32.264895
+  type: 'test'
+  ...
+# Subtest: A09 store update detects stale version
+ok 9 - A09 store update detects stale version
+  ---
+  duration_ms: 33.99345
+  type: 'test'
+  ...
+# Subtest: A10 OWNER can list roles
+ok 10 - A10 OWNER can list roles
+  ---
+  duration_ms: 33.097338
+  type: 'test'
+  ...
+# Subtest: A11 cashier cannot list roles
+ok 11 - A11 cashier cannot list roles
+  ---
+  duration_ms: 30.446044
+  type: 'test'
+  ...
+# Subtest: A12 OWNER can list staff accounts
+ok 12 - A12 OWNER can list staff accounts
+  ---
+  duration_ms: 37.086006
+  type: 'test'
+  ...
+# Subtest: A13 manager cannot list staff accounts
+ok 13 - A13 manager cannot list staff accounts
+  ---
+  duration_ms: 29.05171
+  type: 'test'
+  ...
+# Subtest: A14 OWNER can list voucher administration
+ok 14 - A14 OWNER can list voucher administration
+  ---
+  duration_ms: 34.885304
+  type: 'test'
+  ...
+# Subtest: A15 manager cannot access voucher administration
+ok 15 - A15 manager cannot access voucher administration
+  ---
+  duration_ms: 35.561696
+  type: 'test'
+  ...
+# Subtest: A16 OWNER can create a CASHIER account
+ok 16 - A16 OWNER can create a CASHIER account
+  ---
+  duration_ms: 59.452843
+  type: 'test'
+  ...
+# Subtest: A17 OWNER cannot create second OWNER account through staff API
+ok 17 - A17 OWNER cannot create second OWNER account through staff API
+  ---
+  duration_ms: 36.474429
+  type: 'test'
+  ...
+# Subtest: A18 OWNER system role is protected from role edits
+ok 18 - A18 OWNER system role is protected from role edits
+  ---
+  duration_ms: 29.598017
+  type: 'test'
+  ...
+# Subtest: A19 staff handheld navigation consolidates OWNER tools under one parent
+ok 19 - A19 staff handheld navigation consolidates OWNER tools under one parent
+  ---
+  duration_ms: 0.41893
+  type: 'test'
+  ...
+# Subtest: A20 owner hub exposes store management as a child action
+ok 20 - A20 owner hub exposes store management as a child action
+  ---
+  duration_ms: 0.095111
+  type: 'test'
+  ...
+# Subtest: A21 owner hub exposes account and permission management as a child action
+ok 21 - A21 owner hub exposes account and permission management as a child action
+  ---
+  duration_ms: 0.085607
+  type: 'test'
+  ...
+# Subtest: A22 owner hub exposes device and printer administration
+ok 22 - A22 owner hub exposes device and printer administration
+  ---
+  duration_ms: 0.08761
+  type: 'test'
+  ...
+# Subtest: A23 CSV daily report and SUNMI print actions exist
+ok 23 - A23 CSV daily report and SUNMI print actions exist
+  ---
+  duration_ms: 0.099938
+  type: 'test'
+  ...
+# Subtest: A24 SUNMI daily report print action is owner-gated
+ok 24 - A24 SUNMI daily report print action is owner-gated
+  ---
+  duration_ms: 0.099758
+  type: 'test'
+  ...
+# Subtest: A25 SUNMI daily report print requires native bridge
+ok 25 - A25 SUNMI daily report print requires native bridge
+  ---
+  duration_ms: 0.117243
+  type: 'test'
+  ...
+# Subtest: A26 hardware settings actions re-fetch current staff identity
+ok 26 - A26 hardware settings actions re-fetch current staff identity
+  ---
+  duration_ms: 0.235679
+  type: 'test'
+  ...
+# Subtest: A27 hardware settings actions enforce OWNER at UI layer
+ok 27 - A27 hardware settings actions enforce OWNER at UI layer
+  ---
+  duration_ms: 0.062503
+  type: 'test'
+  ...
+# Subtest: A28 hardware settings actions enforce APK/native environment
+ok 28 - A28 hardware settings actions enforce APK/native environment
+  ---
+  duration_ms: 0.043675
+  type: 'test'
+  ...
+# Subtest: A29 kitchen configuration action calls native.openKitchenSettings
+ok 29 - A29 kitchen configuration action calls native.openKitchenSettings
+  ---
+  duration_ms: 0.251873
+  type: 'test'
+  ...
+# Subtest: A30 kitchen jobs action calls native.openKitchenJobs
+ok 30 - A30 kitchen jobs action calls native.openKitchenJobs
+  ---
+  duration_ms: 0.387354
+  type: 'test'
+  ...
+# Subtest: A31 device diagnostics action calls native.openDiagnostics
+ok 31 - A31 device diagnostics action calls native.openDiagnostics
+  ---
+  duration_ms: 0.090845
+  type: 'test'
+  ...
+# Subtest: A32 SUNMI printer check action calls native.checkPrinter
+ok 32 - A32 SUNMI printer check action calls native.checkPrinter
+  ---
+  duration_ms: 0.073309
+  type: 'test'
+  ...
+# Subtest: A33 SUNMI reconnect action calls native.reconnectPrinter
+ok 33 - A33 SUNMI reconnect action calls native.reconnectPrinter
+  ---
+  duration_ms: 0.070154
+  type: 'test'
+  ...
+# Subtest: A34 Android connectivity screen exposes kitchen printer IP input
+ok 34 - A34 Android connectivity screen exposes kitchen printer IP input
+  ---
+  duration_ms: 0.035132
+  type: 'test'
+  ...
+# Subtest: A35 Android connectivity screen exposes numeric kitchen printer port
+ok 35 - A35 Android connectivity screen exposes numeric kitchen printer port
+  ---
+  duration_ms: 0.041822
+  type: 'test'
+  ...
+# Subtest: A36 Android connectivity screen persists kitchen LAN settings
+ok 36 - A36 Android connectivity screen persists kitchen LAN settings
+  ---
+  duration_ms: 0.034551
+  type: 'test'
+  ...
+# Subtest: A37 Android connectivity screen exposes kitchen test print/settings
+ok 37 - A37 Android connectivity screen exposes kitchen test print/settings
+  ---
+  duration_ms: 0.037175
+  type: 'test'
+  ...
+# Subtest: A38 Android connectivity screen exposes SUNMI diagnostics
+ok 38 - A38 Android connectivity screen exposes SUNMI diagnostics
+  ---
+  duration_ms: 0.032688
+  type: 'test'
+  ...
+# Subtest: A39 Diagnostics activity binds SUNMI printer service
+ok 39 - A39 Diagnostics activity binds SUNMI printer service
+  ---
+  duration_ms: 0.039979
+  type: 'test'
+  ...
+# Subtest: A40 Diagnostics activity reads current printer state
+ok 40 - A40 Diagnostics activity reads current printer state
+  ---
+  duration_ms: 0.104515
+  type: 'test'
+  ...
+# Subtest: A41 native receipt bridge submits RECEIPT type
+ok 41 - A41 native receipt bridge submits RECEIPT type
+  ---
+  duration_ms: 0.132967
+  type: 'test'
+  ...
+# Subtest: A42 native kitchen bridge is separate LAN path
+ok 42 - A42 native kitchen bridge is separate LAN path
+  ---
+  duration_ms: 0.090514
+  type: 'test'
+  ...
+# Subtest: A43 native daily report print bridge exists
+ok 43 - A43 native daily report print bridge exists
+  ---
+  duration_ms: 0.082993
+  type: 'test'
+  ...
+# Subtest: A44 customer order commit creates exactly one kitchen job immediately
+ok 44 - A44 customer order commit creates exactly one kitchen job immediately
+  ---
+  duration_ms: 51.597763
+  type: 'test'
+  ...
+# Subtest: A45 unpaid order is visible in automatic kitchen queue
+ok 45 - A45 unpaid order is visible in automatic kitchen queue
+  ---
+  duration_ms: 36.066145
+  type: 'test'
+  ...
+# Subtest: A46 kitchen job can be claimed before payment
+ok 46 - A46 kitchen job can be claimed before payment
+  ---
+  duration_ms: 37.716468
+  type: 'test'
+  ...
+# Subtest: A47 BANK payment does not create a second kitchen job
+ok 47 - A47 BANK payment does not create a second kitchen job
+  ---
+  duration_ms: 40.477747
+  type: 'test'
+  ...
+# Subtest: A48 CASH payment does not create a second kitchen job
+ok 48 - A48 CASH payment does not create a second kitchen job
+  ---
+  duration_ms: 39.303318
+  type: 'test'
+  ...
+# Subtest: A49 paid order disappears from automatic kitchen queue
+ok 49 - A49 paid order disappears from automatic kitchen queue
+  ---
+  duration_ms: 34.7193
+  type: 'test'
+  ...
+# Subtest: A50 stale PENDING kitchen job cannot be claimed after payment
+ok 50 - A50 stale PENDING kitchen job cannot be claimed after payment
+  ---
+  duration_ms: 40.224802
+  type: 'test'
+  ...
+# Subtest: A51 stale paid kitchen job status cannot be advanced after payment
+ok 51 - A51 stale paid kitchen job status cannot be advanced after payment
+  ---
+  duration_ms: 36.564321
+  type: 'test'
+  ...
+# Subtest: A52 BANK payment finalizes order code with CK
+ok 52 - A52 BANK payment finalizes order code with CK
+  ---
+  duration_ms: 32.344353
+  type: 'test'
+  ...
+# Subtest: A53 CASH payment finalizes order code with TM
+ok 53 - A53 CASH payment finalizes order code with TM
+  ---
+  duration_ms: 32.245347
+  type: 'test'
+  ...
+# Subtest: A54 CASH payment records correct change
+ok 54 - A54 CASH payment records correct change
+  ---
+  duration_ms: 33.59145
+  type: 'test'
+  ...
+# Subtest: A55 staff payment success invokes receipt bridge and refreshes paid detail
+ok 55 - A55 staff payment success invokes receipt bridge and refreshes paid detail
+  ---
+  duration_ms: 0.389967
+  type: 'test'
+  ...
+# Subtest: A56 staff payment success message is bilingual and states kitchen is not reprinted
+ok 56 - A56 staff payment success message is bilingual and states kitchen is not reprinted
+  ---
+  duration_ms: 0.070254
+  type: 'test'
+  ...
+# Subtest: A57 paid kitchen card removes normal kitchen print action
+ok 57 - A57 paid kitchen card removes normal kitchen print action
+  ---
+  duration_ms: 0.212024
+  type: 'test'
+  ...
+# Subtest: A58 source includes refund form, styled modifier dialog and bilingualizer regressions
+ok 58 - A58 source includes refund form, styled modifier dialog and bilingualizer regressions
+  ---
+  duration_ms: 0.081281
+  type: 'test'
+  ...
+# Subtest: A59 APK DEX contains separate receipt, kitchen and owner hardware bridge methods
+ok 59 - A59 APK DEX contains separate receipt, kitchen and owner hardware bridge methods
+  ---
+  duration_ms: 0.507501
+  type: 'test'
+  ...
+# Subtest: A60 PHAT TAI Android package is isolated from offline handheld package
+ok 60 - A60 PHAT TAI Android package is isolated from offline handheld package
+  ---
+  duration_ms: 0.067891
+  type: 'test'
+  ...
+# Subtest: B01 catalog exposes exactly 13 active PHAT TAI menu items
+ok 61 - B01 catalog exposes exactly 13 active PHAT TAI menu items
+  ---
+  duration_ms: 27.564376
+  type: 'test'
+  ...
+# Subtest: B02 customer UI starts with table picker requirement
+ok 62 - B02 customer UI starts with table picker requirement
+  ---
+  duration_ms: 0.206727
+  type: 'test'
+  ...
+# Subtest: B03 valid T01 order is accepted
+ok 63 - B03 valid T01 order is accepted
+  ---
+  duration_ms: 32.0517
+  type: 'test'
+  ...
+# Subtest: B04 valid T99 order is accepted at configured table limit
+ok 64 - B04 valid T99 order is accepted at configured table limit
+  ---
+  duration_ms: 27.890598
+  type: 'test'
+  ...
+# Subtest: B05 table above configured limit is rejected
+ok 65 - B05 table above configured limit is rejected
+  ---
+  duration_ms: 26.849546
+  type: 'test'
+  ...
+# Subtest: B06 malformed table is rejected
+ok 66 - B06 malformed table is rejected
+  ---
+  duration_ms: 26.408845
+  type: 'test'
+  ...
+# Subtest: B07 TAKEAWAY order remains supported
+ok 67 - B07 TAKEAWAY order remains supported
+  ---
+  duration_ms: 30.224164
+  type: 'test'
+  ...
+# Subtest: B08 empty customer cart is rejected
+ok 68 - B08 empty customer cart is rejected
+  ---
+  duration_ms: 34.936722
+  type: 'test'
+  ...
+# Subtest: B09 more than 30 cart lines are rejected
+ok 69 - B09 more than 30 cart lines are rejected
+  ---
+  duration_ms: 28.027552
+  type: 'test'
+  ...
+# Subtest: B10 quantity over 30 on one line is rejected
+ok 70 - B10 quantity over 30 on one line is rejected
+  ---
+  duration_ms: 27.076413
+  type: 'test'
+  ...
+# Subtest: B11 total units over 60 are rejected
+ok 71 - B11 total units over 60 are rejected
+  ---
+  duration_ms: 27.752524
+  type: 'test'
+  ...
+# Subtest: B12 invalid size option is rejected
+ok 72 - B12 invalid size option is rejected
+  ---
+  duration_ms: 26.408293
+  type: 'test'
+  ...
+# Subtest: B13 invalid spicy option is rejected
+ok 73 - B13 invalid spicy option is rejected
+  ---
+  duration_ms: 26.971247
+  type: 'test'
+  ...
+# Subtest: B14 inactive menu product cannot be ordered
+ok 74 - B14 inactive menu product cannot be ordered
+  ---
+  duration_ms: 27.917108
+  type: 'test'
+  ...
+# Subtest: B15 customer order is created UNPAID
+ok 75 - B15 customer order is created UNPAID
+  ---
+  duration_ms: 29.728229
+  type: 'test'
+  ...
+# Subtest: B16 customer response never exposes bank payment QR
+ok 76 - B16 customer response never exposes bank payment QR
+  ---
+  duration_ms: 29.831302
+  type: 'test'
+  ...
+# Subtest: B17 customer order code is base format before payment
+ok 77 - B17 customer order code is base format before payment
+  ---
+  duration_ms: 33.392375
+  type: 'test'
+  ...
+# Subtest: B18 same idempotency key returns same order without duplicate
+ok 78 - B18 same idempotency key returns same order without duplicate
+  ---
+  duration_ms: 31.008385
+  type: 'test'
+  ...
+# Subtest: B19 reusing idempotency key with different cart is rejected
+ok 79 - B19 reusing idempotency key with different cart is rejected
+  ---
+  duration_ms: 33.122495
+  type: 'test'
+  ...
+# Subtest: B20 customer can read own order using order token
+ok 80 - B20 customer can read own order using order token
+  ---
+  duration_ms: 30.479181
+  type: 'test'
+  ...
+# Subtest: B21 wrong customer order token is denied
+ok 81 - B21 wrong customer order token is denied
+  ---
+  duration_ms: 36.175667
+  type: 'test'
+  ...
+# Subtest: B22 customer can request staff service for an open order
+ok 82 - B22 customer can request staff service for an open order
+  ---
+  duration_ms: 34.600184
+  type: 'test'
+  ...
+# Subtest: B23 service request is idempotent while pending
+ok 83 - B23 service request is idempotent while pending
+  ---
+  duration_ms: 40.62198
+  type: 'test'
+  ...
+# Subtest: B24 staff order list contains QR-created order
+ok 84 - B24 staff order list contains QR-created order
+  ---
+  duration_ms: 37.006487
+  type: 'test'
+  ...
+# Subtest: B25 staff order detail contains table, items and total for reconciliation
+ok 85 - B25 staff order detail contains table, items and total for reconciliation
+  ---
+  duration_ms: 35.47559
+  type: 'test'
+  ...
+# Subtest: B26 staff order detail exposes bank QR only to authenticated staff
+ok 86 - B26 staff order detail exposes bank QR only to authenticated staff
+  ---
+  duration_ms: 37.647426
+  type: 'test'
+  ...
+# Subtest: B27 unauthenticated caller cannot access staff order detail
+ok 87 - B27 unauthenticated caller cannot access staff order detail
+  ---
+  duration_ms: 32.915519
+  type: 'test'
+  ...
+# Subtest: B28 cashier role can view orders
+ok 88 - B28 cashier role can view orders
+  ---
+  duration_ms: 44.738826
+  type: 'test'
+  ...
+# Subtest: B29 kitchen role cannot confirm payment
+ok 89 - B29 kitchen role cannot confirm payment
+  ---
+  duration_ms: 40.218453
+  type: 'test'
+  ...
+# Subtest: B30 cashier can confirm CASH payment
+ok 90 - B30 cashier can confirm CASH payment
+  ---
+  duration_ms: 49.486205
+  type: 'test'
+  ...
+# Subtest: B31 cash payment below total is rejected
+ok 91 - B31 cash payment below total is rejected
+  ---
+  duration_ms: 38.702128
+  type: 'test'
+  ...
+# Subtest: B32 cash payment equal to total returns zero change
+ok 92 - B32 cash payment equal to total returns zero change
+  ---
+  duration_ms: 33.865916
+  type: 'test'
+  ...
+# Subtest: B33 cash payment above total calculates positive change
+ok 93 - B33 cash payment above total calculates positive change
+  ---
+  duration_ms: 34.320319
+  type: 'test'
+  ...
+# Subtest: B34 BANK payment succeeds when bank configuration exists
+ok 94 - B34 BANK payment succeeds when bank configuration exists
+  ---
+  duration_ms: 33.851585
+  type: 'test'
+  ...
+# Subtest: B35 BANK payment is blocked when bank configuration is missing on order snapshot
+ok 95 - B35 BANK payment is blocked when bank configuration is missing on order snapshot
+  ---
+  duration_ms: 38.371928
+  type: 'test'
+  ...
+# Subtest: B36 same order cannot be paid twice
+ok 96 - B36 same order cannot be paid twice
+  ---
+  duration_ms: 31.902138
+  type: 'test'
+  ...
+# Subtest: B37 stale order version is rejected at payment
+ok 97 - B37 stale order version is rejected at payment
+  ---
+  duration_ms: 30.623064
+  type: 'test'
+  ...
+# Subtest: B38 customer cannot request service after order is paid
+ok 98 - B38 customer cannot request service after order is paid
+  ---
+  duration_ms: 36.926799
+  type: 'test'
+  ...
+# Subtest: B39 kitchen queue exposes table and order code before payment
+ok 99 - B39 kitchen queue exposes table and order code before payment
+  ---
+  duration_ms: 33.047854
+  type: 'test'
+  ...
+# Subtest: B40 kitchen job can transition CLAIMED -> SENT while unpaid
+ok 100 - B40 kitchen job can transition CLAIMED -> SENT while unpaid
+  ---
+  duration_ms: 33.741181
+  type: 'test'
+  ...
+# Subtest: B41 invalid kitchen job status is rejected
+ok 101 - B41 invalid kitchen job status is rejected
+  ---
+  duration_ms: 29.584828
+  type: 'test'
+  ...
+# Subtest: B42 staff can append an item before payment
+ok 102 - B42 staff can append an item before payment
+  ---
+  duration_ms: 31.802591
+  type: 'test'
+  ...
+# Subtest: B43 append increments kitchen revision and produces one delta ticket
+ok 103 - B43 append increments kitchen revision and produces one delta ticket
+  ---
+  duration_ms: 43.747994
+  type: 'test'
+  ...
+# Subtest: B44 staff can cancel one unit before payment with reason
+ok 104 - B44 staff can cancel one unit before payment with reason
+  ---
+  duration_ms: 33.666661
+  type: 'test'
+  ...
+# Subtest: B45 cancel-unit without reason is rejected
+ok 105 - B45 cancel-unit without reason is rejected
+  ---
+  duration_ms: 31.838033
+  type: 'test'
+  ...
+# Subtest: B46 staff can cancel entire unpaid order with reason
+ok 106 - B46 staff can cancel entire unpaid order with reason
+  ---
+  duration_ms: 40.221137
+  type: 'test'
+  ...
+# Subtest: B47 cancelled order leaves automatic kitchen queue
+ok 107 - B47 cancelled order leaves automatic kitchen queue
+  ---
+  duration_ms: 32.42322
+  type: 'test'
+  ...
+# Subtest: B48 split bill conserves order total across two bills
+ok 108 - B48 split bill conserves order total across two bills
+  ---
+  duration_ms: 34.52971
+  type: 'test'
+  ...
+# Subtest: B49 invalid split that does not allocate all units is rejected
+ok 109 - B49 invalid split that does not allocate all units is rejected
+  ---
+  duration_ms: 33.746169
+  type: 'test'
+  ...
+# Subtest: B50 individual split bill can be paid CASH
+ok 110 - B50 individual split bill can be paid CASH
+  ---
+  duration_ms: 33.792787
+  type: 'test'
+  ...
+# Subtest: B51 individual split bill can be paid BANK
+ok 111 - B51 individual split bill can be paid BANK
+  ---
+  duration_ms: 38.716047
+  type: 'test'
+  ...
+# Subtest: B52 customer UI explicitly states payment is staff-handled
+ok 112 - B52 customer UI explicitly states payment is staff-handled
+  ---
+  duration_ms: 0.194258
+  type: 'test'
+  ...
+# Subtest: B53 customer UI contains no payment-reported API path
+ok 113 - B53 customer UI contains no payment-reported API path
+  ---
+  duration_ms: 0.069864
+  type: 'test'
+  ...
+# Subtest: B54 customer UI order button copy says D1 + kitchen ticket immediately
+ok 114 - B54 customer UI order button copy says D1 + kitchen ticket immediately
+  ---
+  duration_ms: 0.046559
+  type: 'test'
+  ...
+# Subtest: B55 staff UI requires table/order reconciliation before payment stage
+ok 115 - B55 staff UI requires table/order reconciliation before payment stage
+  ---
+  duration_ms: 0.04012
+  type: 'test'
+  ...
+# Subtest: B56 staff UI exposes both CASH and BANK payment choices
+ok 116 - B56 staff UI exposes both CASH and BANK payment choices
+  ---
+  duration_ms: 0.059087
+  type: 'test'
+  ...
+# Subtest: B57 staff UI shows bank QR only during staff payment flow
+ok 117 - B57 staff UI shows bank QR only during staff payment flow
+  ---
+  duration_ms: 0.050114
+  type: 'test'
+  ...
+# Subtest: B58 staff UI auto-polls kitchen jobs about every 3 seconds
+ok 118 - B58 staff UI auto-polls kitchen jobs about every 3 seconds
+  ---
+  duration_ms: 0.055953
+  type: 'test'
+  ...
+# Subtest: B59 APK contains the live Staff UI used by business payment flow
+ok 119 - B59 APK contains the live Staff UI used by business payment flow
+  ---
+  duration_ms: 0.084816
+  type: 'test'
+  ...
+# Subtest: B60 APK contains owner hardware/admin UI used during store operations
+ok 120 - B60 APK contains owner hardware/admin UI used during store operations
+  ---
+  duration_ms: 0.129472
+  type: 'test'
+  ...
+1..120
+# tests 120
+# suites 0
+# pass 120
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2841.921305

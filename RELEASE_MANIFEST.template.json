@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "release": "1.6.3",
+  "worker": "2.7.0-phattai.3",
+  "androidSourceVersion": "1.6.3",
+  "androidSourceVersionCode": 163,
+  "defaultApkPackage": "vn.lotusai.pos.phattaiapp",
+  "requiredMigration": "0018_sync_revisions_append_requests.sql",
+  "supportedApkProfiles": {
+    "vn.lotusai.pos.phattaiapp": {
+      "artifactStem": "LotusPOS_PhatTai_Production",
+      "signerSha256": "9a3049ab6b940be51cea4e22ba4d0ecc8a1d6490f0827d461b7a1f3c3ae860ae"
+    },
+    "vn.lotusai.pos.handheld": {
+      "artifactStem": "LotusPOS_PhatTai_LegacyHandheld",
+      "signerSha256": "5ae9e233ab523408bd61d1e81e2de799227c9fbd3a88d8196226421ffc11368a"
+    }
+  },
+  "artifactRole": "source-handoff-template"
+}

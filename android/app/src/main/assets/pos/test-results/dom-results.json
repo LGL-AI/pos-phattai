@@ -1,0 +1,434 @@
+{
+  "summary": {
+    "total": 53,
+    "pass": 53,
+    "fail": 0,
+    "runtimeErrors": []
+  },
+  "results": [
+    {
+      "id": "DOM-001",
+      "group": "runtime",
+      "expected": "No uncaught runtime error on desktop",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:28:58.810Z"
+    },
+    {
+      "id": "DOM-002",
+      "group": "runtime",
+      "expected": "Enhanced API loaded",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:28:58.810Z"
+    },
+    {
+      "id": "DOM-003",
+      "group": "navigation",
+      "expected": "All desktop navigation targets exist",
+      "actual": "14 views opened",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:01.051Z"
+    },
+    {
+      "id": "DOM-004",
+      "group": "pos",
+      "expected": "POS has member phone lookup and register controls",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:01.204Z"
+    },
+    {
+      "id": "DOM-005",
+      "group": "pos",
+      "expected": "Member phone lookup selects existing member",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:01.360Z"
+    },
+    {
+      "id": "DOM-006",
+      "group": "pos",
+      "expected": "Product modifier adds item to POS cart",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:01.552Z"
+    },
+    {
+      "id": "DOM-007",
+      "group": "second-screen",
+      "expected": "Second screen mirrors POS cart immediately",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:01.555Z"
+    },
+    {
+      "id": "DOM-008",
+      "group": "orders",
+      "expected": "POS creates a real order record",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:01.884Z"
+    },
+    {
+      "id": "DOM-009",
+      "group": "inventory",
+      "expected": "Order creation immediately deducts ingredient estimate",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:01.884Z"
+    },
+    {
+      "id": "DOM-010",
+      "group": "inventory",
+      "expected": "Order creation writes inventory movement with order reference",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:01.884Z"
+    },
+    {
+      "id": "DOM-011",
+      "group": "product",
+      "expected": "Product editor exposes recipe rows and units",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:02.065Z"
+    },
+    {
+      "id": "DOM-012",
+      "group": "inventory",
+      "expected": "Inventory receive/adjust/schedule controls render",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:02.069Z"
+    },
+    {
+      "id": "DOM-013",
+      "group": "settings",
+      "expected": "Store Settings is separated from customer QR inspector",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:02.224Z"
+    },
+    {
+      "id": "DOM-014",
+      "group": "rbac",
+      "expected": "Admin seed migrated to STORE_OWNER only",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:02.224Z"
+    },
+    {
+      "id": "DOM-015",
+      "group": "rbac",
+      "expected": "Permission matrix renders fixed and delegated roles",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:02.226Z"
+    },
+    {
+      "id": "DOM-016",
+      "group": "rbac",
+      "expected": "Store owner can create a custom role from matrix",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:02.405Z"
+    },
+    {
+      "id": "DOM-017",
+      "group": "settings",
+      "expected": "Approved OCB account is loaded and direct transfer is enabled",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:02.413Z"
+    },
+    {
+      "id": "DOM-018",
+      "group": "license",
+      "expected": "Store Settings exposes license read-only card",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:02.415Z"
+    },
+    {
+      "id": "DOM-019",
+      "group": "license",
+      "expected": "License simulator is separate and clearly DEMO",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:02.589Z"
+    },
+    {
+      "id": "DOM-020",
+      "group": "license",
+      "expected": "D+3 at 05:00 transitions to SUSPENDED",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:02.768Z"
+    },
+    {
+      "id": "DOM-021",
+      "group": "license",
+      "expected": "Locked state blocks new order but preserves old order",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:02.768Z"
+    },
+    {
+      "id": "DOM-022",
+      "group": "license",
+      "expected": "System Admin demo renewal restores ACTIVE with audit",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:03.122Z"
+    },
+    {
+      "id": "DOM-023",
+      "group": "qr-runtime",
+      "expected": "No uncaught runtime error on QR entry",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:03.627Z"
+    },
+    {
+      "id": "DOM-024",
+      "group": "qr-routing",
+      "expected": "QR deep link preserves validated table T02",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:03.627Z"
+    },
+    {
+      "id": "DOM-025",
+      "group": "qr-layout",
+      "expected": "Standalone QR hides desktop sidebar and inspector panel",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:03.695Z"
+    },
+    {
+      "id": "DOM-026",
+      "group": "qr-navigation",
+      "expected": "Customer bottom navigation has exactly four required tabs",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:03.698Z"
+    },
+    {
+      "id": "DOM-027",
+      "group": "qr-security",
+      "expected": "Customer UI has no editable/save OCB settings",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:03.702Z"
+    },
+    {
+      "id": "DOM-028",
+      "group": "qr-cart",
+      "expected": "QR modifier adds item and cart tab shows it",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:03.942Z"
+    },
+    {
+      "id": "DOM-029",
+      "group": "qr-checkout",
+      "expected": "Checkout starts at login/register/guest step",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:04.097Z"
+    },
+    {
+      "id": "DOM-030",
+      "group": "qr-checkout",
+      "expected": "Guest proceeds to voucher step",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:04.293Z"
+    },
+    {
+      "id": "DOM-031",
+      "group": "qr-checkout",
+      "expected": "Payment method offers cash and OCB transfer",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:04.469Z"
+    },
+    {
+      "id": "DOM-032",
+      "group": "qr-payment",
+      "expected": "Bank checkout creates one pending payment request",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:04.634Z"
+    },
+    {
+      "id": "DOM-033",
+      "group": "qr-payment",
+      "expected": "Result shows order barcode and bank QR together",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:04.635Z"
+    },
+    {
+      "id": "DOM-034",
+      "group": "qr-payment",
+      "expected": "QR payload contains exact amount and order content",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:04.636Z"
+    },
+    {
+      "id": "DOM-035",
+      "group": "qr-payment",
+      "expected": "Fallback download/account/amount/note actions are visible",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:04.637Z"
+    },
+    {
+      "id": "DOM-036",
+      "group": "qr-payment",
+      "expected": "OCB direct button contains an exact live deeplink",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:04.647Z"
+    },
+    {
+      "id": "DOM-037",
+      "group": "qr-payment",
+      "expected": "Customer report becomes CUSTOMER_REPORTED, not PAID",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:04.787Z"
+    },
+    {
+      "id": "DOM-038",
+      "group": "qr-payment",
+      "expected": "Customer report does not create receipt or loyalty transaction",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:04.787Z"
+    },
+    {
+      "id": "DOM-039",
+      "group": "staff-runtime",
+      "expected": "No uncaught runtime error on Staff entry",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:05.183Z"
+    },
+    {
+      "id": "DOM-040",
+      "group": "staff-layout",
+      "expected": "Standalone Staff hides desktop chrome and phone frame",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:05.253Z"
+    },
+    {
+      "id": "DOM-041",
+      "group": "staff-navigation",
+      "expected": "Staff bottom navigation has Sales, Orders, Tables, Profile",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:05.444Z"
+    },
+    {
+      "id": "DOM-042",
+      "group": "staff-checkout",
+      "expected": "Handheld checkout has phone lookup, register and guest",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:05.829Z"
+    },
+    {
+      "id": "DOM-043",
+      "group": "staff-checkout",
+      "expected": "Member wallet vouchers render on handheld",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:06.197Z"
+    },
+    {
+      "id": "DOM-044",
+      "group": "staff-payment",
+      "expected": "Handheld OCB result shows amount, barcode, QR and manual confirmation",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:06.586Z"
+    },
+    {
+      "id": "DOM-045",
+      "group": "staff-payment",
+      "expected": "Staff manual verification settles payment once",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:06.760Z"
+    },
+    {
+      "id": "DOM-046",
+      "group": "bilingual",
+      "expected": "Core mobile flows retain Vietnamese and Simplified Chinese",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:06.762Z"
+    },
+    {
+      "id": "RESP-320",
+      "group": "responsive",
+      "expected": "Mobile structure remains bounded at 320px",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:06.908Z"
+    },
+    {
+      "id": "RESP-360",
+      "group": "responsive",
+      "expected": "Mobile structure remains bounded at 360px",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:06.911Z"
+    },
+    {
+      "id": "RESP-375",
+      "group": "responsive",
+      "expected": "Mobile structure remains bounded at 375px",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:06.913Z"
+    },
+    {
+      "id": "RESP-390",
+      "group": "responsive",
+      "expected": "Mobile structure remains bounded at 390px",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:06.919Z"
+    },
+    {
+      "id": "RESP-430",
+      "group": "responsive",
+      "expected": "Mobile structure remains bounded at 430px",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:06.922Z"
+    },
+    {
+      "id": "RESP-600",
+      "group": "responsive",
+      "expected": "Mobile structure remains bounded at 600px",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:06.925Z"
+    },
+    {
+      "id": "RESP-768",
+      "group": "responsive",
+      "expected": "Mobile structure remains bounded at 768px",
+      "actual": "PASS",
+      "status": "PASS",
+      "timestamp": "2026-09-21T15:29:06.927Z"
+    }
+  ]
+}

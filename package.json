@@ -1,6 +1,6 @@
 {
   "name": "lotus-pos-phattai-cloud-d1",
-  "version": "2.6.0-phattai.8",
+  "version": "2.7.0-phattai.3",
   "private": true,
   "type": "module",
   "description": "Lotus POS online riêng cho TIỆM SÍU LẬP PHÁT TÀI: Worker + D1 + SUNMI handheld source",
@@ -8,19 +8,30 @@
     "dev": "wrangler dev",
     "db:local": "wrangler d1 migrations apply DB --local",
     "db:remote": "node scripts/deploy-remote.mjs --migrate-only",
-    "deploy": "wrangler deploy",
-    "test": "node --test tests/phattai-v152-qa120.test.mjs",
+    "deploy": "node scripts/deploy-remote.mjs",
+    "test": "npm run test:all",
     "check:d1": "node scripts/check-d1-ready.mjs",
     "check:cloud": "node scripts/check-cloud-health.mjs",
     "deploy:remote": "node scripts/deploy-remote.mjs",
     "test:qa120": "node --test tests/phattai-v152-qa120.test.mjs",
     "test:legacy6": "node --test tests/phattai-isolation.test.mjs",
-    "test:all": "node --test tests/phattai-v152-qa120.test.mjs tests/phattai-isolation.test.mjs tests/phattai-qr-zh.test.mjs tests/phattai-crossflow-deep.test.mjs tests/phattai-bridge-d1.test.mjs",
+    "test:all": "node scripts/run-tests.mjs",
     "test:qrzh": "node --test tests/phattai-qr-zh.test.mjs",
-    "test:deep": "node --test tests/phattai-crossflow-deep.test.mjs"
+    "test:deep": "node --test tests/phattai-crossflow-deep.test.mjs tests/phattai-bridge-d1.test.mjs tests/phattai-v157-handoff.test.mjs tests/phattai-v160-stability.test.mjs tests/phattai-v161-order-recovery.test.mjs",
+    "sync:android": "node scripts/sync-android-assets.mjs",
+    "verify:assets": "node scripts/verify-android-assets.mjs",
+    "release:gate": "npm run sync:android && node scripts/verify-release.mjs",
+    "verify:apk": "node scripts/verify-apk-assets.mjs",
+    "test:runtime": "node scripts/runtime-smoke.mjs",
+    "benchmark:sync": "node scripts/benchmark-sync.mjs",
+    "verify:apk:identity": "node scripts/verify-apk-identity.mjs",
+    "publish:android": "node scripts/publish-android-release.mjs",
+    "verify:android:catalog": "node scripts/verify-android-release-catalog.mjs"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "wrangler": "4.144.0",
+    "miniflare": "5.20260926.1-alpha",
+    "esbuild": "0.28.1"
   },
   "engines": {
     "node": ">=22"

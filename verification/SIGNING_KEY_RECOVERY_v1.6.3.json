@@ -1,0 +1,9 @@
+{
+  "recoveredFrom": "LotusPOS_PhatTai_v1.3.0_PRIVATE_UpdateKey.zip",
+  "matchedApplicationId": "vn.lotusai.pos.phattaiapp",
+  "signerSha256": "9a3049ab6b940be51cea4e22ba4d0ecc8a1d6490f0827d461b7a1f3c3ae860ae",
+  "keystoreOpened": true,
+  "privateKeyUsedToSignCurrentApk": true,
+  "secretsIncludedInSource": false,
+  "successfulBuilder": "--gradle-build"
+}

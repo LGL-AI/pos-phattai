@@ -1,0 +1,78 @@
+{
+  "checks": 10,
+  "passed": 10,
+  "catalogUnchanged": true,
+  "temporaryTestKeyDeleted": true,
+  "results": [
+    {
+      "case": "manual release without original key",
+      "exitCode": 1,
+      "expectedError": "Missing original signing keystore",
+      "passed": true,
+      "outputTail": "\nMissing original signing keystore for vn.lotusai.pos.phattaiapp: /workspace/scratch/54ec7d161569/audit_redelivery/CLOUDFLARE_v1.6.3/android/signing/original-release.jks\nSupply the original profile key through LOTUS_KEYSTORE; a new key cannot update the installed app.\n"
+    },
+    {
+      "case": "manual legacy without opt-in",
+      "exitCode": 1,
+      "expectedError": "LOTUS_ALLOW_ALT_APP_ID=1",
+      "passed": true,
+      "outputTail": "\nLOTUS_APP_ID=vn.lotusai.pos.handheld is an alternate install profile. Set LOTUS_ALLOW_ALT_APP_ID=1 only when intentionally updating that package.\n"
+    },
+    {
+      "case": "unknown package cannot be selected",
+      "exitCode": 1,
+      "expectedError": "Unsupported",
+      "passed": true,
+      "outputTail": "\nUnsupported LOTUS_APP_ID=\"vn.lotusai.pos.typo\". Select one of the pinned Android profiles.\n"
+    },
+    {
+      "case": "Gradle release without signing or unsigned-proof flag",
+      "exitCode": 1,
+      "expectedError": "Release APK requires the original signing keystore",
+      "passed": true,
+      "outputTail": "\n\u2714 SCHEDULER hidden or logged-out clients do not issue requests (0.746608ms)\n\u2714 SCHEDULER realtime reduces safety polling but keeps print pull at 3 seconds (0.782819ms)\n\u2714 SCHEDULER fifty print events wake one print pull and no full order sync (1.963061ms)\n\u2714 SCHEDULER a service alert only wakes its own reader (1.029007ms)\n\u2714 REALTIME explicit close ignores callbacks from an obsolete socket (2.278578ms)\n\u2714 REALTIME write classification isolates print claims and display updates (0.135116ms)\n\u2714 REALTIME cross-origin and unconfigured upgrades fail without throwing (0.448754ms)\n\u2714 REALTIME expired sockets receive no invalidation and are closed (0.967728ms)\n\u2714 REALTIME a slow notifier does not delay a committed order response (55.016158ms)\n\u2714 READINESS cold concurrent health requests share one probe (1.495299ms)\n\u2714 READINESS missing migration is negatively cached without extra probes (0.908883ms)\n\u2714 SCHEDULER invalidations respect backoff after a failure (1.021098ms)\n\u2714 SYNC an unchanged screen makes one small read and no full order or menu reads (1.262132ms)\n\u2714 API concurrent identical reads share one network request (1.536987ms)\n\u2139 tests 385\n\u2139 suites 0\n\u2139 pass 385\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 12078.300108\n\n> Task :app:preBuild\n> Task :app:preReleaseBuild FAILED\n3 actionable tasks: 2 executed, 1 up-to-date\n\n\nFAILURE: Build failed with an exception.\n\n* What went wrong:\nExecution failed for task ':app:preReleaseBuild'.\n> Release APK requires the original signing keystore. Set LOTUS_UNSIGNED_BUILD=1 only for an unsigned compilation proof.\n\n* Try:\n> Run with --stacktrace option to get the stack trace.\n> Run with --info or --debug option to get more log output.\n> Run with --scan to get full insights.\n> Get more help at https://help.gradle.org.\n\nBUILD FAILED in 25s\n"
+    },
+    {
+      "case": "Gradle legacy without opt-in",
+      "exitCode": 1,
+      "expectedError": "LOTUS_ALLOW_ALT_APP_ID=1",
+      "passed": true,
+      "outputTail": "To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.9/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.\nDaemon will be stopped at the end of the build \n\n\nFAILURE: Build failed with an exception.\n\n* Where:\nBuild file '/workspace/scratch/54ec7d161569/audit_redelivery/CLOUDFLARE_v1.6.3/android/app/build.gradle.kts' line: 20\n\n* What went wrong:\nLOTUS_APP_ID='vn.lotusai.pos.handheld' differs from production. Set LOTUS_ALLOW_ALT_APP_ID=1 only for an intentional alternate package build.\n\n* Try:\n> Run with --stacktrace option to get the stack trace.\n> Run with --info or --debug option to get more log output.\n> Run with --scan to get full insights.\n> Get more help at https://help.gradle.org.\n\nBUILD FAILED in 8s\n"
+    },
+    {
+      "case": "legacy binary in production verifier",
+      "exitCode": 1,
+      "expectedError": "applicationId mismatch",
+      "passed": true,
+      "outputTail": "\nAPK verification failed: APK applicationId mismatch: expected=vn.lotusai.pos.phattaiapp, actual=vn.lotusai.pos.handheld\n"
+    },
+    {
+      "case": "unsigned binary in release verifier",
+      "exitCode": 1,
+      "expectedError": "Unsigned APK cannot be released",
+      "passed": true,
+      "outputTail": "\nAPK verification failed: Unsigned APK cannot be released. Sign with the original profile keystore.\n"
+    },
+    {
+      "case": "unsigned binary cannot enter update catalog",
+      "exitCode": 1,
+      "expectedError": "Unsigned APK cannot be released",
+      "passed": true,
+      "outputTail": "\nAndroid publication refused: Unsigned APK cannot be released. Sign with the original profile keystore.\n"
+    },
+    {
+      "case": "signed APK with another key is rejected even in unsigned-proof mode",
+      "exitCode": 1,
+      "expectedError": "signer mismatch",
+      "passed": true,
+      "outputTail": "\nAPK verification failed: APK signer mismatch for vn.lotusai.pos.phattaiapp; refusing release.\n"
+    },
+    {
+      "case": "APK signed with another key cannot enter update catalog",
+      "exitCode": 1,
+      "expectedError": "signer mismatch",
+      "passed": true,
+      "outputTail": "\nAndroid publication refused: APK signer mismatch for vn.lotusai.pos.phattaiapp; refusing release.\n"
+    }
+  ]
+}

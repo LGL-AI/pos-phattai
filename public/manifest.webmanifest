@@ -1,9 +1,9 @@
 {
   "id": "/",
-  "name": "Phát Tài · Gọi món QR / 发财扫码点餐",
-  "short_name": "Phát Tài",
-  "description": "Gọi món tại bàn và tải phiếu · 扫码点餐与保存点餐单",
-  "lang": "vi",
+  "name": "发财烧腊 · 扫码点餐 / Phát Tài QR",
+  "short_name": "发财烧腊",
+  "description": "扫码点餐、确认桌号并保存点餐单 / Gọi món QR tại bàn",
+  "lang": "zh-CN",
   "dir": "ltr",
   "start_url": "/?source=pwa",
   "scope": "/",

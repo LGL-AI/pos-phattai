@@ -1,11 +1,16 @@
 import catalog from '../public/catalog.json' with {type:'json'};
+import packageInfo from '../package.json' with {type:'json'};
+import {sessionActor} from './ops.js';
 import {handleStaff, paymentFor, tierFor} from './staff.js';
 import {catalogInventory} from './ops.js';
 import {displayPublic} from './display.js';
 import {getStore,publicStore,bankSnapshot,priceTotals,logoResponse} from './settings.js';
 import {nextOrderCode,codeForMethod} from './order-code.js';
+import {mutationScopes} from './sync.js';
+import {handleAndroidUpdate,handleAndroidApk} from './android-update.js';
 
-const VERSION='2.6.0-phattai.8';
+const VERSION=packageInfo.version;
+const REQUIRED_MIGRATION='0018_sync_revisions_append_requests.sql';
 const COOKIE='__Host-lotus_qr_member';
 const ERR={
  METHOD_NOT_ALLOWED:['Phương thức không được hỗ trợ','不支持此请求方式'],
@@ -50,14 +55,25 @@ const sha=async x=>hex(await crypto.subtle.digest('SHA-256',te.encode(x)));
 async function sign(secret,data){const key=await crypto.subtle.importKey('raw',te.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);return b64(await crypto.subtle.sign('HMAC',key,te.encode(data)))}
 function equal(a,b){if(typeof a!=='string'||typeof b!=='string')return false;let diff=a.length^b.length;for(let i=0;i<Math.max(a.length,b.length);i++)diff|=(a.charCodeAt(i)||0)^(b.charCodeAt(i)||0);return diff===0}
 const configured=env=>Boolean(env.DB&&typeof env.SESSION_SECRET==='string'&&env.SESSION_SECRET.length>=32);
-const READY_TTL_MS=15000;
+const READY_TTL_MS=30000;
 const readinessCache=new WeakMap();
-function readyCache(env){let state=readinessCache.get(env.DB);if(!state){state={base:0,rc2:0,rc3:0,display:0};readinessCache.set(env.DB,state)}return state}
-async function ready(env){if(!configured(env))return false;const cache=readyCache(env),time=Date.now();if(cache.base>time)return true;try{await env.DB.prepare('SELECT id,spend,orders,last_visit FROM members LIMIT 1').first();await env.DB.prepare('SELECT id,inventory_tracked FROM qr_orders LIMIT 1').first();await env.DB.prepare('SELECT token_hash,staff_id FROM pos_staff_sessions LIMIT 1').first();await env.DB.prepare('SELECT id FROM pos_kitchen_jobs LIMIT 1').first();await env.DB.prepare('SELECT order_id FROM loyalty_transactions LIMIT 1').first();await env.DB.prepare('SELECT id FROM pos_roles LIMIT 1').first();await env.DB.prepare('SELECT product_id FROM pos_product_inventory LIMIT 1').first();await env.DB.prepare('SELECT id FROM pos_refunds LIMIT 1').first();await env.DB.prepare('SELECT id FROM pos_products LIMIT 1').first();await env.DB.prepare('SELECT id FROM pos_shift_schedules LIMIT 1').first();await env.DB.prepare('SELECT id FROM pos_attendance LIMIT 1').first();await env.DB.prepare('SELECT id FROM pos_cash_shifts LIMIT 1').first();await env.DB.prepare('SELECT id FROM pos_license_poc LIMIT 1').first();const store=await env.DB.prepare('SELECT id,table_count,bank_bin,tax_rate,tax_mode FROM pos_store_config WHERE id=1').first();if(!store)return false;await env.DB.prepare('SELECT voucher_terms_json,bank_label,tax_amount,transfer_prefix FROM qr_orders LIMIT 1').first();await env.DB.prepare('SELECT tax_amount FROM pos_bills LIMIT 1').first();cache.base=Date.now()+READY_TTL_MS;return true}catch{return false}}
-async function readyForRc2(env){if(!configured(env))return false;const cache=readyCache(env),time=Date.now();if(cache.rc2>time)return true;if(!await ready(env))return false;try{await env.DB.prepare('SELECT ref_id FROM pos_inventory_estimates LIMIT 1').first();await env.DB.prepare('SELECT id FROM pos_shift_tasks LIMIT 1').first();await env.DB.prepare('SELECT option_code FROM pos_menu_options LIMIT 1').first();await env.DB.prepare('SELECT refund_id FROM pos_refund_line_items LIMIT 1').first();await env.DB.prepare('SELECT next_sequence FROM pos_order_daily_sequence LIMIT 1').first();await env.DB.prepare('SELECT id FROM pos_service_requests LIMIT 1').first();await env.DB.prepare('SELECT feedback_url,invoice_url FROM pos_store_config WHERE id=1').first();cache.rc2=Date.now()+READY_TTL_MS;return true}catch{return false}}
-async function readyForRc3(env){if(!configured(env))return false;const cache=readyCache(env),time=Date.now();if(cache.rc3>time)return true;if(!await readyForRc2(env))return false;try{await env.DB.prepare('SELECT payment_preference FROM qr_orders LIMIT 1').first();await env.DB.prepare('SELECT email,birthday,note,tier_override,version FROM members LIMIT 1').first();cache.rc3=Date.now()+READY_TTL_MS;return true}catch{return false}}
+function readyCache(env){let state=readinessCache.get(env.DB);if(!state){state={until:0,ok:false};readinessCache.set(env.DB,state)}return state}
+async function ready(env){
+ if(!configured(env))return false;
+ const cache=readyCache(env);
+ if(cache.until>Date.now())return cache.ok;
+ if(cache.pending)return cache.pending;
+ cache.pending=(async()=>{
+  try{const row=await env.DB.prepare('SELECT 1 AS ok FROM d1_migrations WHERE name=? LIMIT 1').bind(REQUIRED_MIGRATION).first();cache.ok=!!row?.ok}
+  catch{cache.ok=false}
+  cache.until=Date.now()+(cache.ok?READY_TTL_MS:5000);return cache.ok;
+ })();
+ try{return await cache.pending}finally{cache.pending=null}
+}
+async function readyForRc2(env){return ready(env)}
+async function readyForRc3(env){return ready(env)}
+async function displayReady(env){return ready(env)}
 const accepting=async env=>env.ORDERING_ENABLED==='true'&&await readyForRc3(env);
-async function displayReady(env){if(!env.DB)return false;const cache=readyCache(env),time=Date.now();if(cache.display>time)return true;try{await env.DB.prepare('SELECT id FROM pos_display_sessions LIMIT 1').first();cache.display=Date.now()+READY_TTL_MS;return true}catch{return false}}
 function originValid(req){if(req.headers.get('Sec-Fetch-Site')==='cross-site')return false;const origin=req.headers.get('Origin');if(!origin)return true;try{return new URL(origin).origin===new URL(req.url).origin}catch{return false}}
 async function body(req){if(!/^application\/json\b/i.test(req.headers.get('Content-Type')||''))throw Error('BAD_CONTENT_TYPE');const limit=new URL(req.url).pathname==='/api/staff/store'?500000:20000;if(Number(req.headers.get('Content-Length')||0)>limit)throw Error('BODY_TOO_LARGE');const value=await req.text();if(te.encode(value).byteLength>limit)throw Error('BODY_TOO_LARGE');try{return JSON.parse(value||'{}')}catch{throw Error('BAD_JSON')}}
 async function rate(env,req,scope,limit=8){const now=Date.now();const key=await sha(scope+':'+clean(req.headers.get('CF-Connecting-IP')||'unknown',120));await env.DB.prepare('INSERT INTO member_auth_limits(actor_hash,attempts,reset_at) VALUES(?,1,?) ON CONFLICT(actor_hash) DO UPDATE SET attempts=CASE WHEN reset_at<=? THEN 1 ELSE attempts+1 END,reset_at=CASE WHEN reset_at<=? THEN ? ELSE reset_at END').bind(key,now+900000,now,now,now+900000).run();const result=await env.DB.prepare('SELECT attempts FROM member_auth_limits WHERE actor_hash=?').bind(key).first();return result.attempts<=limit}
@@ -115,18 +131,81 @@ async function submit(env,req){if(!(await accepting(env)))return fail(503,'ORDER
  }catch(e){const p=await prior();if(p)return p;if(/VOUCHER_MEMBER_LIMIT/.test(e.message))return fail(409,'VOUCHER_MEMBER_LIMIT');if(/VOUCHER_UNAVAILABLE/.test(e.message))return fail(409,'VOUCHER_UNAVAILABLE');if(e.message==='INGREDIENT_OUT_OF_STOCK')return fail(409,'INGREDIENT_OUT_OF_STOCK');if(e.message==='OUT_OF_STOCK')return fail(409,'OUT_OF_STOCK');throw e}}
 async function getOrder(env,req,id){if(!(await readyForRc3(env)))return fail(503,'STATUS_UNAVAILABLE');const token=req.headers.get('x-order-token');if(!validUuid(id)||!token||token.length>128)return fail(400,'INVALID_ORDER_REFERENCE');const row=await env.DB.prepare('SELECT * FROM qr_orders WHERE id=?').bind(id).first();if(!row)return fail(404,'ORDER_NOT_FOUND');if(!equal(await sha(token),row.token_hash))return fail(403,'ORDER_ACCESS_DENIED');const returned=await env.DB.prepare('SELECT COALESCE(SUM(amount),0) AS amount FROM pos_refunds WHERE order_id=?').bind(id).first();const service=await env.DB.prepare('SELECT id FROM pos_service_requests WHERE order_id=? LIMIT 1').bind(id).first();return json({ok:true,order:{...hydrate(row),refundedAmount:returned.amount,serviceRequested:!!service}})}
 async function requestService(env,req,id){if(!(await readyForRc3(env)))return fail(503,'STATUS_UNAVAILABLE');const token=req.headers.get('x-order-token');if(!validUuid(id)||!token||token.length>128)return fail(400,'INVALID_ORDER_REFERENCE');const row=await env.DB.prepare('SELECT * FROM qr_orders WHERE id=?').bind(id).first();if(!row)return fail(404,'ORDER_NOT_FOUND');if(!equal(await sha(token),row.token_hash))return fail(403,'ORDER_ACCESS_DENIED');if(row.status==='CANCELLED'||row.payment_status==='PAID')return fail(409,'ORDER_ACCESS_DENIED');const idempotency=await env.DB.prepare("SELECT id FROM pos_service_requests WHERE order_id=? AND status='PENDING'").bind(id).first();if(!idempotency)await env.DB.prepare("INSERT INTO pos_service_requests(id,order_id,table_id,status,created_at) VALUES(?,?,?,'PENDING',?) ON CONFLICT DO NOTHING").bind(crypto.randomUUID(),id,row.table_id,new Date().toISOString()).run();return json({ok:true,requestPending:true,order:hydrate(row)})}
-const apiRoutes={'/api/health':['GET'],'/api/catalog':['GET'],'/api/orders':['POST'],'/api/member/me':['GET'],'/api/member/loyalty':['GET'],'/api/member/register':['POST'],'/api/member/login':['POST'],'/api/member/logout':['POST'],'/api/member/password':['POST'],'/api/vouchers':['GET'],'/api/vouchers/validate':['POST'],'/api/store/logo':['GET']};
-export default {async fetch(request,env){const url=new URL(request.url),p=url.pathname,method=request.method;
+async function catalogMeta(env){
+ const row=await env.DB.prepare("SELECT revision FROM pos_sync_revisions WHERE scope='catalog'").first();
+ return {revision:String(row?.revision||0)};
+}
+async function notifyRealtime(env,type='state',detail={}){
+ if(!env.REALTIME)return;
+ try{const stub=env.REALTIME.get(env.REALTIME.idFromName('store'));await stub.fetch('https://realtime.internal/notify',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:'invalidate',scope:type,detail,at:Date.now()})})}
+ catch(e){console.warn('Realtime notify failed:',e?.message||e)}
+}
+function publishRealtime(env,ctx,scopes){
+ if(!scopes.length||!env.REALTIME)return;
+ const work=notifyRealtime(env,scopes[0],{scopes});
+ if(ctx?.waitUntil)ctx.waitUntil(work);
+ // Tests and local callers may not have an ExecutionContext; the publisher
+ // already handles rejections. A saved order does not wait on notifications.
+}
+export class RealtimeHub{
+ constructor(state,env){
+  this.state=state;this.env=env;
+  if(state.setWebSocketAutoResponse&&typeof WebSocketRequestResponsePair!=='undefined')state.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping','pong'));
+ }
+ async fetch(request){
+  const url=new URL(request.url);
+  if(request.headers.get('Upgrade')==='websocket'){
+   const pair=new WebSocketPair();const [client,server]=Object.values(pair);
+   this.state.acceptWebSocket(server);
+   server.serializeAttachment({tokenHash:request.headers.get('x-lotus-token-hash'),expiresAt:Number(request.headers.get('x-lotus-expires-at'))});
+   return new Response(null,{status:101,webSocket:client,headers:{'Sec-WebSocket-Protocol':'lotus-pos'}});
+  }
+  if(url.pathname==='/notify'&&request.method==='POST'){
+   const message=await request.text();
+   for(const ws of this.state.getWebSockets()){
+    try{
+     const auth=ws.deserializeAttachment();
+     if(!auth?.expiresAt||auth.expiresAt<=Date.now()){ws.close(1008,'Session expired');continue}
+     if(message.includes('"staff"')&&auth.tokenHash){const session=await this.env.DB.prepare('SELECT token_hash FROM pos_staff_sessions WHERE token_hash=? AND expires_at>?').bind(auth.tokenHash,Date.now()).first();if(!session){ws.close(1008,'Session revoked');continue}}
+     ws.send(message);
+    }catch{try{ws.close(1011,'Sync unavailable')}catch{}}
+   }
+   return new Response('ok');
+  }
+  return new Response('not found',{status:404});
+ }
+ webSocketMessage(ws,message){if(message==='ping')try{const auth=ws.deserializeAttachment();if(!auth?.expiresAt||auth.expiresAt<=Date.now())ws.close(1008,'Session expired');else ws.send('pong')}catch{}}
+ webSocketClose(ws,code,reason){try{ws.close(code,reason)}catch{}}
+ webSocketError(ws){try{ws.close(1011,'Connection error')}catch{}}
+}
+const apiRoutes={'/api/health':['GET'],'/api/catalog':['GET'],'/api/catalog/meta':['GET'],'/api/orders':['POST'],'/api/member/me':['GET'],'/api/member/loyalty':['GET'],'/api/member/register':['POST'],'/api/member/login':['POST'],'/api/member/logout':['POST'],'/api/member/password':['POST'],'/api/vouchers':['GET'],'/api/vouchers/validate':['POST'],'/api/store/logo':['GET']};
+export default {async fetch(request,env,ctx){const url=new URL(request.url),p=url.pathname,method=request.method;
+ if(p==='/api/android/update')return handleAndroidUpdate(request);
+ if(p.startsWith('/releases/android/'))return handleAndroidApk(request,env);
  if(p==='/kitchen'||p.startsWith('/kitchen/')||p.startsWith('/assets/kitchen'))return new Response('Not found',{status:404,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
- if(p.startsWith('/api/staff/'))return handleStaff(request,env,{ready:readyForRc3,originValid,body,rate,calculate,resolveVoucher,hydrate:row=>hydrate(row,true),sha,equal,bankSnapshot,getStore,priceTotals,register,login,changeMemberPassword,createCustomer});
+ if(p==='/api/realtime'){
+  if(request.method!=='GET'||request.headers.get('Upgrade')!=='websocket'||!env.REALTIME)return fail(426,'SERVICE_UNAVAILABLE');
+  // SUNMI loads Staff from file://; its WebSocket Origin is the literal null.
+  // These connections still require a valid, active staff bearer session.
+  if(request.headers.get('Origin')!=='null'&&!originValid(request))return fail(403,'ORIGIN_REJECTED');
+  try{
+   if(!await ready(env))return fail(503,'SERVICE_UNAVAILABLE');
+   const protocols=(request.headers.get('Sec-WebSocket-Protocol')||'').split(',').map(x=>x.trim()).filter(Boolean),token=protocols.length===2&&protocols[0]==='lotus-pos'?protocols[1]:null;
+   const actor=token&&token.length<=200?await sessionActor(env,token,sha):null;if(!actor)return json({ok:false,code:'STAFF_LOGIN_REQUIRED',message:'Đăng nhập nhân viên / 员工请登录'},401);
+   const tokenHash=await sha(token),session=await env.DB.prepare('SELECT expires_at FROM pos_staff_sessions WHERE token_hash=? AND expires_at>?').bind(tokenHash,Date.now()).first();if(!session)return fail(401,'STAFF_LOGIN_REQUIRED');
+   const safeHeaders=new Headers({'Upgrade':'websocket','Sec-WebSocket-Protocol':'lotus-pos','x-lotus-token-hash':tokenHash,'x-lotus-expires-at':String(session.expires_at)});
+   return await env.REALTIME.get(env.REALTIME.idFromName('store')).fetch(new Request('https://realtime.internal/connect',{headers:safeHeaders}));
+  }catch{return fail(503,'SERVICE_UNAVAILABLE')}
+ }
+ if(p.startsWith('/api/staff/')){const response=await handleStaff(request,env,{ready:readyForRc3,originValid,body,rate,calculate,resolveVoucher,hydrate:row=>hydrate(row,true),sha,equal,bankSnapshot,getStore,priceTotals,register,login,changeMemberPassword,createCustomer});if(response.ok&&!['GET','HEAD','OPTIONS'].includes(method))publishRealtime(env,ctx,mutationScopes(p));return response;}
  if(p.startsWith('/api/display/')){try{if(!(await ready(env)))return fail(503,'SERVICE_UNAVAILABLE');return await displayPublic(request,env,sha,equal)}catch(e){console.error('Display API:',e.message);return fail(503,'SERVICE_UNAVAILABLE')}}
  if(p.startsWith('/api/')){
   const match=p.match(/^\/api\/orders\/([0-9a-z-]+)$/i),service=p.match(/^\/api\/orders\/([0-9a-z-]+)\/service$/i),allowed=service?['POST']:match?['GET']:apiRoutes[p];if(!allowed)return fail(404,'ORDER_NOT_FOUND');if(!allowed.includes(method))return json({ok:false,code:'METHOD_NOT_ALLOWED',message:ERR.METHOD_NOT_ALLOWED[0],messageCn:ERR.METHOD_NOT_ALLOWED[1]},405,{'Allow':allowed.join(', ')});
-  if(service){if(!originValid(request))return fail(403,'ORIGIN_REJECTED');try{if(!await rate(env,request,'service',20))return fail(429,'TOO_MANY_ATTEMPTS');return await requestService(env,request,service[1])}catch{return fail(503,'SERVICE_UNAVAILABLE')}}
+  if(service){if(!originValid(request))return fail(403,'ORIGIN_REJECTED');try{if(!await rate(env,request,'service',20))return fail(429,'TOO_MANY_ATTEMPTS');const response=await requestService(env,request,service[1]);if(response.ok)publishRealtime(env,ctx,['service']);return response}catch{return fail(503,'SERVICE_UNAVAILABLE')}}
   if(p==='/api/member/password'){if(!originValid(request))return fail(403,'ORIGIN_REJECTED');try{const who=await memberAuth(env,request);return who?await changeMemberPassword(env,request,who.id):fail(401,'MEMBER_REQUIRED')}catch{return fail(503,'SERVICE_UNAVAILABLE')}}
-  if(p==='/api/health'){const dbReady=await readyForRc3(env);let storeReady=false;if(dbReady)try{await env.DB.prepare('SELECT id FROM pos_shift_tasks LIMIT 1').first();await env.DB.prepare('SELECT option_code FROM pos_menu_options LIMIT 1').first();storeReady=true}catch{}return json({ok:true,d1:dbReady?'ok':'unavailable',storeReady,display:await displayReady(env)?'ok':'unavailable',acceptingOrders:env.ORDERING_ENABLED==='true'&&dbReady,service:'lotus-pos-cloud',version:VERSION})}
+  if(p==='/api/health'){const dbReady=await readyForRc3(env);return json({ok:true,d1:dbReady?'ok':'unavailable',storeReady:dbReady,display:dbReady?'ok':'unavailable',acceptingOrders:env.ORDERING_ENABLED==='true'&&dbReady,service:'lotus-pos-cloud',version:VERSION,requiredMigration:REQUIRED_MIGRATION,realtime:!!env.REALTIME})}
   if(p==='/api/catalog'&&!await readyForRc3(env))return json({ok:true,catalog,acceptingOrders:false});
-  try{if(method==='POST'&&!originValid(request))return fail(403,'ORIGIN_REJECTED');if(p==='/api/store/logo')return await logoResponse(env);if(p==='/api/health'){const dbReady=await ready(env);let storeReady=false;if(dbReady)try{await env.DB.prepare('SELECT id FROM pos_shift_tasks LIMIT 1').first();await env.DB.prepare('SELECT option_code FROM pos_menu_options LIMIT 1').first();storeReady=true}catch{}return json({ok:true,d1:dbReady?'ok':'unavailable',storeReady,display:await displayReady(env)?'ok':'unavailable',acceptingOrders:env.ORDERING_ENABLED==='true'&&dbReady,service:'lotus-pos-cloud',version:VERSION})}if(p==='/api/catalog'){const dbReady=await ready(env);return json({ok:true,catalog:dbReady?{...await catalogInventory(env,catalog),store:publicStore(await getStore(env))}:catalog,acceptingOrders:env.ORDERING_ENABLED==='true'&&dbReady})}if(p==='/api/member/me'){if(!(await ready(env)))return fail(503,'MEMBER_UNAVAILABLE');return json({ok:true,member:publicMember(await memberAuth(env,request))})}if(p==='/api/member/loyalty'){if(!(await ready(env)))return fail(503,'MEMBER_UNAVAILABLE');const who=await memberAuth(env,request);if(!who)return fail(401,'MEMBER_REQUIRED');const {results=[]}=await env.DB.prepare('SELECT order_code,amount,points,paid_at FROM loyalty_transactions WHERE member_id=? ORDER BY paid_at DESC LIMIT 30').bind(who.id).all();return json({ok:true,member:publicMember(who),transactions:results.map(x=>({orderCode:x.order_code,amount:x.amount,points:x.points,paidAt:x.paid_at}))})}if(p==='/api/member/register')return register(env,request);if(p==='/api/member/login')return login(env,request);if(p==='/api/member/logout')return logout(env,request);if(p==='/api/vouchers'){if(!(await ready(env)))return fail(503,'SERVICE_UNAVAILABLE');const now=new Date().toISOString();const {results=[]}=await env.DB.prepare('SELECT * FROM vouchers WHERE listed=1 AND active=1 AND starts_at<=? AND ends_at>=? AND (max_uses=0 OR reserved_count+redeemed_count<max_uses) ORDER BY code LIMIT 20').bind(now,now).all();return json({ok:true,vouchers:results.map(voucherPublic)})}if(p==='/api/vouchers/validate')return await validateVoucher(env,request);if(p==='/api/orders')return await submit(env,request);if(match)return getOrder(env,request,match[1]);
+  try{if(method==='POST'&&!originValid(request))return fail(403,'ORIGIN_REJECTED');if(p==='/api/store/logo')return await logoResponse(env);if(p==='/api/health'){const dbReady=await readyForRc3(env);return json({ok:true,d1:dbReady?'ok':'unavailable',storeReady:dbReady,display:dbReady?'ok':'unavailable',acceptingOrders:env.ORDERING_ENABLED==='true'&&dbReady,service:'lotus-pos-cloud',version:VERSION,requiredMigration:REQUIRED_MIGRATION,realtime:!!env.REALTIME})}if(p==='/api/catalog/meta'){const dbReady=await ready(env);return json({ok:true,revision:dbReady?(await catalogMeta(env)).revision:'offline',acceptingOrders:env.ORDERING_ENABLED==='true'&&dbReady})}if(p==='/api/catalog'){const dbReady=await ready(env);const meta=dbReady?await catalogMeta(env):{revision:'offline'};return json({ok:true,revision:meta.revision,catalog:dbReady?{...await catalogInventory(env,catalog),store:publicStore(await getStore(env))}:catalog,acceptingOrders:env.ORDERING_ENABLED==='true'&&dbReady})}if(p==='/api/member/me'){if(!(await ready(env)))return fail(503,'MEMBER_UNAVAILABLE');return json({ok:true,member:publicMember(await memberAuth(env,request))})}if(p==='/api/member/loyalty'){if(!(await ready(env)))return fail(503,'MEMBER_UNAVAILABLE');const who=await memberAuth(env,request);if(!who)return fail(401,'MEMBER_REQUIRED');const {results=[]}=await env.DB.prepare('SELECT order_code,amount,points,paid_at FROM loyalty_transactions WHERE member_id=? ORDER BY paid_at DESC LIMIT 30').bind(who.id).all();return json({ok:true,member:publicMember(who),transactions:results.map(x=>({orderCode:x.order_code,amount:x.amount,points:x.points,paidAt:x.paid_at}))})}if(p==='/api/member/register')return register(env,request);if(p==='/api/member/login')return login(env,request);if(p==='/api/member/logout')return logout(env,request);if(p==='/api/vouchers'){if(!(await ready(env)))return fail(503,'SERVICE_UNAVAILABLE');const now=new Date().toISOString();const {results=[]}=await env.DB.prepare('SELECT * FROM vouchers WHERE listed=1 AND active=1 AND starts_at<=? AND ends_at>=? AND (max_uses=0 OR reserved_count+redeemed_count<max_uses) ORDER BY code LIMIT 20').bind(now,now).all();return json({ok:true,vouchers:results.map(voucherPublic)})}if(p==='/api/vouchers/validate')return await validateVoucher(env,request);if(p==='/api/orders'){const response=await submit(env,request);if(response.ok)publishRealtime(env,ctx,['orders','print','inventory']);return response;}if(match)return getOrder(env,request,match[1]);
   }catch(e){if(ERR[e.message]&&['BAD_JSON','BAD_CONTENT_TYPE','BODY_TOO_LARGE','INVALID_TABLE','INVALID_CART','INVALID_ITEM','UNAVAILABLE_PRODUCT','INVALID_QUANTITY','TOO_MANY_ITEMS','INVALID_MODIFIERS','INVALID_SIZE','INVALID_SPICE','INVALID_TOTAL'].includes(e.message))return fail(400,e.message);console.error('Customer QR API error:',e.message);return fail(503,'SERVICE_UNAVAILABLE')}
  }
  const response=await env.ASSETS.fetch(request);if(p==='/counter/poc/'||p==='/counter/poc/index.html'){const h=new Headers(response.headers);h.set('Cache-Control','no-store');h.set('X-Content-Type-Options','nosniff');h.set('X-Robots-Tag','noindex, nofollow');h.set('Referrer-Policy','no-referrer');h.set('Content-Security-Policy',"sandbox allow-scripts allow-modals allow-popups allow-downloads; default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");return new Response(response.body,{status:response.status,statusText:response.statusText,headers:h})}if(['/','/index.html','/qr/','/staff/','/staff/index.html','/counter/','/display/','/display/index.html','/manifest.webmanifest','/sw.js','/offline.html'].includes(p)){const h=new Headers(response.headers);h.set('Cache-Control','no-cache, must-revalidate');h.set('X-Content-Type-Options','nosniff');h.set('Referrer-Policy',p.startsWith('/display/')?'no-referrer':'same-origin');h.set('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'"+(p.startsWith('/counter/')?' http://127.0.0.1:18181':'')+"; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");return new Response(response.body,{status:response.status,statusText:response.statusText,headers:h})}return response;

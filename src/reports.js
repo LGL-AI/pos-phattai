@@ -11,6 +11,21 @@ export async function daily(env,date){const day=date||today();if(!validDay(day))
  return {date:day,paidOrders:new Set(payments.map(x=>x.orderId)).size,paidBills:payments.length,gross,refunded,net:gross-refunded,tax:payments.reduce((n,p)=>n+(p.taxAmount||0),0),cash:payments.filter(p=>p.method==='CASH').reduce((n,p)=>n+p.total,0),bank:payments.filter(p=>p.method==='BANK').reduce((n,p)=>n+p.total,0),openOrders:open,payments,refunds};
 }
 
+const validClock=s=>/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(s||'');
+export async function shiftReport(env,date,start,end,name=''){
+ const day=date||today(),shiftName=String(name||'').trim().slice(0,80);
+ if(!validDay(day)||!validClock(start)||!validClock(end)||start>=end)return null;
+ const from=day+' '+start+':00',to=day+' '+end+':00';
+ const orders=(await env.DB.prepare("SELECT o.id,o.id AS orderId,o.code,o.table_id AS tableName,o.source,o.total,o.tax_amount AS taxAmount,o.payment_method AS method,o.paid_at AS paidAt,'ORDER' AS kind FROM qr_orders o WHERE o.payment_status='PAID' AND datetime(o.paid_at,'+7 hours')>=? AND datetime(o.paid_at,'+7 hours')<? AND NOT EXISTS(SELECT 1 FROM pos_bills b WHERE b.order_id=o.id) ORDER BY o.paid_at,o.id").bind(from,to).all()).results;
+ const bills=(await env.DB.prepare("SELECT b.id,b.order_id AS orderId,o.code AS parentCode,b.sequence,o.table_id AS tableName,o.source,b.total,b.tax_amount AS taxAmount,b.payment_method AS method,b.paid_at AS paidAt,'BILL' AS kind FROM pos_bills b JOIN qr_orders o ON o.id=b.order_id WHERE b.payment_status='PAID' AND datetime(b.paid_at,'+7 hours')>=? AND datetime(b.paid_at,'+7 hours')<? ORDER BY b.paid_at,b.id").bind(from,to).all()).results.map(b=>({...b,code:codeForBill(b.parentCode,b.method,b.sequence)}));
+ const refunds=(await env.DB.prepare("SELECT r.id,r.order_id AS orderId,r.bill_id AS billId,r.amount,r.method,r.reason,r.created_at AS createdAt FROM pos_refunds r WHERE datetime(r.created_at,'+7 hours')>=? AND datetime(r.created_at,'+7 hours')<? ORDER BY r.created_at,r.id").bind(from,to).all()).results;
+ const payments=[...orders,...bills].sort((a,b)=>a.paidAt.localeCompare(b.paidAt)||a.id.localeCompare(b.id));
+ const gross=payments.reduce((n,p)=>n+p.total,0),refunded=refunds.reduce((n,r)=>n+r.amount,0);
+ const open=(await env.DB.prepare("SELECT COUNT(*) AS n FROM qr_orders WHERE payment_status!='PAID' AND status IN ('NEW','ACCEPTED','SPLIT') AND datetime(created_at,'+7 hours')>=? AND datetime(created_at,'+7 hours')<?").bind(from,to).first()).n;
+ const staffRows=(await env.DB.prepare("SELECT s.staff_id AS id,COALESCE(u.display_name,CASE WHEN s.staff_id='OWNER' THEN 'Chủ cửa hàng' END,s.staff_id) AS name FROM pos_shift_schedules s LEFT JOIN pos_staff_users u ON u.id=s.staff_id WHERE s.work_date=? AND s.start_time=? AND s.end_time=? AND s.shift_name=? ORDER BY name").bind(day,start,end,shiftName).all()).results;
+ return {date:day,reportType:'SHIFT',shift:{name:shiftName||('Ca '+start+'–'+end),start,end,staff:staffRows},paidOrders:new Set(payments.map(x=>x.orderId)).size,paidBills:payments.length,gross,refunded,net:gross-refunded,tax:payments.reduce((n,p)=>n+(p.taxAmount||0),0),cash:payments.filter(p=>p.method==='CASH').reduce((n,p)=>n+p.total,0),bank:payments.filter(p=>p.method==='BANK').reduce((n,p)=>n+p.total,0),openOrders:open,payments,refunds};
+}
+
 // Aggregates the same paid bill/order ledger as daily(). Unpaid and split parent
 // orders cannot leak into the visual report; refunds are counted on their own day.
 export async function analytics(env,date){const day=date||today();if(!validDay(day))return null;

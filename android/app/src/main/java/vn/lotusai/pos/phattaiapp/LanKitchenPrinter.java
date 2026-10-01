@@ -13,6 +13,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public final class LanKitchenPrinter {
+    public boolean hasPendingPrints(){return !active.isEmpty()||!queued.isEmpty();}
     public interface Events { void emit(String code,String severity,String message,String id); }
     private final Activity activity;
     private final SharedPreferences prefs;

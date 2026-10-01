@@ -57,11 +57,11 @@ public final class TicketBitmap {
         Bitmap barcode=decodePng(p.optString("orderBarcodePng"));
         Bitmap feedback=receipt?decodePng(p.optString("feedbackQrPng")):null;
         int qrSize=Math.min(width-64,210);
-        int height=body.getHeight()+(barcode==null?0:110)+(feedback==null?0:qrSize+42);
+        int height=body.getHeight()+(barcode==null?0:150)+(feedback==null?0:qrSize+42);
         if(height>12000)throw new Exception("TICKET_TOO_LONG");
         Bitmap output=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);Canvas c=new Canvas(output);c.drawColor(Color.WHITE);c.drawBitmap(body,0,0,null);
         Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);paint.setColor(Color.BLACK);paint.setTextSize(18);int y=body.getHeight();
-        if(barcode!=null){c.drawBitmap(barcode,null,new Rect(12,y+6,width-12,y+80),null);y+=86;paint.setTextAlign(Paint.Align.CENTER);c.drawText(p.optString("orderCode"),width/2f,y,paint);y+=24;}
+        if(barcode!=null){c.drawBitmap(barcode,null,new Rect(12,y+10,width-12,y+82),null);paint.setTextAlign(Paint.Align.CENTER);paint.setTextSize(18);c.drawText(p.optString("orderCode"),width/2f,y+116,paint);y+=138;}
         if(feedback!=null){paint.setTextAlign(Paint.Align.CENTER);c.drawText("Quét QR góp ý",width/2f,y+20,paint);y+=30;c.drawBitmap(feedback,null,new Rect((width-qrSize)/2,y,(width+qrSize)/2,y+qrSize),null);y+=qrSize+12;}
         return output;
     }

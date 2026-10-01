@@ -74,12 +74,24 @@ export async function handleManagement(req,env,actor,deps){
    const until=new Date(Date.parse(start+'T00:00:00Z')+14*86400000).toISOString().slice(0,10),visible=allowed(actor,'SHIFT_MANAGE')||allowed(actor,'ATTENDANCE_VIEW');
    const [r,staff]=await Promise.all([(visible?env.DB.prepare('SELECT * FROM pos_shift_schedules WHERE work_date>=? AND work_date<? ORDER BY work_date,start_time').bind(start,until):env.DB.prepare('SELECT * FROM pos_shift_schedules WHERE staff_id=? AND work_date>=? AND work_date<? ORDER BY work_date,start_time').bind(actor.id,start,until)).all(),allowed(actor,'SHIFT_MANAGE')?env.DB.prepare('SELECT id,display_name AS name FROM pos_staff_users WHERE active=1 ORDER BY display_name').all():Promise.resolve({results:[]})]);return ok({schedules:r.results,staff:allowed(actor,'SHIFT_MANAGE')?[{id:'OWNER',name:'Chủ cửa hàng'},...staff.results]:[]});
   }
+  if(path==='/api/staff/schedules/bulk'&&method==='POST'){
+   if(!allowed(actor,'SHIFT_MANAGE'))return deny();
+   const b=await deps.body(req),staffIds=[...new Set(Array.isArray(b.staffIds)?b.staffIds.map(x=>txt(x,60)).filter(Boolean):[])],start=txt(b.startTime,5),end=txt(b.endTime,5),workDate=b.workDate,note=txt(b.note,160),shiftName=txt(b.shiftName,80);
+   check(staffIds.length>=1&&staffIds.length<=20&&shiftName&&day(workDate)&&clock(start)&&clock(end)&&start<end&&staffIds.every(x=>x==='OWNER'||uuid(x)),'INVALID_SCHEDULE');
+   for(const staffId of staffIds){
+    if(staffId!=='OWNER'){const staff=await env.DB.prepare('SELECT id FROM pos_staff_users WHERE id=? AND active=1').bind(staffId).first();check(staff,'INVALID_SCHEDULE')}
+    const overlap=await env.DB.prepare('SELECT id FROM pos_shift_schedules WHERE staff_id=? AND work_date=? AND start_time<? AND end_time>?').bind(staffId,workDate,end,start).first();if(overlap)return bad(409,'SHIFT_OVERLAP','Có nhân viên đã có ca trùng giờ');
+   }
+   const time=new Date().toISOString(),ids=staffIds.map(()=>crypto.randomUUID());
+   await env.DB.batch(staffIds.map((staffId,i)=>env.DB.prepare('INSERT INTO pos_shift_schedules(id,staff_id,work_date,start_time,end_time,note,created_by,created_at,shift_name) VALUES(?,?,?,?,?,?,?,?,?)').bind(ids[i],staffId,workDate,start,end,note,actor.id,time,shiftName)));
+   return ok({ids,shiftName},201);
+  }
   if(path==='/api/staff/schedules'&&method==='POST'){
-   if(!allowed(actor,'SHIFT_MANAGE'))return deny();const b=await deps.body(req),staffId=txt(b.staffId,60),start=txt(b.startTime,5),end=txt(b.endTime,5),workDate=b.workDate,note=txt(b.note,160);
+   if(!allowed(actor,'SHIFT_MANAGE'))return deny();const b=await deps.body(req),staffId=txt(b.staffId,60),start=txt(b.startTime,5),end=txt(b.endTime,5),workDate=b.workDate,note=txt(b.note,160),shiftName=txt(b.shiftName,80);
    check((staffId==='OWNER'||uuid(staffId))&&day(workDate)&&clock(start)&&clock(end)&&start<end,'INVALID_SCHEDULE');
    if(staffId!=='OWNER'){const staff=await env.DB.prepare('SELECT id FROM pos_staff_users WHERE id=? AND active=1').bind(staffId).first();check(staff,'INVALID_SCHEDULE')}
    const overlap=await env.DB.prepare('SELECT id FROM pos_shift_schedules WHERE staff_id=? AND work_date=? AND start_time<? AND end_time>?').bind(staffId,workDate,end,start).first();if(overlap)return bad(409,'SHIFT_OVERLAP','Nhân viên đã có ca trùng giờ');
-   const id=crypto.randomUUID();await env.DB.prepare('INSERT INTO pos_shift_schedules(id,staff_id,work_date,start_time,end_time,note,created_by,created_at) VALUES(?,?,?,?,?,?,?,?)').bind(id,staffId,workDate,start,end,note,actor.id,new Date().toISOString()).run();return ok({id},201);
+   const id=crypto.randomUUID();await env.DB.prepare('INSERT INTO pos_shift_schedules(id,staff_id,work_date,start_time,end_time,note,created_by,created_at,shift_name) VALUES(?,?,?,?,?,?,?,?,?)').bind(id,staffId,workDate,start,end,note,actor.id,new Date().toISOString(),shiftName).run();return ok({id},201);
   }
   const schedule=path.match(/^\/api\/staff\/schedules\/([a-f0-9-]{36})(?:\/remove)?$/i);
   if(schedule&&(method==='DELETE'||method==='POST'&&path.endsWith('/remove'))){

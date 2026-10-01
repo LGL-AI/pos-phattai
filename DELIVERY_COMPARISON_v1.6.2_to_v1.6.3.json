@@ -1,0 +1,683 @@
+{
+  "schemaVersion": 1,
+  "comparedAt": "2026-09-30T10:57:40.391663+00:00",
+  "before": {
+    "filename": "LotusPOS_PhatTai_v1.6.2_OPTIMIZED_SOURCE.zip",
+    "sha256": "7bf5df957bf31785ab7fd97c97d2b2381bdb0ef2c3a368ec62f9d18564f33bf3",
+    "release": "1.6.2"
+  },
+  "after": {
+    "filename": "LotusPOS_PhatTai_v1.6.3_APP_UPDATE_SOURCE.zip",
+    "release": "1.6.3",
+    "zipSha256Location": "PACKAGE_VERIFICATION_v1.6.3.json"
+  },
+  "method": "SHA-256 of exact per-file bytes after removing only the archive root prefix; not ZIP timestamps or file names",
+  "excludedFromComparisonToAvoidSelfReference": [
+    "DELIVERY_COMPARISON_v1.6.2_to_v1.6.3.json",
+    "SHA256SUMS.txt"
+  ],
+  "summary": {
+    "addedFiles": 65,
+    "changedFiles": 28,
+    "removedOrArchivedFiles": 18,
+    "unchangedFiles": 180,
+    "changedCodeFiles": 21,
+    "newCodeFilesExcludingHistory": 14
+  },
+  "changedCodePaths": [
+    "android/app/build.gradle.kts",
+    "android/app/src/main/AndroidManifest.xml",
+    "android/app/src/main/assets/staff/index.html",
+    "android/app/src/main/assets/staff/staff.js",
+    "android/app/src/main/java/vn/lotusai/pos/phattaiapp/LanKitchenPrinter.java",
+    "android/app/src/main/java/vn/lotusai/pos/phattaiapp/MainActivity.java",
+    "android/build-local.sh",
+    "public/staff/index.html",
+    "public/staff/staff.js",
+    "scripts/apk-identity.mjs",
+    "scripts/deploy-remote.mjs",
+    "scripts/runtime-smoke.mjs",
+    "scripts/verify-apk-assets.mjs",
+    "scripts/verify-apk-identity.mjs",
+    "scripts/verify-release.mjs",
+    "src/worker.js",
+    "tests/phattai-app-identity.test.mjs",
+    "tests/phattai-bridge-d1.test.mjs",
+    "tests/phattai-isolation.test.mjs",
+    "tests/phattai-v160-stability.test.mjs",
+    "tests/phattai-v161-order-recovery.test.mjs"
+  ],
+  "newCodePaths": [
+    "DEPLOY_CLOUDFLARE_V163.sh",
+    "android/app/src/main/assets/staff/app-update.js",
+    "android/app/src/main/java/vn/lotusai/pos/phattaiapp/AppUpdater.java",
+    "android/app/src/main/java/vn/lotusai/pos/phattaiapp/UpdatePolicy.java",
+    "android/app/src/main/java/vn/lotusai/pos/phattaiapp/UpdateProvider.java",
+    "public/staff/app-update.js",
+    "scripts/android-manifest.mjs",
+    "scripts/post-deploy-verify.mjs",
+    "scripts/publish-android-release.mjs",
+    "scripts/verify-android-release-catalog.mjs",
+    "scripts/verify-handoff.mjs",
+    "src/android-update.js",
+    "tests/UpdatePolicyHarness.java",
+    "tests/phattai-app-update.test.mjs"
+  ],
+  "added": [
+    {
+      "path": "CURRENT_RELEASE.json",
+      "sha256": "37573f7d8fec5acccf28941dc26653bc86e51667fdc5a27e0d3290413efb7f7f",
+      "sizeBytes": 209
+    },
+    {
+      "path": "DEPLOY_CLOUDFLARE_V163.cmd",
+      "sha256": "fd8096a696e06ca867b86298a24e27fa1e0104f7e64c185859f97210c663deb1",
+      "sizeBytes": 151
+    },
+    {
+      "path": "DEPLOY_CLOUDFLARE_V163.sh",
+      "sha256": "8e3cded72ef952602c1ad06a5741508b227ddfb552eb958c4540a5794d6bbc19",
+      "sizeBytes": 109
+    },
+    {
+      "path": "FIX_AND_DELIVERY_REPORT_v1.6.3.md",
+      "sha256": "b68b5630a93d07f4444a41899b40a6dc74c5499a129fabb46213b9ac637f65d3",
+      "sizeBytes": 8222
+    },
+    {
+      "path": "GRADLE_LEGACY_v1.6.3.log",
+      "sha256": "b1121847aab6eadbaf64f2c56b52e23e7d6727a190f771cad52a6459ab0d90bc",
+      "sizeBytes": 32578
+    },
+    {
+      "path": "GRADLE_PRODUCTION_v1.6.3.log",
+      "sha256": "8b6f9c87bb9d347dd1035578d41bc7fe85c2e46c2dbe9e20f58acf9ea287232f",
+      "sizeBytes": 32345
+    },
+    {
+      "path": "GRADLE_WRAPPER_v1.6.3.log",
+      "sha256": "e6e8cdd935e7319c6deb919080b51f647159b232d2234c2b1f547c2df57c6d30",
+      "sizeBytes": 350
+    },
+    {
+      "path": "LOCAL_LEGACY_v1.6.3.log",
+      "sha256": "b4f5ced771cdbcd3d72b0d7bb291c4d43a4d130b8139596281c0932b0f0a0ef3",
+      "sizeBytes": 30093
+    },
+    {
+      "path": "LOCAL_PRODUCTION_v1.6.3.log",
+      "sha256": "0d8214ea20781d5fc2fd560a877b4b81e75c2d12be70de5735e4e48a0e4e90e2",
+      "sizeBytes": 30095
+    },
+    {
+      "path": "PRODUCTION_HEALTH_OBSERVED_v1.6.3.json",
+      "sha256": "4c8111d229289c1e4f454b2b59517fd5a75eb15a618db61d46e2c3afb313b403",
+      "sizeBytes": 163
+    },
+    {
+      "path": "RELEASE_MANIFEST_v1.6.3.json",
+      "sha256": "b985c4c577d546f2a237b4d6b222ce10aac73672c91b4e4767aacc3592e5e133",
+      "sizeBytes": 5129
+    },
+    {
+      "path": "RUNTIME_SMOKE_v1.6.3.log",
+      "sha256": "c37485ce62ef8c6a8822f42d87b241dfb374f25f610acdea0ba160eed0e2bdb8",
+      "sizeBytes": 254
+    },
+    {
+      "path": "SIGNED_GRADLE_v1.6.3.log",
+      "sha256": "559683c11b91cada83dd1e12b958bc6e2677a923fb77146ea9cc3858fc12c562",
+      "sizeBytes": 32682
+    },
+    {
+      "path": "SIGNED_LOCAL_v1.6.3.log",
+      "sha256": "716df24bf8139e6e0647144a766e67c2c4f95395c359aabe57252bc2f10ac5c7",
+      "sizeBytes": 30089
+    },
+    {
+      "path": "SIGNED_RELEASE_PUBLICATION_v1.6.3.log",
+      "sha256": "b1362ed5ef9b4e5ca489eb6698a8566e5f7bcd045a9138c4b16ff32b422857b1",
+      "sizeBytes": 853
+    },
+    {
+      "path": "TEST_ALL385_v1.6.3.log",
+      "sha256": "7b5863ae7d17cda1fc55232f6f7d95434849be5fa221a03df834e9d25a9a188c",
+      "sizeBytes": 28536
+    },
+    {
+      "path": "TEST_ALL_v1.6.3.log",
+      "sha256": "b82750f8c1a37c5981e9473ceda26c67fe30d8038323fa22538886b6aca5461c",
+      "sizeBytes": 28177
+    },
+    {
+      "path": "TEST_APP_UPDATE_v1.6.3.log",
+      "sha256": "02cab3318d764b254475a057904b5760d2f692bc000db636195e9b99a505d29d",
+      "sizeBytes": 304
+    },
+    {
+      "path": "WORKER_BUILD_v1.6.3.log",
+      "sha256": "a559444bb191b95c9fd1cfaa8e2aa6980995e2c0e6ad67e6f6aa83e2ac4447ea",
+      "sizeBytes": 794
+    },
+    {
+      "path": "android/app/src/main/assets/staff/app-update.js",
+      "sha256": "8b9a3959cd8f86dc6efddd4f1771f6242e635f9c8bf1b220783571979e372dfc",
+      "sizeBytes": 2932
+    },
+    {
+      "path": "android/app/src/main/java/vn/lotusai/pos/phattaiapp/AppUpdater.java",
+      "sha256": "cc1be616ac3af366d1a6c30b3fba7aa6a7e91c37a427555e38783f7a94111de0",
+      "sizeBytes": 16628
+    },
+    {
+      "path": "android/app/src/main/java/vn/lotusai/pos/phattaiapp/UpdatePolicy.java",
+      "sha256": "5cd5fce83150ddd31ecad056dd2a4c63e6baecd81d2cf9eb6dc8ca386d100a2d",
+      "sizeBytes": 3424
+    },
+    {
+      "path": "android/app/src/main/java/vn/lotusai/pos/phattaiapp/UpdateProvider.java",
+      "sha256": "4e59191f5da7c4205078d2367796051173cd74780209f439f818e197baa7ddda",
+      "sizeBytes": 3123
+    },
+    {
+      "path": "android/gradle/wrapper/gradle-wrapper.jar",
+      "sha256": "498495120a03b9a6ab5d155f5de3c8f0d986a449153702fb80fc80e134484f17",
+      "sizeBytes": 43504
+    },
+    {
+      "path": "android/gradle/wrapper/gradle-wrapper.properties",
+      "sha256": "7811b7e9709748edc54d01918ac1b2acce8a9884d5cdd29e42d204d7d052dbf1",
+      "sizeBytes": 337
+    },
+    {
+      "path": "android/gradlew",
+      "sha256": "a3648413b47ef77af21d5ebc36c687c7d103aaef3e17f33de7d4f080a6f300a3",
+      "sizeBytes": 8762
+    },
+    {
+      "path": "android/gradlew.bat",
+      "sha256": "57931b17dd228e5c24dac90e815d0bf82477e831a4618dfab4136f5446b42a9f",
+      "sizeBytes": 2966
+    },
+    {
+      "path": "docs/ANDROID_UPDATE_v163.md",
+      "sha256": "a13b76cd4b54d24c7f4957762713148e7d8e8451f4af50539abb09157a913268",
+      "sizeBytes": 6479
+    },
+    {
+      "path": "docs/SUNMI_AVD_SETUP.md",
+      "sha256": "e7530b60313a12592273b2d03f483f2b6510b7bd88fd641bbdf589413633a896",
+      "sizeBytes": 2724
+    },
+    {
+      "path": "history/v1.6.2/APK_GUARD_RESULTS_v1.6.2.json",
+      "sha256": "101bb402f3f0d4a20cb77d9766d8b209da610c862fccf524cae4686f4a7a6137",
+      "sizeBytes": 1676
+    },
+    {
+      "path": "history/v1.6.2/APP_ID_FIX_REPORT_v1.6.2.md",
+      "sha256": "98f0b833ec08a970a48bfb762e8620d500eb37de9f75510609e441b9eabdc81f",
+      "sizeBytes": 7590
+    },
+    {
+      "path": "history/v1.6.2/BENCHMARK_SYNC_v1.6.2.json",
+      "sha256": "0e2d717af6c15f97ad13d4f46410808bfe7aceda12888c642499c4f978166502",
+      "sizeBytes": 389
+    },
+    {
+      "path": "history/v1.6.2/BINARY_PROOF_REFERENCE.json",
+      "sha256": "3edfdb1605acbc086316dd941015bf2ac9feae4560f3ef09bcce35b91796702c",
+      "sizeBytes": 1349
+    },
+    {
+      "path": "history/v1.6.2/BUILT_APK_IDENTITIES_v1.6.2.json",
+      "sha256": "6e98b8f27d20f6d4ffb844848779acf841b77b27875edbc967fa484c1483f1e8",
+      "sizeBytes": 989
+    },
+    {
+      "path": "history/v1.6.2/GRADLE_LEGACY_APP_ID_FIX_v1.6.2.log",
+      "sha256": "c087dd1f0a87515a6c8bad48d00a217bdefc86258aa2c230d10ec24d09cc5694",
+      "sizeBytes": 29870
+    },
+    {
+      "path": "history/v1.6.2/GRADLE_PRODUCTION_APP_ID_FIX_v1.6.2.log",
+      "sha256": "a7a8d092a48e5ce6cb0664590c9bc6694a93293cfbfc59f0debea2a21d1bfeff",
+      "sizeBytes": 29852
+    },
+    {
+      "path": "history/v1.6.2/GRADLE_REJECT_LEGACY_APP_ID_FIX_v1.6.2.log",
+      "sha256": "3526d0aa996e562ea1f0bcebd86ea593e7e546c0d345a047fee97a9ca485bea3",
+      "sizeBytes": 839
+    },
+    {
+      "path": "history/v1.6.2/LOCAL_LEGACY_APP_ID_FIX_v1.6.2.log",
+      "sha256": "b2ade607d31fee6ea1cfe3be3cf317effcaee3772b84510c40718ae9f7a16faf",
+      "sizeBytes": 27793
+    },
+    {
+      "path": "history/v1.6.2/LOCAL_PRODUCTION_APP_ID_FIX_v1.6.2.log",
+      "sha256": "652e24b914583e4ce520c23a468b621bc34e617734c37b1ad39272ad660ef14f",
+      "sizeBytes": 27790
+    },
+    {
+      "path": "history/v1.6.2/OPTIMIZATION_REPORT_v1.6.2.md",
+      "sha256": "77d07cdcce5654425dc3e21ff764394cb35f2e722bcb724ba385798c479bf794",
+      "sizeBytes": 12316
+    },
+    {
+      "path": "history/v1.6.2/PRODUCTION_HEALTH_BEFORE_v1.6.2.json",
+      "sha256": "f354cdd8851ba3997665a47536b33f602b9c320ba55c8a9e29cef09d621c4441",
+      "sizeBytes": 380
+    },
+    {
+      "path": "history/v1.6.2/README.md",
+      "sha256": "c51a51c905ce4225660ce37540901646034502d68c85edda2255f242c06b4261",
+      "sizeBytes": 3267
+    },
+    {
+      "path": "history/v1.6.2/RELEASE_MANIFEST_v1.6.2.json",
+      "sha256": "5e1e170c2f1701e90367421150ef96bb9da29c60ecdc66e2581959fbb4614a9c",
+      "sizeBytes": 1427
+    },
+    {
+      "path": "history/v1.6.2/RUNTIME_SMOKE_v1.6.2.log",
+      "sha256": "20d5c8baa50a080b60ce2de94958d4b0543853036569f583f0c87baf477ae0e7",
+      "sizeBytes": 378
+    },
+    {
+      "path": "history/v1.6.2/TEST_ALL326_v1.6.2.log",
+      "sha256": "6c610ffc06dff4456f6a5b13389da9ed9aa9eb60dbb84a1fa12d1c8af84270c9",
+      "sizeBytes": 24764
+    },
+    {
+      "path": "history/v1.6.2/TEST_ALL352_v1.6.2_APP_ID_FIX.log",
+      "sha256": "e1c314ccbedf7c0b6112a19ce93dad02ca1734b7bc3e3dfaf62d356cd2a218bf",
+      "sizeBytes": 26780
+    },
+    {
+      "path": "history/v1.6.2/WORKER_BUILD_v1.6.2.log",
+      "sha256": "c0b9521e512cf116a5a2a0a405dfa94388b22f67cd02390b1725c75c684c2a44",
+      "sizeBytes": 795
+    },
+    {
+      "path": "public/releases/android/vn.lotusai.pos.phattaiapp/v163/2d7155b68f0c03a802b21b522772eed70da8b0a4375b6704d689496226f16795.apk",
+      "sha256": "2d7155b68f0c03a802b21b522772eed70da8b0a4375b6704d689496226f16795",
+      "sizeBytes": 5623657
+    },
+    {
+      "path": "public/staff/app-update.js",
+      "sha256": "8b9a3959cd8f86dc6efddd4f1771f6242e635f9c8bf1b220783571979e372dfc",
+      "sizeBytes": 2932
+    },
+    {
+      "path": "scripts/android-manifest.mjs",
+      "sha256": "1be607f84fe773d52af7fe7c7b482ea5fd6e336d6b7747025004e86739f9f5e6",
+      "sizeBytes": 834
+    },
+    {
+      "path": "scripts/post-deploy-verify.mjs",
+      "sha256": "35bd2b1a5c13bd06043e6d4a5434bfa95e124e65d39e4d4dae5c5357d546a9a9",
+      "sizeBytes": 2485
+    },
+    {
+      "path": "scripts/publish-android-release.mjs",
+      "sha256": "f24ca67dabc0e5828dd7602b2dcaa954f53fc1ab7a683e48bd9998044381e7e6",
+      "sizeBytes": 4448
+    },
+    {
+      "path": "scripts/verify-android-release-catalog.mjs",
+      "sha256": "b9788962de376b7a3adf4fcbf1857beda2d4f3eb8f7bce7d0ea4914560cd80a0",
+      "sizeBytes": 1433
+    },
+    {
+      "path": "scripts/verify-handoff.mjs",
+      "sha256": "6e44b3c37c379d0cf07b4f2984f52f9616a43df0e110d128d8c7ed6dfcf06483",
+      "sizeBytes": 2411
+    },
+    {
+      "path": "src/android-releases.json",
+      "sha256": "1e096884f356be42c44169ef2790e6ca9d0459cc0a3372501189040617000c38",
+      "sizeBytes": 781
+    },
+    {
+      "path": "src/android-update.js",
+      "sha256": "8d9b54b5ffc8d96fbdc49320c9977faf631ce8bc9f46fc78f62e1bc4b67c6271",
+      "sizeBytes": 5114
+    },
+    {
+      "path": "tests/UpdatePolicyHarness.java",
+      "sha256": "ee17a68231ca66d1684bc9c039769be9743d9e4943f987c85e3d779914c5ff86",
+      "sizeBytes": 3724
+    },
+    {
+      "path": "tests/phattai-app-update.test.mjs",
+      "sha256": "375cd0aea22b9bd0025c4714a5c8efc8c867535cc350a23a5d6477fea6eeee88",
+      "sizeBytes": 12559
+    },
+    {
+      "path": "verification/BUILT_APK_IDENTITIES_v1.6.3.json",
+      "sha256": "185f23ff02da191a312d6f75a15b90e47c04a736c3b4e086668382ee27598a0a",
+      "sizeBytes": 1141
+    },
+    {
+      "path": "verification/RELEASE_GUARD_RESULTS_v1.6.3.json",
+      "sha256": "8977d9677fdfcd8e5e4ac52586e8361e045da6909c79f9692b8c3ce3a85315b9",
+      "sizeBytes": 5883
+    },
+    {
+      "path": "verification/SIGNING_KEY_RECOVERY_v1.6.3.json",
+      "sha256": "81414a27b76f4abbe01a65921763df9104f282601bb520e1f36788d05b2e3d08",
+      "sizeBytes": 357
+    },
+    {
+      "path": "verification/unsigned-apks/LotusPOS_PhatTai_LegacyHandheld_v1.6.3_APP_UPDATE_UNSIGNED.apk",
+      "sha256": "1775bb15f7c20709b0a74560f8eb62c6e8918f691ff00afd981fa0e0e6fbdd65",
+      "sizeBytes": 5611564
+    },
+    {
+      "path": "verification/unsigned-apks/LotusPOS_PhatTai_LegacyHandheld_v1.6.3_APP_UPDATE_UNSIGNED.apk.manifest.txt",
+      "sha256": "f9ebc1edceb7dc60c800bad9c5b500cf22cd87cda42199d506f205fd9e83ee90",
+      "sizeBytes": 7702
+    },
+    {
+      "path": "verification/unsigned-apks/LotusPOS_PhatTai_Production_v1.6.3_APP_UPDATE_UNSIGNED.apk",
+      "sha256": "3b2c304100af16b006d9c16df5916eeb5baf287eeffb47569f2ea61caf5b4b95",
+      "sizeBytes": 5611556
+    },
+    {
+      "path": "verification/unsigned-apks/LotusPOS_PhatTai_Production_v1.6.3_APP_UPDATE_UNSIGNED.apk.manifest.txt",
+      "sha256": "b749175066601e6decef1c03a0111a88240bcec5763365509e37bc1745baed7c",
+      "sizeBytes": 7710
+    }
+  ],
+  "changed": [
+    {
+      "path": ".gitignore",
+      "beforeSha256": "125dd591179a6c7327e224928204f005c1b006aa5ff6b7e39374c655db928315",
+      "afterSha256": "90a5c5768e01f3337ace3543d91bfda65d363e983eb6da6effefad0e157ec996",
+      "beforeSizeBytes": 266,
+      "afterSizeBytes": 310
+    },
+    {
+      "path": "README.md",
+      "beforeSha256": "c51a51c905ce4225660ce37540901646034502d68c85edda2255f242c06b4261",
+      "afterSha256": "d55e667c1dfb25dbc00160e512e9e81e8a7fbf9ab9cf051b5f89ff772e692876",
+      "beforeSizeBytes": 3267,
+      "afterSizeBytes": 2217
+    },
+    {
+      "path": "RELEASE_MANIFEST.template.json",
+      "beforeSha256": "7f4c0275814b1dca0bb6f68e5e4df9dae9dbe942ff75a824f64018dbda16bfad",
+      "afterSha256": "c9d8d9f78b13cf3d1d1b400f0a3bd5d9bfcbb458017c63cf9804b6b89f5259a2",
+      "beforeSizeBytes": 398,
+      "afterSizeBytes": 713
+    },
+    {
+      "path": "android/app-identity.json",
+      "beforeSha256": "381723b0330484fa871916a7fde03bc7a17c530ea8e5e1ae611d0ae3ec6af420",
+      "afterSha256": "cf4ced6a1f33b25e47487e5c375e92ec983c7d866fe193f743add19d60cec50d",
+      "beforeSizeBytes": 543,
+      "afterSizeBytes": 543
+    },
+    {
+      "path": "android/app/build.gradle.kts",
+      "beforeSha256": "956a588ae1bb1aee260da6b195322d419e1c6403b8b72c38e34269f9258823fe",
+      "afterSha256": "159243cae63239bfa836d0108e6a063b14e5b1eacfb447a3a51d18db853389f9",
+      "beforeSizeBytes": 2389,
+      "afterSizeBytes": 3756
+    },
+    {
+      "path": "android/app/src/main/AndroidManifest.xml",
+      "beforeSha256": "9185c16ee388c42d62d028b0be9bd53576dad294a21ae73bb4fe211b15ad26cb",
+      "afterSha256": "74df8f2fadb99f9a46106bb8c6d6ba0a8d7d2a227a94c239c0cde8dd434bd62e",
+      "beforeSizeBytes": 2768,
+      "afterSizeBytes": 3084
+    },
+    {
+      "path": "android/app/src/main/assets/staff/index.html",
+      "beforeSha256": "447291fab54d657c5020ec5e39ae5bdabf02d35f975e7fea09138dd1163ebbee",
+      "afterSha256": "bd4604d67e11eda234fdcbae249097ac1767b3fd54730e9ac431b585b31bb286",
+      "beforeSizeBytes": 675,
+      "afterSizeBytes": 714
+    },
+    {
+      "path": "android/app/src/main/assets/staff/staff.js",
+      "beforeSha256": "82ff59d3671a42077c2223fd0aba3c6be070859191b7b3a6013002e89e7b1f97",
+      "afterSha256": "62451653250762cc64b11b573fa853846c3b1456a02f998ebb044d3ee990b81d",
+      "beforeSizeBytes": 186339,
+      "afterSizeBytes": 187115
+    },
+    {
+      "path": "android/app/src/main/java/vn/lotusai/pos/phattaiapp/LanKitchenPrinter.java",
+      "beforeSha256": "ba21537ba38ef6cd42288c0c16dc8ad0d36e534f3fbf703859c995b6d097b07f",
+      "afterSha256": "deba3166691f74ef210939c6ebac96a28ecd6e4daf6d224f8325aeeb880a2c3b",
+      "beforeSizeBytes": 13007,
+      "afterSizeBytes": 13091
+    },
+    {
+      "path": "android/app/src/main/java/vn/lotusai/pos/phattaiapp/MainActivity.java",
+      "beforeSha256": "8ff6b4071c7314a9a91a5b151527cdfca52f0117e1041e9b4937948a385845fb",
+      "afterSha256": "43db3f7f1b6448276d9b142e7d3291c8b7e188dd4a632e8487056be11a6c93a4",
+      "beforeSizeBytes": 27666,
+      "afterSizeBytes": 30518
+    },
+    {
+      "path": "android/build-local.sh",
+      "beforeSha256": "b77b1de3086476c4e6f1305ebdb0a2dd785610322a3654f5459cb5293f22ae5d",
+      "afterSha256": "de7c1902db532ae6e05a250da6bd9371eedeecf9432933c6c464a28b5a8ad857",
+      "beforeSizeBytes": 4895,
+      "afterSizeBytes": 5036
+    },
+    {
+      "path": "package-lock.json",
+      "beforeSha256": "e3a8f64975a5d6dc7441bb14c7daebb7f95079feab6158c798685d70f6d0d854",
+      "afterSha256": "bfb65be58642ad7d55e69b1a1198ecb925581cd57fd06d5843488d2761404103",
+      "beforeSizeBytes": 49621,
+      "afterSizeBytes": 49621
+    },
+    {
+      "path": "package.json",
+      "beforeSha256": "85ecc32b645f686cad119b2c752d7e70ddc24eeeb51d694510f06dfbcd0e64e7",
+      "afterSha256": "405c0ba6fa46bd665ed598f8fa74c94351e50234dee064aa5cf7def14ba5564a",
+      "beforeSizeBytes": 1708,
+      "afterSizeBytes": 1846
+    },
+    {
+      "path": "public/staff/index.html",
+      "beforeSha256": "447291fab54d657c5020ec5e39ae5bdabf02d35f975e7fea09138dd1163ebbee",
+      "afterSha256": "bd4604d67e11eda234fdcbae249097ac1767b3fd54730e9ac431b585b31bb286",
+      "beforeSizeBytes": 675,
+      "afterSizeBytes": 714
+    },
+    {
+      "path": "public/staff/staff.js",
+      "beforeSha256": "82ff59d3671a42077c2223fd0aba3c6be070859191b7b3a6013002e89e7b1f97",
+      "afterSha256": "62451653250762cc64b11b573fa853846c3b1456a02f998ebb044d3ee990b81d",
+      "beforeSizeBytes": 186339,
+      "afterSizeBytes": 187115
+    },
+    {
+      "path": "scripts/apk-identity.mjs",
+      "beforeSha256": "f3f862ba24e24663bf5787ddd64b80c70ac5064c274738f408f5869fc2f3708a",
+      "afterSha256": "e87dfad10e7834d59eeadc5b246d64f368cce8202c808e6ed331bcb2d28a9147",
+      "beforeSizeBytes": 1376,
+      "afterSizeBytes": 1622
+    },
+    {
+      "path": "scripts/deploy-remote.mjs",
+      "beforeSha256": "e673effafbecc4b9e8300b1daafccb33896864acf8b8552d023b6fcb7256c7e3",
+      "afterSha256": "84ce6385d7c520b03391a0cc1b9a37ec8fedef9f4b5dcf57d582e78c8b42a7ac",
+      "beforeSizeBytes": 6840,
+      "afterSizeBytes": 7137
+    },
+    {
+      "path": "scripts/runtime-smoke.mjs",
+      "beforeSha256": "9f01adbf69f3baa03de741268c448668e05dcff6ed09b0b4f6fb7f135f7fbd23",
+      "afterSha256": "bc61f795e24a57e4dc7cc6d471e023256913edd5f4cce86ed90abd1bc00ddef4",
+      "beforeSizeBytes": 5117,
+      "afterSizeBytes": 6450
+    },
+    {
+      "path": "scripts/verify-apk-assets.mjs",
+      "beforeSha256": "03e9479246c20046f867c64e96abb5564fb4181294572a52da9f4ed7c9f5a4d8",
+      "afterSha256": "1bb6baaefacfc57f4347175a9598af133ef927046f8a858d4b5f15c3915bd2f3",
+      "beforeSizeBytes": 1579,
+      "afterSizeBytes": 1667
+    },
+    {
+      "path": "scripts/verify-apk-identity.mjs",
+      "beforeSha256": "1f6f7ec004cf42c808a9e39d7bdd29ae0654abd6599c26d75e8c6a6bb38ab7ae",
+      "afterSha256": "1d8d9ed8f4222319ed90d4642ace3354f27d7e7d93ebfd285d0ecda43d486da2",
+      "beforeSizeBytes": 2682,
+      "afterSizeBytes": 3140
+    },
+    {
+      "path": "scripts/verify-release.mjs",
+      "beforeSha256": "243e1c71757a319d849b4bddcc373e17bf894b77d96d6dc6570af4e78204c0d2",
+      "afterSha256": "16031cb02174f483bd04d979e078596436355c2029361af43d0a36356d5a25d8",
+      "beforeSizeBytes": 78,
+      "afterSizeBytes": 170
+    },
+    {
+      "path": "src/worker.js",
+      "beforeSha256": "f1363ca34abce08f85966ffaece856c9c42a172e5727681c4f4974499b6e08aa",
+      "afterSha256": "e1b973d28fdecf70d1c9305b997eb13ff0e6fd88bcf6ea9eec5cdcaf43bd46fa",
+      "beforeSizeBytes": 37266,
+      "afterSizeBytes": 37484
+    },
+    {
+      "path": "tests/phattai-app-identity.test.mjs",
+      "beforeSha256": "ca89814f7e5e47b8a7377de6b395c7ad0f709a902cba2df3ac573ea80511ac5e",
+      "afterSha256": "3dfe6d08a0cae40430ab38fafe66f7fda6c62f0f0d63c6e212a4a0a008eca5b6",
+      "beforeSizeBytes": 7331,
+      "afterSizeBytes": 7331
+    },
+    {
+      "path": "tests/phattai-bridge-d1.test.mjs",
+      "beforeSha256": "aba52a3b9c4c4a58f7528ba476437786aec6ff35b150541ae7d7c18aab45bb3d",
+      "afterSha256": "3deb9909ecf938c340d85be0e9fc4064306a9f24983f4090e140a94d16672952",
+      "beforeSizeBytes": 7881,
+      "afterSizeBytes": 7881
+    },
+    {
+      "path": "tests/phattai-isolation.test.mjs",
+      "beforeSha256": "36049db9c02f81dcbfbd5ef24507652d950333f1290463b912c5e7bd08812f1b",
+      "afterSha256": "986b15213576c9adbf1190a3cb628be38d1498f5704b0a29f3640e28f50bde17",
+      "beforeSizeBytes": 11383,
+      "afterSizeBytes": 11383
+    },
+    {
+      "path": "tests/phattai-v160-stability.test.mjs",
+      "beforeSha256": "b1db3dac987cc0233e747d5e535736f0086288ac3773f2e50c739dc17a6fd796",
+      "afterSha256": "caeeb2e8bd62409a5783a1f60200b22c37b21c861d4e1d406a7b398ef2668da4",
+      "beforeSizeBytes": 3082,
+      "afterSizeBytes": 3082
+    },
+    {
+      "path": "tests/phattai-v161-order-recovery.test.mjs",
+      "beforeSha256": "edfec8dbe7bc4d675e044828872bb21bf617b9eab9a01daa8cfeff3e97e0f401",
+      "afterSha256": "154abeeb40d81487aac4d840edf8d5bd43a5303c1ca2b214c8e8592d3786c5ef",
+      "beforeSizeBytes": 2517,
+      "afterSizeBytes": 2517
+    },
+    {
+      "path": "verification/unsigned-apks/README.md",
+      "beforeSha256": "dd73412eb131b0eccecef2217a9ade20c615e55747b28f9f97fb6c9dbfdde3d7",
+      "afterSha256": "f86e538f7081836691b6b6d85fafc3d1d8115d5673030546dbe2fb0bc4d3ad98",
+      "beforeSizeBytes": 958,
+      "afterSizeBytes": 441
+    }
+  ],
+  "removedOrArchived": [
+    {
+      "path": "APK_GUARD_RESULTS_v1.6.2.json",
+      "beforeSha256": "101bb402f3f0d4a20cb77d9766d8b209da610c862fccf524cae4686f4a7a6137",
+      "beforeSizeBytes": 1676
+    },
+    {
+      "path": "APP_ID_FIX_REPORT_v1.6.2.md",
+      "beforeSha256": "98f0b833ec08a970a48bfb762e8620d500eb37de9f75510609e441b9eabdc81f",
+      "beforeSizeBytes": 7590
+    },
+    {
+      "path": "BENCHMARK_SYNC_v1.6.2.json",
+      "beforeSha256": "0e2d717af6c15f97ad13d4f46410808bfe7aceda12888c642499c4f978166502",
+      "beforeSizeBytes": 389
+    },
+    {
+      "path": "GRADLE_LEGACY_APP_ID_FIX_v1.6.2.log",
+      "beforeSha256": "c087dd1f0a87515a6c8bad48d00a217bdefc86258aa2c230d10ec24d09cc5694",
+      "beforeSizeBytes": 29870
+    },
+    {
+      "path": "GRADLE_PRODUCTION_APP_ID_FIX_v1.6.2.log",
+      "beforeSha256": "a7a8d092a48e5ce6cb0664590c9bc6694a93293cfbfc59f0debea2a21d1bfeff",
+      "beforeSizeBytes": 29852
+    },
+    {
+      "path": "GRADLE_REJECT_LEGACY_APP_ID_FIX_v1.6.2.log",
+      "beforeSha256": "3526d0aa996e562ea1f0bcebd86ea593e7e546c0d345a047fee97a9ca485bea3",
+      "beforeSizeBytes": 839
+    },
+    {
+      "path": "LOCAL_LEGACY_APP_ID_FIX_v1.6.2.log",
+      "beforeSha256": "b2ade607d31fee6ea1cfe3be3cf317effcaee3772b84510c40718ae9f7a16faf",
+      "beforeSizeBytes": 27793
+    },
+    {
+      "path": "LOCAL_PRODUCTION_APP_ID_FIX_v1.6.2.log",
+      "beforeSha256": "652e24b914583e4ce520c23a468b621bc34e617734c37b1ad39272ad660ef14f",
+      "beforeSizeBytes": 27790
+    },
+    {
+      "path": "OPTIMIZATION_REPORT_v1.6.2.md",
+      "beforeSha256": "77d07cdcce5654425dc3e21ff764394cb35f2e722bcb724ba385798c479bf794",
+      "beforeSizeBytes": 12316
+    },
+    {
+      "path": "PRODUCTION_HEALTH_BEFORE_v1.6.2.json",
+      "beforeSha256": "f354cdd8851ba3997665a47536b33f602b9c320ba55c8a9e29cef09d621c4441",
+      "beforeSizeBytes": 380
+    },
+    {
+      "path": "RELEASE_MANIFEST_v1.6.2.json",
+      "beforeSha256": "5e1e170c2f1701e90367421150ef96bb9da29c60ecdc66e2581959fbb4614a9c",
+      "beforeSizeBytes": 1427
+    },
+    {
+      "path": "RUNTIME_SMOKE_v1.6.2.log",
+      "beforeSha256": "20d5c8baa50a080b60ce2de94958d4b0543853036569f583f0c87baf477ae0e7",
+      "beforeSizeBytes": 378
+    },
+    {
+      "path": "TEST_ALL326_v1.6.2.log",
+      "beforeSha256": "6c610ffc06dff4456f6a5b13389da9ed9aa9eb60dbb84a1fa12d1c8af84270c9",
+      "beforeSizeBytes": 24764
+    },
+    {
+      "path": "TEST_ALL352_v1.6.2_APP_ID_FIX.log",
+      "beforeSha256": "e1c314ccbedf7c0b6112a19ce93dad02ca1734b7bc3e3dfaf62d356cd2a218bf",
+      "beforeSizeBytes": 26780
+    },
+    {
+      "path": "WORKER_BUILD_v1.6.2.log",
+      "beforeSha256": "c0b9521e512cf116a5a2a0a405dfa94388b22f67cd02390b1725c75c684c2a44",
+      "beforeSizeBytes": 795
+    },
+    {
+      "path": "verification/BUILT_APK_IDENTITIES_v1.6.2.json",
+      "beforeSha256": "6e98b8f27d20f6d4ffb844848779acf841b77b27875edbc967fa484c1483f1e8",
+      "beforeSizeBytes": 989
+    },
+    {
+      "path": "verification/unsigned-apks/LotusPOS_PhatTai_LegacyHandheld_v1.6.2_APP_ID_GUARD_UNSIGNED.apk",
+      "beforeSha256": "5acbc07b5b96900ff8135ae27f6acc1cc6970e8c21ee09b9c85836871013ba06",
+      "beforeSizeBytes": 5600820
+    },
+    {
+      "path": "verification/unsigned-apks/LotusPOS_PhatTai_Production_v1.6.2_APP_ID_GUARD_UNSIGNED.apk",
+      "beforeSha256": "9bb88e979185dcba2d1442b1e88de95de6ee73a916747b60347e71075faef087",
+      "beforeSizeBytes": 5600816
+    }
+  ]
+}

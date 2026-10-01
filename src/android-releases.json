@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "releases": [
+    {
+      "applicationId": "vn.lotusai.pos.phattaiapp",
+      "versionName": "1.6.3",
+      "versionCode": 163,
+      "signerSha256": "9a3049ab6b940be51cea4e22ba4d0ecc8a1d6490f0827d461b7a1f3c3ae860ae",
+      "signatureVerified": true,
+      "sha256": "2d7155b68f0c03a802b21b522772eed70da8b0a4375b6704d689496226f16795",
+      "sizeBytes": 5623657,
+      "minSdk": 23,
+      "publishedAt": "2026-09-30T10:34:55.047Z",
+      "notesVi": "Sửa cấu hình phát hành, thêm kiểm tra và cập nhật ứng dụng trên SUNMI",
+      "notesZh": "修复发布配置并加入 SUNMI 应用更新",
+      "path": "/releases/android/vn.lotusai.pos.phattaiapp/v163/2d7155b68f0c03a802b21b522772eed70da8b0a4375b6704d689496226f16795.apk"
+    }
+  ]
+}

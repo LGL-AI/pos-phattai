@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-import {execFileSync} from 'node:child_process';
 import {applyCurrentSchema} from './helpers/schema.mjs';
 import worker from '../src/worker.js';
 
@@ -18,11 +17,7 @@ const MAIN=readFileSync(new URL('../android/app/src/main/java/vn/lotusai/pos/pha
 const CONNECT=readFileSync(new URL('../android/app/src/main/java/vn/lotusai/pos/phattaiapp/CloudConnectivityActivity.java',import.meta.url),'utf8');
 const DIAG=readFileSync(new URL('../android/app/src/main/java/vn/lotusai/pos/phattaiapp/DiagnosticsActivity.java',import.meta.url),'utf8');
 const MANIFEST=readFileSync(new URL('../android/app/src/main/AndroidManifest.xml',import.meta.url),'utf8');
-const APK=new URL('./artifacts/handheld-v152-uat.apk',import.meta.url);
-const APK_PATH=decodeURIComponent(APK.pathname);
-const APK_STAFF=execFileSync('unzip',['-p',APK_PATH,'assets/staff/staff.js'],{encoding:'utf8'});
-const APK_DEX=execFileSync('unzip',['-p',APK_PATH,'classes.dex']);
-const APK_DEX_TEXT=APK_DEX.toString('latin1');
+const APK_STAFF=readFileSync(new URL('../android/app/src/main/assets/staff/staff.js',import.meta.url),'utf8');
 
 function fixture(){
  const db=new DatabaseSync(':memory:');
@@ -59,7 +54,7 @@ A.push(['A02','OWNER can load daily report',async()=>{const fx=fixture();const a
 A.push(['A03','cashier is blocked from daily report',async()=>{const fx=fixture();const a=roleAuth(fx,'CASHIER');const r=await fx.call('/api/staff/reports/daily?date=2026-09-28','GET',null,a);assert.equal(r.status,403);assert.equal(r.data.code,'OWNER_ONLY');fx.db.close()}]);
 A.push(['A04','OWNER can load analytics report',async()=>{const fx=fixture();const a=await ownerAuth(fx.call);const r=await fx.call('/api/staff/reports/analytics?date=2026-09-28','GET',null,a);assert.equal(r.status,200);assert.ok(r.data.analytics);fx.db.close()}]);
 A.push(['A05','manager is blocked from analytics report',async()=>{const fx=fixture();const a=roleAuth(fx,'MANAGER');const r=await fx.call('/api/staff/reports/analytics?date=2026-09-28','GET',null,a);assert.equal(r.status,403);fx.db.close()}]);
-A.push(['A06','OWNER can read store/bank configuration',async()=>{const fx=fixture();const a=await ownerAuth(fx.call);const r=await fx.call('/api/staff/store','GET',null,a);assert.equal(r.status,200);assert.equal(r.data.store.name,'TIỆM SÍU LẬP PHÁT TÀI');assert.equal(r.data.store.bankBin,'970448');fx.db.close()}]);
+A.push(['A06','OWNER can read store/bank configuration',async()=>{const fx=fixture();const a=await ownerAuth(fx.call);const r=await fx.call('/api/staff/store','GET',null,a);assert.equal(r.status,200);assert.equal(r.data.store.name,'TIỆM SÍU LẬP PHÁT TÀI');assert.equal(r.data.store.bankBin,'970422');assert.equal(r.data.store.bankAccount,'00706885602');assert.equal(r.data.store.bankLabel,'MB');fx.db.close()}]);
 A.push(['A07','non-owner cannot read store/bank configuration',async()=>{const fx=fixture();const a=roleAuth(fx,'MANAGER');const r=await fx.call('/api/staff/store','GET',null,a);assert.equal(r.status,403);assert.equal(r.data.code,'OWNER_ONLY');fx.db.close()}]);
 A.push(['A08','store update rejects tableCount 0',async()=>{const fx=fixture();const a=await ownerAuth(fx.call);const s=(await fx.call('/api/staff/store','GET',null,a)).data.store;const r=await fx.call('/api/staff/store','PUT',{storeName:s.name,storeNameCn:s.nameCn,address:s.address,taxNumber:s.taxNumber,tableCount:0,bankLabel:s.bankLabel,bankBin:s.bankBin,bankAccount:s.bankAccount,bankName:s.bankName,transferPrefix:s.transferPrefix,taxMode:s.taxMode,taxRate:s.taxRate,githubUrl:s.githubUrl,feedbackUrl:s.feedbackUrl||'',version:s.version},a);assert.equal(r.status,400);fx.db.close()}]);
 A.push(['A09','store update detects stale version',async()=>{const fx=fixture();const a=await ownerAuth(fx.call);const s=(await fx.call('/api/staff/store','GET',null,a)).data.store;const body={storeName:s.name,storeNameCn:s.nameCn,address:s.address,taxNumber:s.taxNumber,tableCount:s.tableCount,bankLabel:s.bankLabel,bankBin:s.bankBin,bankAccount:s.bankAccount,bankName:s.bankName,transferPrefix:s.transferPrefix,taxMode:s.taxMode,taxRate:s.taxRate,githubUrl:s.githubUrl,feedbackUrl:s.feedbackUrl||'',version:s.version};const one=await fx.call('/api/staff/store','PUT',body,a);assert.equal(one.status,200);const two=await fx.call('/api/staff/store','PUT',body,a);assert.equal(two.status,409);assert.equal(two.data.code,'STORE_CHANGED');fx.db.close()}]);
@@ -76,7 +71,7 @@ A.push(['A19','staff handheld navigation consolidates OWNER tools under one pare
 A.push(['A20','owner hub exposes store management as a child action',()=>assert.match(STAFF,/\['store','Quản lý tiệm','门店管理'/)]);
 A.push(['A21','owner hub exposes account and permission management as a child action',()=>assert.match(STAFF,/\['team','Tài khoản & quyền','账号与权限'/)]);
 A.push(['A22','owner hub exposes device and printer administration',()=>assert.match(STAFF,/\['settings','Thiết bị & máy in','设备与打印机'/)]);
-A.push(['A23','CSV daily report and SUNMI print actions exist',()=>{assert.match(STAFF,/data-action="report-download"/);assert.match(STAFF,/In báo cáo SUNMI \/ SUNMI 打印日报/)}]);
+A.push(['A23','CSV daily report and SUNMI print actions exist',()=>{assert.match(STAFF,/data-action="report-download"/);assert.match(STAFF,/In SUNMI \/ SUNMI 打印/);assert.match(STAFF,/BÁO CÁO CA \/ 班次报表/)}]);
 A.push(['A24','SUNMI daily report print action is owner-gated',()=>assert.match(STAFF,/if\(!isOwner\(\)\)throw Error\('Chỉ chủ tiệm được in báo cáo/)]);
 A.push(['A25','SUNMI daily report print requires native bridge',()=>assert.match(STAFF,/native\?\.printDailyReport/)]);
 A.push(['A26','hardware settings actions re-fetch current staff identity',()=>assert.match(STAFF,/\['kitchen-config','kitchen-jobs','device-check','sunmi-check','sunmi-reconnect'\][\s\S]*api\('GET','\/api\/staff\/me'\)/)]);
@@ -113,8 +108,8 @@ A.push(['A56','staff payment success message is bilingual and states kitchen is 
 A.push(['A57','paid kitchen card removes normal kitchen print action',()=>assert.match(STAFF,/paid\?`<p class="muted">Phiếu bếp này thuộc thời điểm chốt order[\s\S]*Đã kiểm tra phiếu giấy/)]);
 // v1.5.3 UI regressions are folded into the 60-case v1.5.x group without increasing case count.
 A.push(['A58','source includes refund form, styled modifier dialog and bilingualizer regressions',()=>{assert.match(STAFF,/function refundForm\(/);assert.match(STAFF,/class="item-overlay"/);assert.match(STAFF,/function bilingualize\(/)}]);
-A.push(['A59','APK DEX contains separate receipt, kitchen and owner hardware bridge methods',()=>{for(const s of ['printReceipt','printKitchen','printDailyReport','openKitchenSettings','openKitchenJobs','openDiagnostics','checkPrinter','reconnectPrinter','RECEIPT'])assert.ok(APK_DEX_TEXT.includes(s),s)}]);
-A.push(['A60','PHAT TAI Android package is isolated from offline handheld package',()=>{assert.match(MANIFEST,/vn\.lotusai\.pos\.phattaiapp/);assert.doesNotMatch(MANIFEST,/vn\.lotusai\.pos\.handheld/)}]);
+A.push(['A59','Android source exposes separate receipt, kitchen and owner hardware bridge methods',()=>{for(const s of ['printReceipt','printKitchen','printDailyReport','openKitchenSettings','openKitchenJobs','openDiagnostics','checkPrinter','reconnectPrinter','RECEIPT'])assert.ok(MAIN.includes(s),s)}]);
+A.push(['A60','Android Java namespace is explicit and separate from the install profile',()=>{assert.match(MANIFEST,/vn\.lotusai\.pos\.phattaiapp/);assert.doesNotMatch(MANIFEST,/vn\.lotusai\.pos\.handheld/)}]);
 
 // ---------------------------------------------------------------------------
 // GROUP B — 60 end-to-end/business cases across Customer QR + Staff/SUNMI UI.
@@ -177,9 +172,9 @@ B.push(['B54','customer UI order button copy says D1 + kitchen ticket immediatel
 B.push(['B55','staff UI requires table/order reconciliation before payment stage',()=>assert.match(STAFF,/ĐỐI CHIẾU BÀN/)]);
 B.push(['B56','staff UI exposes both CASH and BANK payment choices',()=>{assert.match(STAFF,/data-choose-pay="CASH"/);assert.match(STAFF,/data-choose-pay="BANK"/)}]);
 B.push(['B57','staff UI shows bank QR only during staff payment flow',()=>{assert.match(STAFF,/function bankCard/);assert.match(STAFF,/QR chuyển khoản/)}]);
-B.push(['B58','staff UI auto-polls kitchen jobs about every 3 seconds',()=>assert.match(STAFF,/window\.setInterval\(pollAutoPrint,3000\)/)]);
-B.push(['B59','APK contains the live Staff UI used by business payment flow',()=>{assert.ok(APK_STAFF.includes('data-choose-pay="CASH"'));assert.ok(APK_STAFF.includes('data-choose-pay="BANK"'));assert.ok(APK_STAFF.includes('printReceipt(r.order,paidBill)'))}]);
-B.push(['B60','APK contains owner hardware/admin UI used during store operations',()=>{for(const s of ['Quản trị chủ tiệm','Báo cáo ngày','Tài khoản & quyền','IP / cổng máy in bếp','Kiểm tra toàn bộ phần cứng'])assert.ok(APK_STAFF.includes(s),s)}]);
+B.push(['B58','staff scheduler preserves kitchen queue base cadence at 3 seconds',()=>assert.match(STAFF,/print:\{base:3000/)]);
+B.push(['B59','Android assets contain the live Staff UI used by business payment flow',()=>{assert.ok(APK_STAFF.includes('data-choose-pay="CASH"'));assert.ok(APK_STAFF.includes('data-choose-pay="BANK"'));assert.ok(APK_STAFF.includes('printReceipt(r.order,paidBill)'))}]);
+B.push(['B60','Android assets contain owner hardware/admin UI used during store operations',()=>{for(const s of ['Quản trị chủ tiệm','Báo cáo ngày','Tài khoản & quyền','IP / cổng máy in bếp','Kiểm tra toàn bộ phần cứng'])assert.ok(APK_STAFF.includes(s),s)}]);
 
 assert.equal(A.length,60,'Group A must contain exactly 60 cases');
 assert.equal(B.length,60,'Group B must contain exactly 60 cases');

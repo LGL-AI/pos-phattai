@@ -9,7 +9,10 @@ const requireReady=(condition,message)=>{if(!condition)throw Error(message)};
 // Read-only gate. The 0009 upgrade must use its dedicated resumable script.
 export async function checkD1(query){
  const history=(await query('SELECT name FROM d1_migrations ORDER BY id')).map(x=>x.name);
- requireReady(history.length===migrations.length&&history.every((name,i)=>name===migrations[i]),`D1 chưa đủ migration 0001–0014. Hiện có: ${history.join(', ')||'(trống)'}`);
+ requireReady(history.length===migrations.length&&history.every((name,i)=>name===migrations[i]),`D1 chưa đủ ${migrations.length} migration (tới ${migrations.at(-1)}). Hiện có: ${history.join(', ')||'(trống)'}`);
+ await query('SELECT request_key FROM pos_order_append_requests LIMIT 1');
+ const counters=await query('SELECT scope,revision FROM pos_sync_revisions');
+ requireReady(counters.length===10,'D1 thiếu sync revision counters 0018');
  const fields=await query('PRAGMA table_info(qr_orders)');
  requireReady(fields.some(x=>x.name==='payment_preference'),'D1 thiếu cột payment_preference trong qr_orders');
  const memberFields=await query('PRAGMA table_info(members)');

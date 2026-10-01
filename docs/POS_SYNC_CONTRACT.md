@@ -29,3 +29,17 @@ Staff phải mở đúng order và đối chiếu table/order trước khi pay.
 - `BANK`: chỉ Staff UI nhận bankPayment/VietQR, chốt code `-CK` sau khi nhân viên xác nhận tiền đã vào.
 
 Customer endpoint không được quyền đổi `payment_status` sang PAID.
+
+
+## v1.6.2 revision hints
+
+- `pos_sync_revisions` cập nhật trong cùng transaction với dữ liệu nghiệp vụ.
+- `/api/staff/sync-meta` chỉ trả revision; quyền API vẫn được kiểm riêng.
+- Staff chỉ tải lại phần đã thay đổi; full catalog dùng revision riêng.
+- Realtime chỉ gửi invalidation scope, không gửi giỏ/order/khách hàng.
+- Print queue vẫn pull mỗi 3 giây. Query `revision` trả `unchanged` để bỏ tải
+  payload; một job vẫn phải claim trước khi gửi máy in.
+- Append mới dùng idempotencyKey và receipt transaction trên D1. Replay kiểm
+  trước trạng thái đóng/split để mất response không tạo thêm món/đơn mới.
+- Client cũ không có key vẫn hoạt động qua nhánh tương thích. Bảo vệ retry append
+  cần client v1.6.2 hoặc client gửi key ổn định.

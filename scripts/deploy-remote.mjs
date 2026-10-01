@@ -2,7 +2,7 @@
 // Why: `wrangler d1 migrations apply --remote` can fail on trigger-heavy SQL
 // with SQLITE_ERROR 7500. This script sends each migration through D1's
 // file-import path and records d1_migrations in the SAME import transaction.
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,14 +11,14 @@ import { spawnSync } from 'node:child_process';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const migrationDir = resolve(root, 'migrations');
 const configPath = resolve(root, 'wrangler.jsonc');
-const wrangler = resolve(root, 'node_modules', '.bin', process.platform === 'win32' ? 'wrangler.cmd' : 'wrangler');
+const wrangler = resolve(root, 'node_modules', 'wrangler', 'bin', 'wrangler.js');
 
 function fail(message) {
   console.error(`\n[PHATTAI DEPLOY] ERROR: ${message}`);
   process.exit(1);
 }
 function run(args, { capture = false } = {}) {
-  const result = spawnSync(wrangler, args, {
+  const result = spawnSync(process.execPath, [wrangler,...args], {
     cwd: root,
     env: process.env,
     encoding: 'utf8',
@@ -71,6 +71,17 @@ if (!migrations.length) fail('No migration files found.');
 console.log(`[PHATTAI DEPLOY] Worker: ${config.name}`);
 console.log(`[PHATTAI DEPLOY] D1: ${databaseName} (${db.database_id})`);
 console.log(`[PHATTAI DEPLOY] Found ${migrations.length} migration files.`);
+
+// A direct deploy uses the same gates as an APK build.
+for(const script of ['sync-android-assets.mjs','verify-release.mjs']){
+ const checked=spawnSync(process.execPath,[resolve(root,'scripts',script)],{cwd:root,env:process.env,stdio:'inherit'});
+ if(checked.error||checked.status!==0)fail(`Release gate failed: ${script}`);
+}
+const backupDirectory=resolve(root,'backups');mkdirSync(backupDirectory,{recursive:true});
+const backupPath=resolve(backupDirectory,'pos_phattai_'+new Date().toISOString().replace(/[:.]/g,'-')+'.sql');
+console.log('[PHATTAI DEPLOY] Exporting a D1 backup before migration...');
+run(['d1','export',databaseName,'--remote','--output',backupPath]);
+console.log(`[PHATTAI DEPLOY] Backup: ${backupPath}`);
 
 // Match Wrangler's own migrations table schema, but create it through a simple
 // command so a brand-new PHAT TAI D1 can also use this one-click path.
@@ -129,5 +140,7 @@ if (migrateOnly) {
 } else {
   console.log('[PHATTAI DEPLOY] Deploying Worker...');
   run(['deploy']);
+  const verified=spawnSync(process.execPath,[resolve(root,'scripts/post-deploy-verify.mjs')],{cwd:root,env:process.env,stdio:'inherit'});
+  if(verified.error||verified.status!==0)fail('Worker deployment returned, but production health/updater verification failed. Do not mark rollout complete.');
   console.log('[PHATTAI DEPLOY] DONE.');
 }

@@ -63,6 +63,14 @@ public class MainActivity extends Activity {
     private SharedPreferences preferences;
     private LanKitchenPrinter kitchen;
     private PosAuth auth;
+    private AppUpdater updater;
+    private final android.os.Handler updateTimer = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable updateCheck = new Runnable() {
+        @Override public void run() {
+            checkAppUpdate(false);
+            updateTimer.postDelayed(this, 15 * 60 * 1000L);
+        }
+    };
     private void requireRole(String permission){if(!auth.allowed(permission))throw new SecurityException("Không có quyền / 无权限");}
 
     @Override protected void onCreate(Bundle savedInstanceState) {
@@ -70,6 +78,12 @@ public class MainActivity extends Activity {
         preferences = getSharedPreferences("lotus_pos_print", Context.MODE_PRIVATE);
         auth = new PosAuth(this);
         kitchen = new LanKitchenPrinter(this,(code,severity,message,id)->emit("KITCHEN",code,severity,message,id));
+        updater = new AppUpdater(this, new AppUpdater.Listener() {
+            @Override public void onState(String json) {
+                if (webView != null) webView.evaluateJavascript("window.dispatchEvent(new CustomEvent('lotusAppUpdate',{detail:" + json + "}))", null);
+            }
+            @Override public void onInstallReady() { requestInstallUpdate(true); }
+        });
         buildWebView();
         bindPrinter();
     }
@@ -77,19 +91,7 @@ public class MainActivity extends Activity {
     @SuppressLint("SetJavaScriptEnabled")
     private void buildWebView() {
         webView = new WebView(this);
-        LinearLayout screen = new LinearLayout(this);
-        screen.setOrientation(LinearLayout.VERTICAL);
-        TextView pilot = new TextView(this);
-        pilot.setText("LOTUS POS PHÁT TÀI · Cloud riêng · Chạm để cấu hình");
-        pilot.setTextSize(12);
-        pilot.setTextColor(Color.WHITE);
-        pilot.setGravity(Gravity.CENTER);
-        pilot.setBackgroundColor(Color.rgb(21,94,117));
-        int height = (int)(32 * getResources().getDisplayMetrics().density + 0.5f);
-        screen.addView(pilot, new LinearLayout.LayoutParams(-1,height));
-        pilot.setOnClickListener(v -> startActivity(new Intent(this,CloudConnectivityActivity.class)));
-        screen.addView(webView,new LinearLayout.LayoutParams(-1,0,1));
-        setContentView(screen);
+        setContentView(webView);
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -101,7 +103,7 @@ public class MainActivity extends Activity {
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         s.setCacheMode(WebSettings.LOAD_NO_CACHE);
         webView.clearCache(true);
-        s.setUserAgentString(s.getUserAgentString() + " LotusPOSPhatTai/1.5.6");
+        s.setUserAgentString(s.getUserAgentString() + " LotusPOSPhatTai/1.6.3");
         webView.setWebChromeClient(new WebChromeClient(){
             @Override public boolean onJsAlert(WebView v,String url,String message,JsResult result){
                 new AlertDialog.Builder(MainActivity.this).setMessage(message).setPositiveButton("OK",(d,w)->result.confirm()).setOnCancelListener(d->result.cancel()).show();return true;
@@ -150,6 +152,38 @@ public class MainActivity extends Activity {
         String base=uri.toASCIIString().replaceAll("/+$","");
         if(base.endsWith("/api/health"))base=base.substring(0,base.length()-"/api/health".length());
         return base;
+    }
+
+    private void checkAppUpdate(boolean force) {
+        try { if (updater != null) updater.check(cloudBase(), force); } catch (Exception ignored) { }
+    }
+    private boolean updatePrintsIdle() {
+        return pending.isEmpty() && (kitchen == null || !kitchen.hasPendingPrints());
+    }
+    private void requestInstallUpdate(boolean downloaded) {
+        if (updater == null || webView == null || !auth.allowed("printer_config") || !updatePrintsIdle()) {
+            Toast.makeText(this, "Nhờ chủ tiệm cập nhật sau khi in xong / 请店主在打印完成后更新", Toast.LENGTH_LONG).show();
+            return;
+        }
+        webView.evaluateJavascript("!!(window.LotusHandheld&&window.LotusHandheld.canInstallUpdate&&window.LotusHandheld.canInstallUpdate())", result -> {
+            if (!"true".equals(result) || !auth.allowed("printer_config") || !updatePrintsIdle()) {
+                Toast.makeText(this, "Hoàn tất các việc đang gửi trước khi cập nhật / 请先完成正在提交的操作", Toast.LENGTH_LONG).show();
+                return;
+            }
+            if (downloaded) updater.openInstaller(); else updater.downloadAndInstall();
+        });
+    }
+    @Override protected void onResume() {
+        super.onResume();
+        if (updater != null) updater.onResume();
+        updateTimer.removeCallbacks(updateCheck); updateTimer.post(updateCheck);
+    }
+    @Override protected void onPause() {
+        updateTimer.removeCallbacks(updateCheck); super.onPause();
+    }
+    @Override protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+        if (request == AppUpdater.INSTALL_REQUEST && updater != null) updater.installerReturned();
     }
 
     // The packaged staff HTML calls this bridge. Every request is pinned to the single
@@ -362,10 +396,14 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void apiRequest(String id,String method,String path,String raw,String token){cloudApi(id,method,path,raw,token);}
         @JavascriptInterface public void savePng(String filename,String base64){MainActivity.this.savePng(filename,base64);}
         @JavascriptInterface public String getAuthState(){return auth.state();}
+        @JavascriptInterface public String getCloudBase(){try{return cloudBase();}catch(Exception e){return DEFAULT_CLOUD;}}
         @JavascriptInterface public void logout(){auth.logout();}
         @JavascriptInterface public boolean authorize(String permission){return auth.allowed(permission);}
         @JavascriptInterface public void printDailyReport(String id,String raw){submitPrint(id,"REPORT",raw);}
-        @JavascriptInterface public String getAppInfo(){return "{\"native\":true,\"version\":\"1.5.2-cloud\",\"sunmiSdk\":\"1.0.18\"}";}
+        @JavascriptInterface public String getAppInfo(){return updater.appInfo();}
+        @JavascriptInterface public String getAppUpdateState(){return updater.snapshot();}
+        @JavascriptInterface public void checkAppUpdate(){MainActivity.this.checkAppUpdate(true);}
+        @JavascriptInterface public void installAppUpdate(){requireRole("printer_config");runOnUiThread(()->requestInstallUpdate(false));}
         @JavascriptInterface public void openCloudConnectivity(){runOnUiThread(()->startActivity(new Intent(MainActivity.this,CloudConnectivityActivity.class)));}
         @JavascriptInterface public void openKitchenSettings(){requireRole("printer_config");kitchen.openSettings();}
         @JavascriptInterface public void openKitchenJobs(){requireRole("kitchen");kitchen.openJobs();}
@@ -393,5 +431,5 @@ public class MainActivity extends Activity {
     }
 
     @Override public void onBackPressed(){if(webView!=null)webView.evaluateJavascript("window.LotusHandheld&&window.LotusHandheld.back()",result->{if(!"true".equals(result))new AlertDialog.Builder(this).setMessage("Trở về bảng kiểm tra kết nối mạng?").setPositiveButton("Về kiểm tra",(d,w)->finish()).setNegativeButton("Ở lại",null).show();});}
-    @Override protected void onDestroy(){if(printerCallback!=null)try{InnerPrinterManager.getInstance().unBindService(this,printerCallback);}catch(Throwable ignored){}worker.shutdown();if(kitchen!=null)kitchen.close();if(webView!=null)webView.destroy();super.onDestroy();}
+    @Override protected void onDestroy(){updateTimer.removeCallbacksAndMessages(null);if(updater!=null)updater.close();if(printerCallback!=null)try{InnerPrinterManager.getInstance().unBindService(this,printerCallback);}catch(Throwable ignored){}worker.shutdown();if(kitchen!=null)kitchen.close();if(webView!=null)webView.destroy();super.onDestroy();}
 }

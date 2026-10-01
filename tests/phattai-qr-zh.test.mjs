@@ -52,7 +52,7 @@ q('Q37','table picker Chinese wording is explicit',()=>assert.match(APP,/selectT
 q('Q38','takeaway wording is clear for Chinese customer',()=>assert.match(APP,/takeaway:'打包带走'/));
 q('Q39','all PHAT TAI catalog products have a Chinese name',()=>{assert.ok(CATALOG.products.length>=13);for(const p of CATALOG.products)assert.ok(String(p.nameCn||'').trim().length>=2,p.sku)});
 q('Q40','worker customer-facing error table contains Chinese translations',()=>{for(const key of ['INVALID_TABLE','INVALID_CART','INVALID_ITEM','UNAVAILABLE_PRODUCT','INVALID_QUANTITY','INVALID_MODIFIERS','INVALID_SIZE','INVALID_SPICE','ORDER_NOT_CONFIRMED','ORDER_NOT_FOUND','MEMBER_LOGIN_FAILED','INVALID_VOUCHER','VOUCHER_MIN','VOUCHER_FULL','OUT_OF_STOCK'])assert.match(WORKER,new RegExp(key+":\\[[^\\]]*'[^']*[\\u3400-\\u9fff][^']*'"),key)});
-q('Q41','service worker cache key bumped for QR Chinese release',()=>assert.match(SW,/phattai\.8-20260929/));
+q('Q41','service worker cache key bumped for QR Chinese release',()=>assert.match(SW,/phattai\.9-20260929/));
 q('Q42','root language is switched to zh-CN at runtime',()=>assert.match(APP,/document\.documentElement\.lang='zh-CN'/));
 q('Q43','Chinese order-failure copy warns not to modify and duplicate-submit uncertain order',()=>assert.match(APP,/orderFail:'服务器尚未确认订单。购物车已保留，请不要重复修改/));
 q('Q44','Chinese receipt note clearly says it is not proof of payment',()=>assert.match(APP,/receiptNote:'此单仅供核对，不是税务发票，也不是已付款证明。'/));

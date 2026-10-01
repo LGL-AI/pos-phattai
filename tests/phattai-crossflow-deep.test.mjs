@@ -117,7 +117,7 @@ test('DISPLAY selected paid order hides bank QR',async()=>{const fx=fixture(),c=
 // UI / STUCK GUARDS / FORMAT
 test('UI mutation always clears busy flag in finally',()=>assert.match(STAFF,/async function mutation[\s\S]*finally\{st\.busy=false;render\(\)\}/));
 test('UI live sync avoids rerender while active form is focused',()=>assert.match(STAFF,/!document\.activeElement\?\.closest\?\.\('form'\)/));
-test('UI new-order screen preserves cart while background sync runs',()=>assert.match(STAFF,/if\(screen==='new'\)\{const list=\$\('#pos-menu-stock'\)/));
+test('UI new-order screen preserves cart while background sync runs',()=>assert.match(STAFF,/if\(updated&&screen==='new'\)\{const list=\$\('#pos-menu-stock'\)/));
 test('UI payment success assigns fresh detail response before final render',()=>assert.match(STAFF,/st\.detail=r/));
 test('UI refund form function exists and is gated to paid transactions',()=>{assert.match(STAFF,/function refundForm\(/);assert.match(STAFF,/o\.paymentStatus==='PAID'\?refundForm/)});
 test('UI owner handheld nav groups admin under one parent',()=>{assert.match(STAFF,/\['owner','Quản trị chủ tiệm \/ 店主管理'/);assert.doesNotMatch(STAFF,/\.\.\.\(owner\?\[\['products'/)});

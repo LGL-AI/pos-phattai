@@ -12,7 +12,7 @@ Máy đang dùng **bản offline cũ** (app khác, package khác) sẽ không b�
 5. Vào **Quản trị chủ tiệm → Thiết bị & máy in**:
    - **IP / cổng máy in bếp + in thử**: nhập IP máy in bếp (cổng 9100), bấm *Lưu*, rồi *In thử*. Kiểm tra giấy ra đúng chữ Việt và chữ Hoa.
    - **Kiểm tra máy in SUNMI**: máy in hóa đơn gắn trên máy phải in được trang thử.
-6. Lần đầu bấm cập nhật, Android sẽ hỏi quyền **"Cài ứng dụng không rõ nguồn"** cho Lotus POS. Bật lên một lần; các lần sau không hỏi nữa.
+6. Lần đầu bấm cập nhật, Android sẽ hỏi quyền **"Cài ứng dụng không rõ nguồn"** cho Lotus POS. Bật lên rồi bấm quay lại: Android tự khởi động lại app, app báo *"Đã cho phép cài đặt; đang tiếp tục cập nhật"* và tự đi tiếp tới màn hình cài của Android. Các lần sau không hỏi nữa. Nên làm bước này ngay lúc bàn giao.
 
 Bản offline cũ: dùng bản online song song ít nhất một ngày bán hàng. Khi đã ổn thì gỡ bản cũ (Cài đặt → Ứng dụng → app cũ → Gỡ cài đặt). Dữ liệu đơn của bản offline nằm trên chính máy đó và **không** chuyển sang bản online.
 
@@ -23,6 +23,8 @@ Bản offline cũ: dùng bản online song song ít nhất một ngày bán hàn
 - Chủ tiệm vào **Quản trị chủ tiệm → Thiết bị & máy in → Cập nhật ứng dụng** → *Cập nhật ứng dụng* → Android hỏi xác nhận → *Cài đặt*.
 - App chỉ cho cài khi giỏ món trống, không có thanh toán đang chờ và không có lệnh in đang chạy. Cấu hình IP máy in và phiên đăng nhập được giữ nguyên.
 - Trước khi cài, app kiểm tra file tải về: đúng package, đúng khóa ký, version mới hơn, đúng SHA-256. Sai bất kỳ điều nào thì từ chối cài.
+- Có bản mới thì dòng thông số ở đầu màn hình hiện `⬆ có bản …` (màu cam), không cần mở mục Cập nhật mới biết.
+- Kiểm tra APK trên máy ảo Android 11 (giống SUNMI V2s): GitHub → Actions → **APK on Android emulator** → *Run workflow*. Chạy cài bản cũ rồi cập nhật lên bản mới nhất đã phát hành (chỉ đọc máy chủ thật), và một bản thử riêng chạy trọn luồng bán hàng, hội viên, báo cáo, mất mạng và tự cập nhật trên một máy chủ thử.
 
 ## 3. Báo cáo theo ca và theo nhân viên
 

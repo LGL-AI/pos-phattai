@@ -218,7 +218,9 @@ window.LotusNativeBridge={onNativeEvent:e=>window.LotusCloud.onNativeEvent(e)};
 function canInstallUpdate(){return !st.busy&&!st.uncertain&&!st.submitDraft&&!st.itemDraft&&!st.payFlow&&!st.stockPending&&!st.refundPending&&!st.shiftPending&&st.cart.length===0&&[...pending.values()].every(request=>['GET','HEAD'].includes(request.method))&&printingLabels.size===0}
 const appUpdate=window.LotusAppUpdate?.create({native,canInstall:canInstallUpdate,approve,notice:message});
 window.LotusHandheld={canInstallUpdate,back(){if(st.selected){st.selected=null;st.detail=null;render();return true}if(st.screen!=='orders'){st.screen='orders';render();return true}return false}};
-function message(s){const shown=bilingualText(s);st.error=shown;render();window.setTimeout(()=>{if(st.error===shown){st.error='';render()}},7000)}
+// The notice fades after 7 s by removing just the notice: a full render() here wiped whatever the
+// staff was typing (member phone, voucher, note) and made the next tap act on an empty field.
+function message(s){const shown=bilingualText(s);st.error=shown;render();window.setTimeout(()=>{if(st.error!==shown)return;st.error='';const notice=app.firstElementChild;if(notice?.classList.contains('notice')&&notice.classList.contains('warn'))notice.remove()},7000)}
 const apiReads=new Map();
 function api(method,path,data){
  if(method!=='GET')return apiRequest(method,path,data);

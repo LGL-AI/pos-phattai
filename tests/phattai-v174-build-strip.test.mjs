@@ -109,3 +109,20 @@ test('STRIP the customer page pins the strip to the top and moves the app below 
  assert.match(css,/\.head\{top:16px\}\.app\{margin-top:16px;min-height:calc\(100dvh - 16px\)\}/);
  assert.match(read('public/staff/staff.css'),/#diag\{flex:0 0 100%/);
 });
+
+test('FLAKE a fading notice removes only the notice: it must not re-render and wipe typed fields',()=>{
+ const start=STAFF.indexOf('function message(s){'),end=STAFF.indexOf('\n',start);
+ const run=(change)=>{
+  let renders=0,removed=false,timer=null;
+  const notice={classList:{contains:name=>name==='notice'||name==='warn'},remove(){removed=true}};
+  const st={error:''};
+  vm.runInNewContext(STAFF.slice(start,end)+';message("Số điện thoại đã có tài khoản");'+(change?'st.error="khác";':''),
+   {st,app:{firstElementChild:notice},bilingualText:x=>x,render(){renders++},window:{setTimeout:fn=>{timer=fn}}});
+  assert.equal(renders,1,'showing the notice renders once');
+  timer();
+  return {renders,removed,error:st.error};
+ };
+ assert.deepEqual(run(false),{renders:1,removed:true,error:''});
+ assert.deepEqual(run(true),{renders:1,removed:false,error:'khác'},'a newer message is not removed by an older timer');
+ assert.ok(!/st\.error='';render\(\)/.test(STAFF),'no timer may clear the notice with a full render');
+});

@@ -45,7 +45,7 @@ async function device({native}){
     if(!filter.test(path)||path.includes('..')){window.__rejected.push(path);reply(0,'{"ok":false,"message":"Yêu cầu không hợp lệ"}');return}
     const body=raw&&!['GET','DELETE'].includes(method)?raw:undefined;
     fetch(path,{method,headers:{Accept:'application/json',...(token?{Authorization:'Bearer '+token}:{}),...(body?{'Content-Type':'application/json; charset=utf-8'}:{})},body})
-     .then(async r=>{const text=await r.text();if(r.ok&&path==='/api/staff/login')auth.user=JSON.parse(text).staff;reply(r.status,text)})
+     .then(async r=>{const text=await r.text();if(r.ok&&path==='/api/staff/login')auth.user=JSON.parse(text).staff;(window.__log=window.__log||[]).push(method+' '+path+' -> '+r.status+' '+text.slice(0,120));reply(r.status,text)})
      .catch(e=>reply(0,JSON.stringify({ok:false,code:'NETWORK_ERROR',message:'Không kết nối được Worker: '+e.message})));
    },
    getAuthState:()=>JSON.stringify(auth),getCloudBase:()=>location.origin,logout(){auth.user=null},
@@ -117,9 +117,13 @@ try{
  await hp.fill('#member-phone','0909555777');await hp.click('[data-action=register]');
  await hp.waitForFunction(()=>/đã|tồn tại|exist|trùng/i.test(document.querySelector('#app').innerText)&&document.querySelector('.notice.warn'));
  check(true,'registering the same number again is refused with a message');
+ // A fading notice must not wipe what the staff is typing (its 7 s timer used to re-render the whole screen).
+ await hp.fill('#member-phone','0909555777');await hp.waitForFunction(()=>!document.querySelector('.notice.warn'),null,{timeout:12000});
+ check(await hp.inputValue('#member-phone')==='0909555777','the typed phone number survives the notice fading away');
  globalThis.__answer='0909555777';   // the customer types their member password (initially their phone number)
+ await hp.evaluate(()=>{const p=window.prompt;window.__prompts=[];window.prompt=(...a)=>{const r=p.apply(window,a);window.__prompts.push([String(a[0]).slice(0,50),r]);return r}});
  await hp.fill('#member-phone','0909555777');await hp.click('[data-action=lookup]');
- await hp.waitForFunction(()=>/Khách E2E · 0909555777/.test(document.querySelector('#app').innerText));
+ try{await hp.waitForFunction(()=>/Khách E2E · 0909555777/.test(document.querySelector('#app').innerText))}catch(e){throw Error('member lookup did not sign the member in; notice='+JSON.stringify(await hp.evaluate(()=>[...document.querySelectorAll('.notice')].map(n=>n.textContent)))+' phone='+JSON.stringify(await hp.evaluate(()=>document.querySelector('#member-phone')?.value))+' page errors='+JSON.stringify(hand.errors)+' calls='+JSON.stringify(await hp.evaluate(()=>(window.__calls||[]).slice(-8)))+' prompts='+JSON.stringify(await hp.evaluate(()=>window.__prompts))+' log='+JSON.stringify(await hp.evaluate(()=>(window.__log||[]).slice(-6))))}
  check(true,'lookup by phone + member password signs the member in');
  await hp.selectOption('#table','T06');await hp.click('[data-add="110"]');await hp.click('[data-item-save]');await hp.click('[data-action=submit]');await hp.waitForSelector('[data-action=append]');
  const memberOrder=await hp.evaluate(()=>document.querySelector('#app').innerText);

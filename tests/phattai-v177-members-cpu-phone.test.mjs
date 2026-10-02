@@ -117,3 +117,39 @@ test('PHONE a scanned +country number is treated as a member',()=>{
  const code=readFileSync(new URL('../public/staff/scanner.js',import.meta.url),'utf8');
  assert.match(code,/\^\\\+\[1-9\]\\d\{10,11\}\$/);
 });
+
+test('FIRST PASSWORD is the last 6 digits of the phone, whatever format the phone was typed in',async()=>{
+ const fx=fixture(),h=await owner(fx);
+ assert.equal((await fx.call('/api/member/register','POST',{phone:'0933 444 555',name:'Hoa'})).status,201);
+ const login=(phone,password)=>fx.call('/api/member/login','POST',{phone,password}).then(r=>r.status);
+ assert.equal(await login('0933444555','444555'),200);
+ assert.equal(await login('+84933444555','444555'),200,'phone in +84 form, password still the last 6');
+ assert.equal(await login('0933444555','444556'),401);
+ assert.equal(await login('0933444555','0933444555'),200,'typing the whole number is also accepted');
+ assert.equal((await fx.call('/api/member/register','POST',{phone:'+886 912 345 678',name:'Chen'})).status,201);
+ assert.equal(await login('+886912345678','345678'),200);
+ const row=fx.db.prepare('SELECT password_salt,password_hash FROM members WHERE phone=?').get('+886912345678');
+ assert.equal(await verifyPassword(fx.env,'345678',row.password_salt,row.password_hash),true,'stored hash is of the 6 digits');
+ assert.equal((await fx.call('/api/staff/customers','POST',{name:'Khách quầy',phone:'0988 111 222'},h)).status,201);
+ assert.equal(await login('0988111222','111222'),200,'customers added at the counter get the same first password');
+ const r=await fx.call('/api/staff/members/register','POST',{phone:'0909123456',name:'Tại quầy'},h);assert.equal(r.status,201);
+ assert.equal((await fx.call('/api/staff/members/login','POST',{phone:'0909123456',password:'123456'},h)).status,200,'staff sign-in at the counter with the 6 digits');
+ fx.db.close();
+});
+test('FIRST PASSWORD members registered earlier with the whole number can use its last 6 digits; changed passwords are not loosened',async()=>{
+ const fx=fixture(),salt='c2FsdHNhbHRzYWx0c2FsdA==',at=new Date().toISOString();
+ fx.db.prepare('INSERT INTO members(id,phone,display_name,password_salt,password_hash,hash_iterations,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').run('early','0977000222','Sớm',salt,await hashPassword(fx.env,'0977000222',salt),0,at,at);
+ const login=password=>fx.call('/api/member/login','POST',{phone:'0977000222',password}).then(r=>r);
+ assert.equal((await login('000222')).status,200);assert.equal((await login('0977000222')).status,200);
+ const signed=await login('000222');
+ const change=await fx.call('/api/member/password','POST',{currentPassword:'000222',newPassword:'BiMat99'},{Cookie:signed.cookie});assert.equal(change.status,200,JSON.stringify(change.data));
+ assert.equal((await login('000222')).status,401,'after a change the default no longer works');
+ assert.equal((await login('BiMat99')).status,200);
+ fx.db.close();
+});
+test('FIRST PASSWORD both apps tell the customer and the cashier about the 6 digits',()=>{
+ const qr=readFileSync(new URL('../public/assets/app.js',import.meta.url),'utf8'),staff=readFileSync(new URL('../public/staff/staff.js',import.meta.url),'utf8');
+ assert.match(qr,/initialPassword:'Mật khẩu ban đầu là 6 số cuối của số điện thoại/);assert.match(qr,/initialPassword:'初始密码为手机号后 6 位/);
+ assert.match(staff,/message\('Đã đăng ký\. Mật khẩu ban đầu là 6 số cuối của số điện thoại/);
+ assert.match(staff,/ask\('Khách nhập mật khẩu hội viên \(mặc định: 6 số cuối số điện thoại\)'\)/);
+});

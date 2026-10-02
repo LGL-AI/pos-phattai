@@ -43,7 +43,7 @@ const UI_ZH_RUNTIME={
  'Ghi chú chênh lệch (nếu có)?':'差额备注（如有）？',
  'Sao chép liên kết này:':'复制此链接：',
  'Lý do hủy cả đơn?':'取消整张订单的原因？',
- 'Khách nhập mật khẩu hội viên để đăng nhập?':'请顾客输入会员密码登录？',
+ 'Khách nhập mật khẩu hội viên (mặc định: 6 số cuối số điện thoại)':'请顾客输入会员密码（默认：手机号后 6 位）',
  'Tên hội viên?':'会员姓名？',
  'Khách nhập mật khẩu hiện tại':'请顾客输入当前密码',
  'Khách nhập mật khẩu mới (1–11 ký tự)':'请顾客输入新密码（1–11 个字符）',
@@ -84,7 +84,7 @@ const UI_ZH_RUNTIME={
  'Đơn chưa thanh toán đủ nên chưa thể hoàn':'订单尚未全额付款，暂不能退款',
  'Số bill từ 2 đến số phần ăn':'账单数量须为 2 至菜品份数',
  'Mỗi bill cần ít nhất 1 phần ăn':'每张账单至少需要 1 份菜品',
- 'Đã đăng ký. Mật khẩu ban đầu là số điện thoại; hướng dẫn khách đổi mật khẩu.':'注册完成。初始密码为手机号，请指导顾客修改密码。',
+ 'Đã đăng ký. Mật khẩu ban đầu là 6 số cuối của số điện thoại; hướng dẫn khách đổi mật khẩu.':'注册完成。初始密码为手机号后 6 位，请指导顾客修改密码。',
  'Đã đổi mật khẩu; yêu cầu khách đăng nhập lại.':'密码已修改，请顾客重新登录。',
  'Hết thời gian chờ Worker; tải lại đơn trước khi thử tiếp':'等待 Worker 超时；重试前请重新载入订单',
  'Máy chủ trả về dữ liệu không hợp lệ':'服务器返回无效数据',
@@ -689,8 +689,8 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button');i
   finally{st.busy=false;render()}
   return;
  }
- if(action==='lookup'){const phone=memberPhone($('#member-phone').value);if(!phone)throw Error('Số điện thoại phải là 0 + 9–10 số, hoặc +mã nước (12–13 ký tự)');const v=await api('GET','/api/staff/members?phone='+encodeURIComponent(phone));if(!v.member){st.member=null;message('Chưa có hội viên · 未找到会员');return}const password=ask('Khách nhập mật khẩu hội viên để đăng nhập?');if(!password)return;const login=await api('POST','/api/staff/members/login',{phone,password});st.member={id:login.member.id,name:login.member.displayName,phone:login.member.phone,points:login.member.points,tier:login.member.tier};render();return}
- if(action==='register'){const phone=memberPhone($('#member-phone').value);if(!phone)throw Error('Số điện thoại phải là 0 + 9–10 số, hoặc +mã nước (12–13 ký tự)');const name=ask('Tên hội viên?');if(!name)return;const v=await api('POST','/api/staff/members/register',{phone,name});st.member={id:v.member.id,name:v.member.displayName,phone:v.member.phone,points:v.member.points,tier:v.member.tier};render();message('Đã đăng ký. Mật khẩu ban đầu là số điện thoại; hướng dẫn khách đổi mật khẩu.');return}
+ if(action==='lookup'){const phone=memberPhone($('#member-phone').value);if(!phone)throw Error('Số điện thoại phải là 0 + 9–10 số, hoặc +mã nước (12–13 ký tự)');const v=await api('GET','/api/staff/members?phone='+encodeURIComponent(phone));if(!v.member){st.member=null;message('Chưa có hội viên · 未找到会员');return}const password=ask('Khách nhập mật khẩu hội viên (mặc định: 6 số cuối số điện thoại)');if(!password)return;const login=await api('POST','/api/staff/members/login',{phone,password});st.member={id:login.member.id,name:login.member.displayName,phone:login.member.phone,points:login.member.points,tier:login.member.tier};render();return}
+ if(action==='register'){const phone=memberPhone($('#member-phone').value);if(!phone)throw Error('Số điện thoại phải là 0 + 9–10 số, hoặc +mã nước (12–13 ký tự)');const name=ask('Tên hội viên?');if(!name)return;const v=await api('POST','/api/staff/members/register',{phone,name});st.member={id:v.member.id,name:v.member.displayName,phone:v.member.phone,points:v.member.points,tier:v.member.tier};render();message('Đã đăng ký. Mật khẩu ban đầu là 6 số cuối của số điện thoại; hướng dẫn khách đổi mật khẩu.');return}
  if(action==='change-member-password'){const phone=memberPhone($('#member-phone')?.value||st.member?.phone);if(!phone)throw Error('Số điện thoại phải là 0 + 9–10 số, hoặc +mã nước (12–13 ký tự)');const currentPassword=ask('Khách nhập mật khẩu hiện tại');if(currentPassword===null)return;const newPassword=ask('Khách nhập mật khẩu mới (1–11 ký tự)');if(newPassword===null)return;await api('POST','/api/staff/members/password',{phone,currentPassword,newPassword});st.member=null;render();message('Đã đổi mật khẩu; yêu cầu khách đăng nhập lại.');return}
  if(action==='clear-member'){st.member=null;render();return}
  if(action==='voucher'){st.voucher=$('#voucher').value.trim().toUpperCase();const v=await api('POST','/api/staff/voucher',{table:st.table,items:st.cart,memberId:st.member?.id,voucherCode:st.voucher});message('Voucher: −'+fmt(v.discount)+'; còn '+fmt(v.total));return}

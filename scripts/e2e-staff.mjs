@@ -124,7 +124,7 @@ try{
  // A fading notice must not wipe what the staff is typing (its 7 s timer used to re-render the whole screen).
  await hp.fill('#member-phone','0909555777');await hp.waitForFunction(()=>!document.querySelector('.notice.warn'),null,{timeout:12000});
  check(await hp.inputValue('#member-phone')==='0909555777','the typed phone number survives the notice fading away');
- globalThis.__answer='0909555777';   // the customer types their member password (initially their phone number)
+ globalThis.__answer='555777';   // the customer types their member password (first password: last 6 digits of the phone)
  await hp.evaluate(()=>{const p=window.prompt;window.__prompts=[];window.prompt=(...a)=>{const r=p.apply(window,a);window.__prompts.push([String(a[0]).slice(0,50),r]);return r}});
  await hp.fill('#member-phone','0909555777');await hp.click('[data-action=lookup]');
  try{await hp.waitForFunction(()=>/Khách E2E · 0909555777/.test(document.querySelector('#app').innerText))}catch(e){throw Error('member lookup did not sign the member in; notice='+JSON.stringify(await hp.evaluate(()=>[...document.querySelectorAll('.notice')].map(n=>n.textContent)))+' phone='+JSON.stringify(await hp.evaluate(()=>document.querySelector('#member-phone')?.value))+' page errors='+JSON.stringify(hand.errors)+' calls='+JSON.stringify(await hp.evaluate(()=>(window.__calls||[]).slice(-8)))+' prompts='+JSON.stringify(await hp.evaluate(()=>window.__prompts))+' log='+JSON.stringify(await hp.evaluate(()=>(window.__log||[]).slice(-6))))}
@@ -180,17 +180,18 @@ try{
  catch{check(false,'QR order visible on the handheld within 10 s')}
 
  // 3b. The case reported from the shop: order by QR first, then sign up on the Member tab with an
- //     international number, sign out, sign in with the phone as first password, change the password.
+ //     international number, sign out, sign in with the last 6 digits as first password, change the password.
  const body=async re=>{try{await cp.waitForFunction(r=>new RegExp(r).test(document.body.innerText),re.source,{timeout:10000});return true}catch{return false}};
  await cp.click('[data-view=member]');
  if(await cp.locator('[data-action=logout]').count())await cp.click('[data-action=logout]');
  await cp.click('[data-auth-mode=register]');
+ check(await body(/6 số cuối của số điện thoại/),'the sign-up form says the first password is the last 6 digits of the phone');
  await cp.fill('#member-name','Chen QR');await cp.fill('#member-phone','+886 912 345 678');await cp.click('#member-form button[type=submit]');
  check(await body(/Chen QR[\s\S]*\+886912345678|\+886912345678[\s\S]*Chen QR/),'after ordering, a customer signs up on the Member tab with a +886 number');
  await cp.click('[data-action=logout]');await cp.click('[data-auth-mode=login]');
- await cp.fill('#member-phone','+886912345678');await cp.fill('#member-password','+886 912 345 678');await cp.click('#member-form button[type=submit]');
- check(await body(/Chen QR/),'signs back in with the phone number as the first password');
- await cp.fill('[name=currentPassword]','+886912345678');await cp.fill('[name=newPassword]','Chen1234');await cp.click('#change-password-form button[type=submit]');
+ await cp.fill('#member-phone','+886912345678');await cp.fill('#member-password','345678');await cp.click('#member-form button[type=submit]');
+ check(await body(/Chen QR/),'signs back in with the last 6 digits of the phone as the first password');
+ await cp.fill('[name=currentPassword]','345678');await cp.fill('[name=newPassword]','Chen1234');await cp.click('#change-password-form button[type=submit]');
  await cp.waitForSelector('#member-form',{timeout:10000}).catch(()=>{});
  if(await cp.locator('[data-auth-mode=login]').count())await cp.click('[data-auth-mode=login]');
  await cp.fill('#member-phone','+886912345678');await cp.fill('#member-password','Chen1234');await cp.click('#member-form button[type=submit]');

@@ -37,6 +37,9 @@ async function startWorker(){
 
 async function device({native}){
  const context=await browser.newContext({viewport:{width:360,height:720},deviceScaleFactor:2,isMobile:true,hasTouch:true});
+ // Old engines: SUNMI's WebView (Android 11, Chromium 83, never updated without Play) and iOS 15 Safari on
+ // older iPhones lack these. Remove them so any unguarded use fails here instead of in the shop.
+ await context.addInitScript(()=>{delete AbortSignal.timeout;delete String.prototype.replaceAll;delete Object.hasOwn;delete Array.prototype.at;delete String.prototype.at;delete Array.prototype.findLast;delete window.structuredClone;try{delete Crypto.prototype.randomUUID}catch{}});
  if(native)await context.addInitScript(({filterSource})=>{
   const filter=new RegExp('^(?:'+filterSource+')$'),auth={user:null};window.__rejected=[];
   window.NativePOS={
@@ -115,7 +118,7 @@ try{
  check(true,'new member registered from the handheld and attached to the order');
  await hp.click('[data-action=clear-member]');await hp.waitForFunction(()=>!/Khách E2E · 0909555777/.test(document.querySelector('#app').innerText));
  await hp.fill('#member-phone','0909555777');await hp.click('[data-action=register]');
- await hp.waitForFunction(()=>/đã|tồn tại|exist|trùng/i.test(document.querySelector('#app').innerText)&&document.querySelector('.notice.warn'));
+ await hp.waitForFunction(()=>/đã có tài khoản/i.test(document.querySelector('.notice.warn')?.textContent||''));
  check(true,'registering the same number again is refused with a message');
  // A fading notice must not wipe what the staff is typing (its 7 s timer used to re-render the whole screen).
  await hp.fill('#member-phone','0909555777');await hp.waitForFunction(()=>!document.querySelector('.notice.warn'),null,{timeout:12000});

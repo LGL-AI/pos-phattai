@@ -106,7 +106,7 @@ test('STRIP the customer strip shows server, menu, network, table and goes red w
 test('STRIP the customer page pins the strip to the top and moves the app below it',()=>{
  const css=read('public/assets/app.css');
  assert.match(css,/#build-tag\{position:fixed;top:0;left:0;right:0;z-index:90;height:16px/);
- assert.match(css,/\.head\{top:16px\}\.app\{margin-top:16px;min-height:calc\(100dvh - 16px\)\}/);
+ assert.match(css,/\.head\{top:16px\}\.app\{margin-top:16px;min-height:calc\(100vh - 16px\);min-height:calc\(100dvh - 16px\)\}/);
  assert.match(read('public/staff/staff.css'),/#diag\{flex:0 0 100%/);
 });
 

@@ -1,12 +1,14 @@
 // Only the counter browser talks to a bridge on the same counter computer.
 (()=>{'use strict';
+// AbortSignal.timeout needs Chrome 103 / iOS 16; old iPhones (iOS 15) and old WebViews lack it.
+const timeoutSignal=ms=>{if(typeof AbortSignal!=='undefined'&&typeof AbortSignal.timeout==='function')return AbortSignal.timeout(ms);const c=new AbortController();setTimeout(()=>c.abort(),ms);return c.signal};
 const base='http://127.0.0.1:18181';
 const key='lotus-cloud:counter-bridge-token';
 function token(){try{return localStorage.getItem(key)||''}catch{return ''}}
 function pair(value){if(!/^[a-f0-9]{64}$/.test(value))throw Error('Mã ghép phải gồm 64 ký tự từ trang cầu in');localStorage.setItem(key,value)}
 async function call(path,method='GET',value,staffToken=''){
  if(!token())throw Error('Chưa ghép cầu in. Vào Thiết bị để nhập mã ghép từ máy quầy.');
- let response;try{response=await fetch(base+path,{method,headers:{Authorization:'Bearer '+token(),...(value?{'Content-Type':'application/json'}:{}),...(staffToken?{'X-POS-Session':staffToken}:{})},body:value?JSON.stringify(value):undefined,cache:'no-store',signal:AbortSignal.timeout(15000)})}
+ let response;try{response=await fetch(base+path,{method,headers:{Authorization:'Bearer '+token(),...(value?{'Content-Type':'application/json'}:{}),...(staffToken?{'X-POS-Session':staffToken}:{})},body:value?JSON.stringify(value):undefined,cache:'no-store',signal:timeoutSignal(15000)})}
  catch{throw Error('Không kết nối được cầu in trên máy quầy. Kiểm tra cửa sổ cầu in và cho phép truy cập mạng cục bộ của trình duyệt. Kiểm tra giấy trước khi gửi lại.')}let data;try{data=await response.json()}catch{throw Error('Cầu in trả về dữ liệu không hợp lệ')}
  if(!response.ok||!data.ok)throw Error(data.message||'Cầu in từ chối lệnh');return data;
 }

@@ -1,0 +1,61 @@
+# Runs the handheld APK on an Android 11 emulator, the closest stand-in for the SUNMI V2s
+# (Android 11, factory WebView, no Play Store to update it, 720x1440).
+#   release-apk: the two newest PUBLISHED signed APKs. Install the older one, update in place to the
+#                newest, check both start and that the newest reaches the production Worker.
+#                Read-only: nothing is logged in and no order is created.
+# Run it from the Actions tab (Run workflow) or by pushing to the device-test branch.
+name: APK on Android emulator
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['device-test']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apk-device
+  cancel-in-progress: true
+
+jobs:
+  release-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet uiautomator2==3.7.0
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Download the two newest published APKs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p device/new device/old
+          tags=$(gh release list --limit 20 --json tagName -q '.[].tagName' | grep '^android-v' | head -2)
+          new=$(echo "$tags" | sed -n 1p); old=$(echo "$tags" | sed -n 2p)
+          echo "newest=$new previous=$old"
+          gh release download "$new" -p '*.apk' -D device/new
+          gh release download "$old" -p '*.apk' -D device/old
+          ls -l device/new device/old
+      - name: Install, update and start on Android 11
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: cd scripts/device && python3 smoke_release.py ../../device/old ../../device/new ../../device-out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: device-release-apk
+          path: device-out
+          retention-days: 14

@@ -166,6 +166,7 @@ def fill(d, element_id, value, timeout=40):
         if field.exists:
             field.set_text(value)
             time.sleep(0.4)
+            hide_keyboard(d)
             return True
     except Exception as e:
         print('  (set_text failed:', e, ')')
@@ -204,6 +205,13 @@ def edits(d):
     return [n for n in all_nodes if n['cls'] == 'android.widget.EditText' and visible(n, size)]
 
 
+def hide_keyboard(d):
+    """The soft keyboard can cover the button that comes next; close it when it is up."""
+    if 'mInputShown=true' in shell('dumpsys', 'input_method'):
+        d.press('back')
+        time.sleep(0.8)
+
+
 def type_into(d, node, value):
     x1, y1, x2, y2 = node['box']
     d.click((x1 + x2) // 2, (y1 + y2) // 2)
@@ -213,6 +221,7 @@ def type_into(d, node, value):
         if field.exists:
             field.set_text(value)
             time.sleep(0.4)
+            hide_keyboard(d)
             return
     except Exception as e:
         print('  (set_text failed:', e, ')')
@@ -274,7 +283,8 @@ def main():
     if len(fields) >= 2:
         type_into(d, fields[1], PASSWORD)
     t0 = time.time()
-    tap(d, r'^Đăng nhập / 登录$', scroll=False)
+    hide_keyboard(d)
+    tap(d, r'^Đăng nhập / 登录$')
     logged = wait_text(d, r'Chọn món|Quản trị chủ tiệm', 40)
     check(logged, f'owner logs in through the native bridge in {time.time() - t0:.1f}s', d)
     s = wait_text(d, r'^APK 9\.0\.1 \(2000001\) · .*RT ✓', 45) or strip(d, 5)

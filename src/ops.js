@@ -15,9 +15,16 @@ async function derive(password,salt){const key=await crypto.subtle.importKey('ra
 const permissions=role=>Array.isArray(role)?role:JSON.parse(role||'[]');
 const owner=()=>({id:'OWNER',username:'huang',name:'Chủ cửa hàng',role:'OWNER',permissions:VALID});
 export const allowed=(actor,permission)=>Boolean(actor?.permissions.includes(permission));
-export async function sessionActor(env,token,sha){
- const s=await env.DB.prepare('SELECT staff_id FROM pos_staff_sessions WHERE token_hash=? AND expires_at>?').bind(await sha(token),Date.now()).first();
+export const SESSION_MS=12*3600000,SESSION_RENEW_AFTER_MS=30*60000;
+// Sliding session: a session in use never expires in the middle of a shift; one idle for 12 hours does.
+// The write happens at most once per 30 minutes per session.
+export async function sessionActor(env,token,sha,out){
+ const hash=await sha(token),now=Date.now();
+ const s=await env.DB.prepare('SELECT staff_id,expires_at FROM pos_staff_sessions WHERE token_hash=? AND expires_at>?').bind(hash,now).first();
  if(!s)return null;
+ let expiresAt=s.expires_at;
+ if(expiresAt-now<SESSION_MS-SESSION_RENEW_AFTER_MS){expiresAt=now+SESSION_MS;await env.DB.prepare('UPDATE pos_staff_sessions SET expires_at=? WHERE token_hash=?').bind(expiresAt,hash).run()}
+ if(out)out.expiresAt=expiresAt;
  if(!s.staff_id)return owner();
  const row=await env.DB.prepare('SELECT u.id,u.username,u.display_name,u.active,u.role_id,r.permissions_json,r.active AS role_active FROM pos_staff_users u JOIN pos_roles r ON r.id=u.role_id WHERE u.id=?').bind(s.staff_id).first();
  return row?.active&&row.role_active?{id:row.id,username:row.username,name:row.display_name,role:row.role_id,permissions:permissions(row.permissions_json)}:null;

@@ -53,6 +53,13 @@ public final class PosAuth {
     public synchronized void cloudRefresh(JSONObject staff)throws Exception{
         if(cloudUser!=null)cloudLogin(staff,cloudExpiresAt);
     }
+    /** The Worker slides the session while it is in use (a 401 still ends it); follow it so printing is not refused after 12 h of activity. */
+    public synchronized void touchCloud(){
+        long now=System.currentTimeMillis();
+        if(cloudUser==null||now>=cloudExpiresAt||cloudExpiresAt-now>=12*3600000L-30*60000L)return;
+        cloudExpiresAt=now+12*3600000L;
+        try{prefs.edit().putString("cloud_session",new JSONObject(prefs.getString("cloud_session","{}")).put("expiresAt",cloudExpiresAt).toString()).apply();}catch(Exception ignored){}
+    }
     public synchronized String state(){try{
         JSONObject current=System.currentTimeMillis()<cloudExpiresAt?cloudUser:null;
         return new JSONObject().put("ok",true).put("needsSetup",false).put("user",current==null?JSONObject.NULL:current)

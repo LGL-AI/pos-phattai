@@ -39,7 +39,7 @@ async function device({native}){
  if(native)await context.addInitScript(({filterSource})=>{
   const filter=new RegExp('^(?:'+filterSource+')$'),auth={user:null};window.__rejected=[];
   window.NativePOS={
-   apiRequest(id,method,path,raw,token){
+   apiRequest(id,method,path,raw,token){(window.__calls=window.__calls||[]).push(path.split('?')[0]);
     const reply=(status,text)=>setTimeout(()=>window.LotusCloud&&window.LotusCloud.onApi(id,status,text),0);
     if(!filter.test(path)||path.includes('..')){window.__rejected.push(path);reply(0,'{"ok":false,"message":"Yêu cầu không hợp lệ"}');return}
     const body=raw&&!['GET','DELETE'].includes(method)?raw:undefined;
@@ -76,6 +76,10 @@ try{
  await hp.goto(BASE+'/staff/');await hp.fill('input[name=username]','huang');await hp.fill('input[name=password]',PASSWORD);
  await hp.click('button:has-text("Đăng nhập")');await hp.waitForSelector('[data-screen="new"]');
  await hp.click('[data-screen="new"]');await hp.waitForSelector('[data-add]');
+ // Idle cost: with realtime online a resting handheld must stay quiet (was 15 print polls per minute).
+ await hp.waitForTimeout(4000);await hp.evaluate(()=>{window.__calls=[]});await hp.waitForTimeout(20000);
+ const idle=await hp.evaluate(()=>window.__calls);
+ check(idle.length<=6,`resting handheld makes ${idle.length} API calls in 20 s (limit 6)${idle.length>6?': '+idle.join(', '):''}`);
  const menuTop=await hp.evaluate(()=>document.querySelector('[data-add]').getBoundingClientRect().top);
  check(menuTop<500,`menu starts within the first screen on 360x720 (top=${Math.round(menuTop)}px)`);
  await hp.selectOption('#table','T05');

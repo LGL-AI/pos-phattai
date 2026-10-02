@@ -259,6 +259,7 @@ public class MainActivity extends Activity {
                 }else if(status>=200&&status<300&&path.equals("/api/staff/me")){
                     auth.cloudRefresh(new JSONObject(responseText).getJSONObject("staff"));
                 }else if(status==401&&path.startsWith("/api/staff/"))auth.logout();
+                if(status>=200&&status<300&&path.startsWith("/api/staff/")&&!path.equals("/api/staff/login"))auth.touchCloud();
                 returnApi(requestId,status,responseText);
             }catch(Exception ex){
                 String reason=ex.getClass().getSimpleName()+": "+String.valueOf(ex.getMessage());

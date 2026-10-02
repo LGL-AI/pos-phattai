@@ -64,11 +64,25 @@ export async function staffReport(env,date,staffId,now=Date.now()){
  return {date:date||today(),reportType:'STAFF',person:{id:p.id,name:p.name,source:p.source,periods:p.periods.map(({start,end,open})=>({start,end,open}))},...ledger};
 }
 
+// Seven days of net/gross/refunds in three grouped queries (daily() per day cost 5 each).
+// Same rules as daily(): a split order is counted through its bills only; refunds on the day they were made.
+export async function weekHistory(env,days){
+ const [from,to]=[days[0],days[days.length-1]];
+ const [orders,bills,refunds]=await Promise.all([
+  env.DB.prepare("SELECT date(o.paid_at,'+7 hours') AS d,COUNT(*) AS n,SUM(o.total) AS gross FROM qr_orders o WHERE o.payment_status='PAID' AND date(o.paid_at,'+7 hours') BETWEEN ? AND ? AND NOT EXISTS(SELECT 1 FROM pos_bills b WHERE b.order_id=o.id) GROUP BY d").bind(from,to).all(),
+  env.DB.prepare("SELECT date(b.paid_at,'+7 hours') AS d,COUNT(*) AS n,SUM(b.total) AS gross FROM pos_bills b WHERE b.payment_status='PAID' AND date(b.paid_at,'+7 hours') BETWEEN ? AND ? GROUP BY d").bind(from,to).all(),
+  env.DB.prepare("SELECT date(r.created_at,'+7 hours') AS d,SUM(r.amount) AS amount FROM pos_refunds r WHERE date(r.created_at,'+7 hours') BETWEEN ? AND ? GROUP BY d").bind(from,to).all()
+ ]);
+ const sum=(rows,key)=>new Map(rows.results.map(r=>[r.d,r[key]||0]));
+ const og=sum(orders,'gross'),on=sum(orders,'n'),bg=sum(bills,'gross'),bn=sum(bills,'n'),rf=sum(refunds,'amount');
+ return days.map(d=>{const gross=(og.get(d)||0)+(bg.get(d)||0),refunded=rf.get(d)||0;return {date:d,net:gross-refunded,gross,refunded,paidBills:(on.get(d)||0)+(bn.get(d)||0)}});
+}
+
 // Aggregates the same paid bill/order ledger as daily(). Unpaid and split parent
 // orders cannot leak into the visual report; refunds are counted on their own day.
 export async function analytics(env,date){const day=date||today();if(!validDay(day))return null;
  const report=await daily(env,day),days=Array.from({length:7},(_,i)=>new Date(Date.parse(day+'T00:00:00Z')-(6-i)*86400000).toISOString().slice(0,10));
- const history=await Promise.all(days.map(async d=>{const x=await daily(env,d);return {date:d,net:x.net,gross:x.gross,refunded:x.refunded,paidBills:x.paidBills}}));
+ const history=await weekHistory(env,days);
  const hours=Array.from({length:24},(_,hour)=>({hour,gross:0,refunds:0,net:0}));
  const hourOf=t=>Number(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',hourCycle:'h23'}).format(new Date(t)));
  for(const p of report.payments)hours[hourOf(p.paidAt)].gross+=p.total;

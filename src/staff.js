@@ -56,9 +56,9 @@ export async function handleStaff(req,env,deps){
    return result({token,expiresAt:Date.now()+12*3600000,staff:identity.actor});
   }
   const token=(req.headers.get('Authorization')||'').match(/^Bearer ([A-Za-z0-9_-]{32,100})$/)?.[1];
-  const actor=token?await sessionActor(env,token,deps.sha):null;
+  const session={},actor=token?await sessionActor(env,token,deps.sha,session):null;
   if(!actor)return error(401,'STAFF_LOGIN_REQUIRED','Đăng nhập POS để tiếp tục');
-  if(path==='/api/staff/me'&&method==='GET')return result({staff:actor});
+  if(path==='/api/staff/me'&&method==='GET')return result({staff:actor,expiresAt:session.expiresAt});
   if(path==='/api/staff/logout'&&method==='POST'){await env.DB.prepare('DELETE FROM pos_staff_sessions WHERE token_hash=?').bind(await deps.sha(req.headers.get('Authorization').slice(7))).run();return result({})}
   if(path==='/api/staff/members/password'&&method==='POST'){
    if(!allowed(actor,'ORDER_EDIT'))return error(403,'PERMISSION_DENIED','Không có quyền đổi mật khẩu hội viên');const b=await deps.body(req);

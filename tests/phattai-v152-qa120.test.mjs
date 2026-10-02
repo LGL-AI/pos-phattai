@@ -115,7 +115,7 @@ A.push(['A60','Android Java namespace is explicit and separate from the install 
 // GROUP B — 60 end-to-end/business cases across Customer QR + Staff/SUNMI UI.
 // ---------------------------------------------------------------------------
 const B=[];
-B.push(['B01','catalog exposes exactly 13 active PHAT TAI menu items',async()=>{const fx=fixture();const r=await fx.call('/api/catalog');assert.equal(r.status,200);assert.equal(r.data.catalog.products.filter(p=>p.active).length,13);assert.ok(r.data.catalog.products.every(p=>p.sku.startsWith('PT')));fx.db.close()}]);
+B.push(['B01','catalog exposes exactly 19 active PHAT TAI menu items',async()=>{const fx=fixture();const r=await fx.call('/api/catalog');assert.equal(r.status,200);assert.equal(r.data.catalog.products.filter(p=>p.active).length,19);assert.ok(r.data.catalog.products.every(p=>p.sku.startsWith('PT')));fx.db.close()}]);
 B.push(['B02','customer UI starts with table picker requirement',()=>{assert.match(CUSTOMER,/tablePicker:true/);assert.match(CUSTOMER,/Chọn bàn/)}]);
 B.push(['B03','valid T01 order is accepted',async()=>{const fx=fixture();const r=await createOrder(fx,{table:'T01'});assert.equal(r.status,201);assert.equal(r.data.order.table,'T01');fx.db.close()}]);
 B.push(['B04','valid T99 order is accepted at configured table limit',async()=>{const fx=fixture();const r=await createOrder(fx,{table:'T99'});assert.equal(r.status,201);assert.equal(r.data.order.table,'T99');fx.db.close()}]);

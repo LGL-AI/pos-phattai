@@ -9,7 +9,7 @@ const names=readdirSync(dir).filter(name=>/^\d{4}_.+\.sql$/.test(name)).sort();
 export function applyCurrentSchema(db,{legacyMenu=false}={}){
  db.exec("CREATE TABLE IF NOT EXISTS d1_migrations(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT UNIQUE,applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL);");
  for(const name of names){db.exec(readFileSync(new URL(name,dir),'utf8'));db.prepare('INSERT OR IGNORE INTO d1_migrations(name) VALUES(?)').run(name)}
- if(legacyMenu)db.exec("UPDATE pos_products SET active=1 WHERE id IN ('101','102','103','104','105','106','107','108','109','110','111','112','113')");
+ if(legacyMenu)db.exec("UPDATE pos_products SET active=1 WHERE id IN ('101','102','103','104','105','106','107','108','109','110','111','112','113','114','115','116','117','118','119')");
 }
 
 export function applyAfter(db,migration){

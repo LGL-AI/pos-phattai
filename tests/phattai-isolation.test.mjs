@@ -24,12 +24,12 @@ const guestBase=/^\d{8}-\d{4}-000000$/;
  assert.equal(store.store_name,'TIỆM SÍU LẬP PHÁT TÀI');
  assert.equal(store.store_name_cn,'發財燒臘');
  assert.equal(store.transfer_prefix,'PT');
- assert.equal(db.prepare("SELECT COUNT(*) n FROM pos_products WHERE sku LIKE 'PT%' AND active=1").get().n,13);
+ assert.equal(db.prepare("SELECT COUNT(*) n FROM pos_products WHERE sku LIKE 'PT%' AND active=1").get().n,19);
  assert.equal(db.prepare("SELECT COUNT(*) n FROM pos_products WHERE sku LIKE 'EC_%'").get().n,0);
  const health=await call('/api/health');
  assert.equal(health.status,200);assert.equal(health.data.d1,'ok');assert.equal(health.data.storeReady,true);assert.equal(health.data.acceptingOrders,true);assert.equal(health.data.version,PKG_VERSION);
  const catalog=await call('/api/catalog');
- assert.equal(catalog.status,200);assert.equal(catalog.data.catalog.store.name,'TIỆM SÍU LẬP PHÁT TÀI');assert.equal(catalog.data.catalog.products.length,13);assert.ok(catalog.data.catalog.products.every(p=>String(p.sku).startsWith('PT')));
+ assert.equal(catalog.status,200);assert.equal(catalog.data.catalog.store.name,'TIỆM SÍU LẬP PHÁT TÀI');assert.equal(catalog.data.catalog.products.length,19);assert.ok(catalog.data.catalog.products.every(p=>String(p.sku).startsWith('PT')));
  db.close();
 });
 

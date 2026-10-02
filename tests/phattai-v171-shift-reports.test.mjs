@@ -100,3 +100,17 @@ test('SHIFTS Staff UI: day → one tap on a shift or a staff member; custom hour
  for(const key of ['b.dataset.reportMode','b.dataset.reportShift!==','b.dataset.reportStaff!==','b.dataset.tplRemove!=='])assert.ok(STAFF.indexOf('if('+key)>0&&STAFF.indexOf('if('+key)<guard,key);
  assert.match(STAFF,/\$\{reportShiftEditor\(\)\}/);
 });
+
+test('MENU 01/10/2026: soups 50k, new rice/soup/combo items, no corn-rib soup',async()=>{
+ const fx=fixture();
+ const rows=fx.db.prepare("SELECT id,name,price,large_price,category FROM pos_products WHERE id IN ('113','114','115','116','117','118','119') ORDER BY id").all();
+ assert.deepEqual(rows.map(r=>[r.name,r.price,r.large_price,r.category]),[
+  ['Canh thịt lát hải sản',50000,50000,'Canh'],['Cơm xá xíu',65000,65000,'Cơm phần'],
+  ['Canh gà hầm hoa đông trùng hạ thảo',50000,50000,'Canh'],['Canh sườn củ sen',50000,50000,'Canh'],['Canh lòng bò hầm',50000,50000,'Canh'],
+  ['Combo cơm giò heo + canh gà / canh sườn',130000,130000,'Combo'],['Combo cơm vịt quay + canh gà / canh sườn',125000,125000,'Combo']]);
+ assert.equal(fx.db.prepare("SELECT COUNT(*) n FROM pos_products WHERE active=1").get().n,19);
+ assert.equal(fx.db.prepare("SELECT COUNT(*) n FROM pos_products WHERE name LIKE '%bắp%'").get().n,0);
+ const h=await owner(fx),made=await fx.call('/api/staff/orders','POST',{table:'T01',items:[{productId:'118',qty:1,mods:{size:'中',spice:'中',note:''}},{productId:'115',qty:2,mods:{size:'中',spice:'中',note:''}}],idempotencyKey:crypto.randomUUID()},h);
+ assert.equal(made.status,201,JSON.stringify(made.data));assert.equal(made.data.order.total,230000);
+ fx.db.close();
+});

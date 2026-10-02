@@ -254,7 +254,7 @@ function diag(){
  if(a?.available===true&&a.releaseVersion)parts.push('⬆ có bản '+a.releaseVersion);
  if(a?.status==='UNSUPPORTED_IDENTITY')parts.push('⚠ sai khóa ký '+String(a.signerSha256||'').slice(0,6));
  const text=parts.join(' · ');if(el.textContent!==text)el.textContent=text;
- el.classList.toggle('warn',late||a?.available===true||a?.status==='UNSUPPORTED_IDENTITY'||(!!st.token&&(st.realtimeState!=='ONLINE'||!st.online||(st.lastOkAt&&now-st.lastOkAt>150000))));
+ el.classList.toggle('diag-warn',late||a?.available===true||a?.status==='UNSUPPORTED_IDENTITY'||(!!st.token&&(st.realtimeState!=='ONLINE'||!st.online||(st.lastOkAt&&now-st.lastOkAt>150000))));
 }
 try{st.appInfo=JSON.parse(native?.getAppUpdateState?.()||'null')}catch{}
 window.addEventListener('lotusAppUpdate',event=>{if(event.detail&&typeof event.detail==='object'){st.appInfo=event.detail;diag()}});

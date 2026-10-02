@@ -4,7 +4,7 @@ set -uo pipefail
 dir=$1; job=$2
 [ -d "$dir" ] || exit 0
 tag="device-test-${GITHUB_RUN_ID}-${job}"
-files=$(ls "$dir"/*.png "$dir"/results.json "$dir"/*.log "$dir"/logcat.txt 2>/dev/null)
+files=$(ls "$dir"/*.png "$dir"/*.xml "$dir"/results.json "$dir"/*.log "$dir"/logcat.txt 2>/dev/null)
 [ -n "$files" ] || exit 0
 gh release create "$tag" --draft --title "Device test $job (run $GITHUB_RUN_ID)" \
   --notes "Android emulator screenshots for review. Draft only; replaced automatically." $files > /dev/null && echo "kept as draft $tag"

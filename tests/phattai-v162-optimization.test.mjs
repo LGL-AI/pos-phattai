@@ -46,6 +46,16 @@ test('SCHEDULER fifty print events wake one print pull and no full order sync',a
 test('SCHEDULER a service alert only wakes its own reader',async()=>{const h=schedulerHarness();h.t.wakeSync('service');[...h.timers.values()][0].fn();await h.flush();assert.equal(h.counts.service,1);assert.equal(h.counts.live+h.counts.print,0)});
 test('REALTIME explicit close ignores callbacks from an obsolete socket',()=>{const h=schedulerHarness();const sockets=[];h.context.WebSocket=class{constructor(){this.readyState=0;sockets.push(this)}close(){this.onclose?.()}};h.t.connectRealtime();assert.equal(sockets.length,1);h.t.closeRealtime();assert.equal(h.t.realtime.ws,null);assert.equal(h.timers.size,0)});
 test('REALTIME write classification isolates print claims and display updates',()=>{assert.deepEqual(mutationScopes('/api/staff/jobs/abc/status'),['print']);assert.deepEqual(mutationScopes('/api/staff/display/abc'),[]);assert.deepEqual(mutationScopes('/api/staff/logout'),[]);assert.deepEqual(mutationScopes('/api/staff/service-requests/abc/ack'),['service'])});
+test('REALTIME the packaged SUNMI app may connect from file:// whether its WebView says null or file://',async()=>{
+ for(const Origin of ['null','file://']){
+  const r=await worker.fetch(new Request('https://pos.test/api/realtime',{headers:{Upgrade:'websocket',Origin,'Sec-Fetch-Site':'cross-site'}}),{REALTIME:{}});
+  assert.notEqual(r.status,403,Origin+' must reach the session check, not be rejected as cross-site');
+ }
+ for(const Origin of ['https://evil.test','file://evil','http://localhost']){
+  const r=await worker.fetch(new Request('https://pos.test/api/realtime',{headers:{Upgrade:'websocket',Origin}}),{REALTIME:{}});
+  assert.equal(r.status,403,Origin);
+ }
+});
 test('REALTIME cross-origin and unconfigured upgrades fail without throwing',async()=>{let r=await worker.fetch(new Request('https://pos.test/api/realtime',{headers:{Upgrade:'websocket',Origin:'https://evil.test'}}),{REALTIME:{}});assert.equal(r.status,403);r=await worker.fetch(new Request('https://pos.test/api/realtime',{headers:{Upgrade:'websocket',Origin:'https://pos.test'}}),{REALTIME:{}});assert.equal(r.status,503)});
 test('REALTIME expired sockets receive no invalidation and are closed',async()=>{const received=[],closed=[];const ws={deserializeAttachment:()=>({expiresAt:Date.now()-1}),send:x=>received.push(x),close:(code)=>closed.push(code)};const hub=new RealtimeHub({getWebSockets:()=>[ws]},{});await hub.fetch(new Request('https://realtime.internal/notify',{method:'POST',body:'{"scope":"orders"}'}));assert.equal(received.length,0);assert.deepEqual(closed,[1008])});
 test('REALTIME a slow notifier does not delay a committed order response',async()=>{const f=currentFixture(),a=f.actor(),work=[];let resolve;try{f.env.REALTIME={idFromName:()=>1,get:()=>({fetch:()=>new Promise(done=>resolve=done)})};const r=await f.call('/api/staff/orders','POST',{table:'T01',items:[f.item()],idempotencyKey:crypto.randomUUID()},a.headers,{waitUntil:job=>work.push(job)});assert.equal(r.status,201);assert.equal(work.length,1);resolve(new Response('ok'));await work[0]}finally{f.db.close()}});

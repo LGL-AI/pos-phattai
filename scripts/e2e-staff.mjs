@@ -85,7 +85,7 @@ try{
  const idle=await hp.evaluate(()=>window.__calls);
  check(idle.length<=6,`resting handheld makes ${idle.length} API calls in 20 s (limit 6)${idle.length>6?': '+idle.join(', '):''}`);
  // Always-visible build/health strip: what this device runs and whether it is in sync.
- const strip=await hp.evaluate(()=>{window.scrollTo(0,400);const el=document.querySelector('#diag'),r=el.getBoundingClientRect();return {text:el.textContent,top:r.top,height:r.height,warn:el.classList.contains('warn')}});
+ const strip=await hp.evaluate(()=>{window.scrollTo(0,400);const el=document.querySelector('#diag'),r=el.getBoundingClientRect();return {text:el.textContent,top:r.top,height:r.height,warn:el.classList.contains('diag-warn')}});
  check(strip.text.includes('APK 1.7.18 (1018)'),'handheld strip shows the APK version: '+strip.text);
  check(strip.text.includes('Server '+WORKER_VERSION)&&/Menu r\d+/.test(strip.text)&&strip.text.includes('RT ✓')&&/sync \d\d:\d\d:\d\d/.test(strip.text),'handheld strip shows Server version, menu revision, realtime and last sync');
  check(strip.top>=0&&strip.top<80&&strip.height<=30&&!strip.warn,`strip stays visible after scrolling and is not highlighted (top=${Math.round(strip.top)}, height=${Math.round(strip.height)})`);

@@ -32,7 +32,7 @@ test('STRIP the strip is in the staff, counter and customer pages and survives r
 // Run the real diag()/buildTag() source against a stub element.
 function staffStrip(st,native=null){
  const start=STAFF.indexOf('const clockSec='),end=STAFF.indexOf('try{st.appInfo=');
- const el={textContent:'',classList:{on:false,toggle(name,value){if(name==='warn')this.on=!!value}}};
+ const el={textContent:'',classList:{on:false,toggle(name,value){if(name==='diag-warn')this.on=!!value}}};
  const run=()=>{vm.runInNewContext(STAFF.slice(start,end)+';diag()',{st,native,$:()=>el,Intl,Date})};
  return {el,run};
 }
@@ -125,4 +125,10 @@ test('FLAKE a fading notice removes only the notice: it must not re-render and w
  assert.deepEqual(run(false),{renders:1,removed:true,error:''});
  assert.deepEqual(run(true),{renders:1,removed:false,error:'khác'},'a newer message is not removed by an older timer');
  assert.ok(!/st\.error='';render\(\)/.test(STAFF),'no timer may clear the notice with a full render');
+});
+
+test('STRIP the staff warning colour is its own class: the generic .warn box made it unreadable on the device',()=>{
+ const css=read('public/staff/staff.css');
+ assert.match(css,/#diag\.diag-warn\{color:#ffd9a0\}/);
+ assert.doesNotMatch(STAFF,/classList\.toggle\('warn'/);
 });

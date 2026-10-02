@@ -188,9 +188,12 @@ export default {async fetch(request,env,ctx){const url=new URL(request.url),p=ur
  if(p==='/kitchen'||p.startsWith('/kitchen/')||p.startsWith('/assets/kitchen'))return new Response('Not found',{status:404,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
  if(p==='/api/realtime'){
   if(request.method!=='GET'||request.headers.get('Upgrade')!=='websocket'||!env.REALTIME)return fail(426,'SERVICE_UNAVAILABLE');
-  // SUNMI loads Staff from file://; its WebSocket Origin is the literal null.
-  // These connections still require a valid, active staff bearer session.
-  if(request.headers.get('Origin')!=='null'&&!originValid(request))return fail(403,'ORIGIN_REJECTED');
+  // SUNMI loads Staff from file://. Its WebView sends the WebSocket Origin as the literal null
+  // (newer Chromium) or "file://" (the factory WebView 83 of Android 11, which never updates
+  // without Play). Auth is the staff bearer token in the subprotocol, never a cookie, so a
+  // page on another site cannot ride on these connections; the session is still checked below.
+  const wsOrigin=request.headers.get('Origin');
+  if(wsOrigin!=='null'&&wsOrigin!=='file://'&&!originValid(request)){console.warn('realtime origin rejected',JSON.stringify({origin:wsOrigin,site:request.headers.get('Sec-Fetch-Site')}));return fail(403,'ORIGIN_REJECTED')}
   try{
    if(!await ready(env))return fail(503,'SERVICE_UNAVAILABLE');
    const protocols=(request.headers.get('Sec-WebSocket-Protocol')||'').split(',').map(x=>x.trim()).filter(Boolean),token=protocols.length===2&&protocols[0]==='lotus-pos'?protocols[1]:null;

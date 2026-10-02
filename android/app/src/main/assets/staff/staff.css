@@ -31,4 +31,4 @@ nav button small,.item-chooser h2 small{font-size:1em!important;line-height:inhe
 /* Always-visible build/health strip under the header (staff handheld + counter). */
 header{flex-wrap:wrap}
 #diag{flex:0 0 100%;order:9;margin-top:3px;font:10px/1.3 system-ui,"Noto Sans",sans-serif;font-variant-numeric:tabular-nums;color:#a9c4bf;overflow-wrap:anywhere}
-#diag.warn{color:#ffd9a0}
+#diag.diag-warn{color:#ffd9a0}

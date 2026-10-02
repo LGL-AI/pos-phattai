@@ -43,36 +43,47 @@ def nodes(d):
     return out
 
 
-def visible(d, n):
-    w, h = d.window_size()
+def screen(all_nodes):
+    """Screen size in the same coordinates as the hierarchy (window_size() can disagree after wm size)."""
+    w = max([n['box'][2] for n in all_nodes if n['box'][0] == 0 and n['box'][1] == 0] or [720])
+    h = max([n['box'][3] for n in all_nodes if n['box'][0] == 0 and n['box'][1] == 0] or [1440])
+    return w, h
+
+
+def visible(n, size):
+    w, h = size
     x1, y1, x2, y2 = n['box']
-    return x2 > x1 and y2 > y1 and x1 >= 0 and x2 <= w + 2 and y1 >= 0 and y2 <= h - 4
+    return x2 > x1 and y2 > y1 and x1 >= 0 and x2 <= w + 2 and y1 >= 0 and y2 <= h + 2
 
 
-def find(d, pattern):
+def find(d, pattern, all_nodes=None):
     rx = re.compile(pattern)
-    return [n for n in nodes(d) if n['text'] and rx.search(n['text'])]
+    return [n for n in (all_nodes if all_nodes is not None else nodes(d)) if n['text'] and rx.search(n['text'])]
 
 
 def tap(d, pattern, timeout=25, scroll=True, label=None):
-    """Tap the first visible element whose text matches; scroll the page down to look for it."""
+    """Tap the first visible element whose text matches; scroll the page to look for it."""
     deadline = time.time() + timeout
     swipes = 0
     while time.time() < deadline:
         try:
-            hits = [n for n in find(d, pattern) if visible(d, n)]
-            if hits:
-                x1, y1, x2, y2 = hits[0]['box']
+            all_nodes = nodes(d)
+            size = screen(all_nodes)
+            hits = find(d, pattern, all_nodes)
+            # Ignore the bottom navigation and the header when looking for page content.
+            on = [n for n in hits if visible(n, size)]
+            if on:
+                x1, y1, x2, y2 = on[0]['box']
                 d.click((x1 + x2) // 2, (y1 + y2) // 2)
                 time.sleep(0.8)
                 return True
-            if scroll and swipes < 8 and find(d, pattern):
-                # Exists but off screen: bring it up.
-                n = find(d, pattern)[0]
-                d.swipe_ext('up' if n['box'][1] > 0 else 'down', scale=0.5)
-                swipes += 1
-            elif scroll and swipes < 8:
-                d.swipe_ext('up', scale=0.5)
+            if scroll and swipes < 10:
+                direction = 'down' if hits and hits[0]['box'][3] <= 0 else 'up'
+                w, h = size
+                if direction == 'up':
+                    d.swipe(w // 2, int(h * 0.70), w // 2, int(h * 0.35), 0.25)
+                else:
+                    d.swipe(w // 2, int(h * 0.35), w // 2, int(h * 0.70), 0.25)
                 swipes += 1
         except Exception as e:
             print('  (tap retry:', e, ')')
@@ -81,24 +92,30 @@ def tap(d, pattern, timeout=25, scroll=True, label=None):
 
 
 def nav(d, pattern):
-    """Bottom navigation scrolls sideways on a 720 px screen."""
-    w, h = d.window_size()
-    for attempt in range(6):
-        hits = [n for n in find(d, pattern) if n['box'][1] > h * 0.8]
-        on = [n for n in hits if visible(d, n)]
+    """Bottom navigation: a row of tabs that scrolls sideways on a narrow screen."""
+    for attempt in range(8):
+        all_nodes = nodes(d)
+        w, h = screen(all_nodes)
+        hits = sorted([n for n in find(d, pattern, all_nodes) if n['box'][1] > h * 0.75], key=lambda n: -n['box'][1])
+        on = [n for n in hits if visible(n, (w, h))]
         if on:
             x1, y1, x2, y2 = on[0]['box']
             d.click((x1 + x2) // 2, (y1 + y2) // 2)
-            time.sleep(1)
+            time.sleep(1.2)
             return True
-        y = int(h * 0.94)
-        d.swipe(int(w * 0.85), y, int(w * 0.15), y, 0.3) if attempt < 3 else d.swipe(int(w * 0.15), y, int(w * 0.85), y, 0.3)
-        time.sleep(0.6)
+        y = (hits[0]['box'][1] + hits[0]['box'][3]) // 2 if hits else int(h * 0.95)
+        if attempt < 4:
+            d.swipe(int(w * 0.9), y, int(w * 0.1), y, 0.3)
+        else:
+            d.swipe(int(w * 0.1), y, int(w * 0.9), y, 0.3)
+        time.sleep(0.8)
     return False
 
 
 def edits(d):
-    return [n for n in nodes(d) if n['cls'] == 'android.widget.EditText' and visible(d, n)]
+    all_nodes = nodes(d)
+    size = screen(all_nodes)
+    return [n for n in all_nodes if n['cls'] == 'android.widget.EditText' and visible(n, size)]
 
 
 def type_into(d, node, value):

@@ -102,5 +102,10 @@ def finish():
     with open(f'{OUT}/results.json', 'w', encoding='utf-8') as f:
         json.dump(_results, f, ensure_ascii=False, indent=1)
     failed = [r for r in _results if r['ok'] is False]
-    print(f'\n{len([r for r in _results if r["ok"]])} passed, {len(failed)} failed', flush=True)
+    summary = f'{len([r for r in _results if r["ok"]])} passed, {len(failed)} failed'
+    print('\n' + summary, flush=True)
+    if os.environ.get('GITHUB_ACTIONS'):
+        # Job logs are not always reachable; annotations are. One notice carries every line.
+        lines = [('PASS ' if r['ok'] else 'INFO ' if r['ok'] is None else 'FAIL ') + r['label'] for r in _results]
+        print('::notice title=' + (os.path.basename(OUT) + ' ' + summary).replace(',', '%2C') + '::' + ' %0A'.join(l.replace('%', '%25').replace('\n', ' ') for l in lines)[:3800], flush=True)
     return 1 if failed else 0

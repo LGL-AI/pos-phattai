@@ -1,9 +1,13 @@
 # Runs the handheld APK on an Android 11 emulator, the closest stand-in for the SUNMI V2s
-# (Android 11, factory WebView, no Play Store to update it, 720x1440).
+# (Android 11, factory WebView that never updates without Play, 720x1440).
 #   release-apk: the two newest PUBLISHED signed APKs. Install the older one, update in place to the
 #                newest, check both start and that the newest reaches the production Worker.
-#                Read-only: nothing is logged in and no order is created.
+#                Read-only: nobody logs in and no order is created.
+#   test-build:  the same code built as a separate test app (other package name, throwaway key)
+#                against a throwaway Worker: login, in-app update through Android's installer,
+#                order, payment, member, realtime QR order, report, network loss, restart.
 # Run it from the Actions tab (Run workflow) or by pushing to the device-test branch.
+# Screenshots and results go to a private draft release "device-test-<run>-<job>".
 name: APK on Android emulator
 
 on:
@@ -12,16 +16,21 @@ on:
     branches: ['device-test']
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: apk-device
   cancel-in-progress: true
 
+env:
+  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
 jobs:
   release-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -34,11 +43,9 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Download the two newest published APKs
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p device/new device/old
-          tags=$(gh release list --limit 20 --json tagName -q '.[].tagName' | grep '^android-v' | head -2)
+          tags=$(gh release list --limit 30 --json tagName -q '.[].tagName' | grep '^android-v' | head -2)
           new=$(echo "$tags" | sed -n 1p); old=$(echo "$tags" | sed -n 2p)
           echo "newest=$new previous=$old"
           gh release download "$new" -p '*.apk' -D device/new
@@ -53,9 +60,57 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
           script: cd scripts/device && python3 smoke_release.py ../../device/old ../../device/new ../../device-out
-      - uses: actions/upload-artifact@v4
+      - name: Keep screenshots for review (private draft release)
         if: always()
+        run: bash scripts/device/keep-results.sh device-out release-apk
+
+  test-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TEST_APP_ID: vn.lotusai.pos.phattaiapp.devicetest
+      DEVICE_PASSWORD: device-pass-123456
+      LOCAL_WORKER: http://127.0.0.1:8787
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          name: device-release-apk
-          path: device-out
-          retention-days: 14
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet uiautomator2==3.7.0
+      - run: npm ci --no-audit --no-fund
+      - name: Android SDK 35
+        run: yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.1" > /dev/null
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Public HTTPS address for a throwaway Worker
+        run: bash scripts/device/start-tunnel.sh
+      - name: Build test APKs 9.0.1 and 9.0.2
+        run: bash scripts/device/build-test-apks.sh
+      - name: Start the throwaway Worker with 9.0.2 on its update channel
+        run: bash scripts/device/serve-test-worker.sh
+      - name: Full handheld flow on Android 11
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: cd scripts/device && python3 functional.py ../../device/test-v1.apk ../../device/test-v2.apk ../../device-out
+      - name: Keep screenshots for review (private draft release)
+        if: always()
+        run: |
+          cp device/worker.log device/tunnel.log device-out/ 2>/dev/null || true
+          bash scripts/device/keep-results.sh device-out test-build

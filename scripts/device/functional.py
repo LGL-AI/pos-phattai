@@ -61,33 +61,43 @@ def find(d, pattern, all_nodes=None):
     return [n for n in (all_nodes if all_nodes is not None else nodes(d)) if n['text'] and rx.search(n['text'])]
 
 
-def tap(d, pattern, timeout=25, scroll=True, label=None):
-    """Tap the first visible element whose text matches; scroll the page to look for it."""
+def tap(d, pattern, timeout=40, scroll=True, label=None):
+    """Tap the first on-screen element whose text matches. WebView only exposes what is on screen,
+    so look at the current screen, then from the top of the page downwards."""
     deadline = time.time() + timeout
-    swipes = 0
+    plan = ['here'] + (['top'] * 6 + ['down'] * 14 if scroll else [])
+    step = 0
+    last = None
     while time.time() < deadline:
         try:
             all_nodes = nodes(d)
             size = screen(all_nodes)
-            hits = find(d, pattern, all_nodes)
-            # Ignore the bottom navigation and the header when looking for page content.
-            on = [n for n in hits if visible(n, size)]
+            on = [n for n in find(d, pattern, all_nodes) if visible(n, size)]
             if on:
                 x1, y1, x2, y2 = on[0]['box']
                 d.click((x1 + x2) // 2, (y1 + y2) // 2)
                 time.sleep(0.8)
                 return True
-            if scroll and swipes < 10:
-                direction = 'down' if hits and hits[0]['box'][3] <= 0 else 'up'
-                w, h = size
-                if direction == 'up':
-                    d.swipe(w // 2, int(h * 0.70), w // 2, int(h * 0.35), 0.25)
+            if step >= len(plan):
+                if not scroll:
+                    time.sleep(0.6)
+                    continue
+                step = 1
+            move = plan[step]
+            step += 1
+            w, h = size
+            texts_now = tuple(n['text'] for n in all_nodes if n['text'])[:40]
+            if move == 'top':
+                if texts_now == last:
+                    step = plan.index('down')  # already at the top
                 else:
-                    d.swipe(w // 2, int(h * 0.35), w // 2, int(h * 0.70), 0.25)
-                swipes += 1
+                    d.swipe(w // 2, int(h * 0.35), w // 2, int(h * 0.80), 0.2)
+            elif move == 'down':
+                d.swipe(w // 2, int(h * 0.75), w // 2, int(h * 0.40), 0.25)
+            last = texts_now
         except Exception as e:
             print('  (tap retry:', e, ')')
-        time.sleep(0.8)
+        time.sleep(0.6)
     return False
 
 
@@ -193,7 +203,7 @@ def main():
 
     # 2. In-app update 9.0.1 -> 9.0.2 before any order exists (prints must be idle to update).
     check(nav(d, r'Quản trị chủ tiệm'), 'opens the owner hub', d)
-    check(tap(d, r'^Thiết bị & máy in'), 'opens Devices & printers', d)
+    check(tap(d, r'Thiết bị & máy in'), 'opens Devices & printers', d)
     check(tap(d, r'Kiểm tra cập nhật'), 'taps Check for update', d)
     found = wait_text(d, r'Có bản 9\.0\.2', 40)
     shot(d, 'update found')
@@ -235,32 +245,32 @@ def main():
     # 3. Sale: order -> kitchen -> add items -> cash payment.
     check(nav(d, r'^Chọn món'), 'opens New order', d)
     check(tap(d, r'Set cơm chân giò'), 'taps a dish', d)
-    check(tap(d, r'^Thêm vào giỏ'), 'adds it to the cart', d)
+    check(tap(d, r'Thêm vào giỏ'), 'adds it to the cart', d)
     t0 = time.time()
     check(tap(d, r'^Chốt đơn'), 'submits the order', d)
     code = wait_text(d, r'\d{8}-\d{4}-\d{6}', 30)
     shot(d, 'order created')
     check(code, f'order created ({code}) in {time.time() - t0:.1f}s', d)
-    check(tap(d, r'^Thêm món vào đơn'), 'opens Add items', d)
+    check(tap(d, r'Thêm món vào đơn'), 'opens Add items', d)
     check(tap(d, r'Canh thịt lát'), 'picks a soup', d)
-    tap(d, r'^Thêm vào giỏ')
-    check(tap(d, r'^Lưu thêm món'), 'saves the added items', d)
+    tap(d, r'Thêm vào giỏ')
+    check(tap(d, r'Lưu thêm món'), 'saves the added items', d)
     check(wait_text(d, r'Canh thịt lát', 20), 'added item is on the order', d)
-    check(tap(d, r'^Xác nhận đúng đơn'), 'starts payment', d)
-    check(tap(d, r'^Tiền mặt'), 'chooses cash', d)
-    check(tap(d, r'^Xác nhận thu tiền mặt'), 'confirms cash received', d)
+    check(tap(d, r'Xác nhận đúng đơn'), 'starts payment', d)
+    check(tap(d, r'Tiền mặt · 现金'), 'chooses cash', d)
+    check(tap(d, r'Xác nhận thu tiền mặt'), 'confirms cash received', d)
     paid = wait_text(d, r'\d{8}-\d{4}-\d{6}-TM', 30)
     shot(d, 'paid')
     check(paid, f'order paid in cash ({paid}); receipt printing has no SUNMI printer here and must not block', d)
 
     # 4. Member registration with the native prompt dialog.
     nav(d, r'^Chọn món')
-    tap(d, r'^Hội viên & voucher')
+    tap(d, r'Hội viên & voucher')
     phone = [n for n in edits(d) if 'member-phone' in n['id']] or edits(d)
     check(phone, 'member phone field is reachable', d)
     if phone:
         type_into(d, phone[0], '0909555777')
-    check(tap(d, r'^Đăng ký$|^Đăng ký /', scroll=False), 'taps Register member', d)
+    check(tap(d, r'^Đăng ký(\s*/.*)?$', scroll=False), 'taps Register member', d)
     check(dialog_answer(d, 'Khach May Ao'), 'answers the member name prompt', d)
     check(wait_text(d, r'Khach May Ao · 0909555777', 20), 'member registered and attached to the order', d)
     shot(d, 'member')
@@ -277,11 +287,11 @@ def main():
 
     # 6. Reports: one tap on a shift, print to the (absent) SUNMI printer must not crash.
     nav(d, r'Quản trị chủ tiệm')
-    check(tap(d, r'^Báo cáo ngày & ca'), 'opens Reports', d)
-    check(tap(d, r'^Cả ngày'), 'taps the whole-day shift', d)
+    check(tap(d, r'Báo cáo ngày & ca'), 'opens Reports', d)
+    check(tap(d, r'Cả ngày'), 'taps the whole-day shift', d)
     check(wait_text(d, r'Tiền mặt', 20), 'report shows cash takings', d)
     shot(d, 'report')
-    tap(d, r'^In SUNMI')
+    tap(d, r'In SUNMI')
     time.sleep(2)
 
     # 7. Network loss and recovery.

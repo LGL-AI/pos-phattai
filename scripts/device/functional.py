@@ -94,7 +94,7 @@ def target_point(n, area):
     return (x1 + x2) // 2, (lo + hi) // 2
 
 
-def tap(d, pattern, timeout=40, scroll=True, page=True, by_id=False):
+def tap(d, pattern, timeout=40, scroll=True, page=True, by_id=False, accept=True):
     """Tap the first element whose text (or HTML id) matches. WebView only exposes what is on screen,
     so look at the current screen, then from the top of the page downwards. With page=True only the
     part not covered by the sticky header or the bottom navigation counts."""
@@ -113,6 +113,12 @@ def tap(d, pattern, timeout=40, scroll=True, page=True, by_id=False):
             if points:
                 d.click(*points[0])
                 time.sleep(0.9)
+                # Many actions ask "are you sure?" with the app's native confirm dialog.
+                if page and accept and d(resourceId='android:id/button1').wait(timeout=2) \
+                        and not d(resourceId='android:id/custom').exists:
+                    shot(d, 'confirm ' + pattern)
+                    d(resourceId='android:id/button1').click()
+                    time.sleep(1)
                 return True
             if not scroll:
                 time.sleep(0.6)
@@ -278,7 +284,7 @@ def main():
     shot(d, 'update found')
     check(found, 'the app finds 9.0.2 on the Worker update channel', d)
     check('⬆ có bản 9.0.2' in strip(d, 10), 'the info strip announces the new version', d)
-    check(tap(d, r'^Cập nhật ứng dụng / 更新应用'), 'taps Update app', d)
+    check(tap(d, r'^Cập nhật ứng dụng / 更新应用', accept=False), 'taps Update app', d)
     check(dialog_answer(d), 'confirms the update in the app dialog', d)
     # First update: Android asks once to allow installing from this app.
     deadline = time.time() + 90
@@ -339,7 +345,7 @@ def main():
         tap(d, r'Hội viên & voucher')
         typed = fill(d, 'member-phone', '0909555777')
     check(typed, 'types the member phone', d)
-    check(tap(d, r'^Đăng ký(\s*/.*)?$'), 'taps Register member', d)
+    check(tap(d, r'^Đăng ký(\s*/.*)?$', accept=False), 'taps Register member', d)
     check(dialog_answer(d, 'Khach May Ao'), 'answers the member name prompt', d)
     check(wait_text(d, r'Khach May Ao · 0909555777', 20), 'member registered and attached to the order', d)
     shot(d, 'member')

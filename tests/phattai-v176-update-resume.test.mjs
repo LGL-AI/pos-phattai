@@ -44,3 +44,13 @@ test('KITCHEN a just-created order shows "loading" instead of crashing the rende
   assert.match(html,/Đang tải đơn/);
  }
 });
+test('KITCHEN printer reports only swap the notice; they never re-render over a form being typed',()=>{
+ const handler=STAFF.match(/onNativeEvent\(e\)\{[\s\S]*?\}\}\};/)[0];
+ assert.doesNotMatch(handler,/message\(/);assert.match(handler,/notify\(/);
+ const line=STAFF.match(/function notify\(s\)\{[^\n]*/)[0];
+ assert.doesNotMatch(line,/render\(\)/);
+ let added=null;const app={firstElementChild:null,prepend(n){added=n;this.firstElementChild=n}};
+ const st={error:''};let timer=null;
+ vm.runInNewContext(line+';notify("Bếp: đã gửi")',{st,app,bilingualText:x=>x,document:{createElement:()=>({classList:{c:new Set(),contains(x){return this.c.has(x)}},set className(v){this.classList.c=new Set(v.split(' '))},textContent:''})},window:{setTimeout:fn=>{timer=fn}}});
+ assert.equal(added.textContent,'Bếp: đã gửi');assert.equal(st.error,'Bếp: đã gửi');
+});

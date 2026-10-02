@@ -139,6 +139,9 @@ try{
  await hp.click('[data-screen="owner"]');await hp.locator('[data-screen="dashboard"]').first().click();await hp.waitForSelector('[data-report-mode]');
  await hp.click('.shift-templates summary');await hp.click('[data-action=report-shift-add]');
  await hp.fill('[data-tpl-name="0"]','Ca cả ngày');await hp.fill('[data-tpl-start="0"]','00:00');await hp.fill('[data-tpl-end="0"]','23:59');
+ // A kitchen print report arriving while the owner types must not wipe the typed shift (it did: flaky save).
+ await hp.evaluate(()=>window.LotusNativeBridge.onNativeEvent({category:'KITCHEN',code:'KITCHEN_SENT',severity:'INFO',message:'Đã gửi phiếu bếp',requestId:'00000000-0000-4000-8000-000000000000'}));
+ check(await hp.inputValue('[data-tpl-name="0"]')==='Ca cả ngày'&&await hp.inputValue('[data-tpl-end="0"]')==='23:59','a printer report while typing keeps the typed shift');
  await hp.click('[data-action=report-shift-add]');await hp.click('[data-tpl-remove="1"]');
  check(await hp.locator('[data-tpl-name]').count()===1,'a shift row can be removed from the list');
  await hp.click('[data-action=report-shifts-save]');

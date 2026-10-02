@@ -3,6 +3,7 @@ package vn.lotusai.pos.phattaiapp;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
@@ -31,7 +32,14 @@ public final class AppUpdater {
     public interface Listener {
         void onState(String json);
         void onInstallReady();
+        /** The owner allowed installs and Android restarted the app: carry on with that update. */
+        void onResumeInstall();
     }
+    // Granting "install unknown apps" makes Android kill the app (REQUEST_INSTALL_PACKAGES changed),
+    // so the update the owner started is remembered for a few minutes and resumed after the restart.
+    private static final long RESUME_WINDOW_MS = 10 * 60 * 1000L;
+    private final SharedPreferences prefs;
+    private volatile boolean resumeInstall;
     private final Activity activity;
     private final Listener listener;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -46,7 +54,19 @@ public final class AppUpdater {
     private long lastCheck = -1;
     private boolean pendingPermission;
 
-    public AppUpdater(Activity activity, Listener listener) { this.activity = activity; this.listener = listener; }
+    public AppUpdater(Activity activity, Listener listener) {
+        this.activity = activity; this.listener = listener;
+        prefs = activity.getSharedPreferences("lotus_app_update", Activity.MODE_PRIVATE);
+        long until = prefs.getLong("resume_until", 0);
+        if (until != 0) {
+            long now = System.currentTimeMillis();
+            resumeInstall = until > now && until - now <= RESUME_WINDOW_MS && canInstallPackages();
+            prefs.edit().remove("resume_until").apply();
+        }
+    }
+    private boolean canInstallPackages() {
+        return Build.VERSION.SDK_INT < 26 || activity.getPackageManager().canRequestPackageInstalls();
+    }
     @SuppressWarnings("deprecation")
     private int certificateFlags() {
         return Build.VERSION.SDK_INT >= 28 ? PackageManager.GET_SIGNING_CERTIFICATES : PackageManager.GET_SIGNATURES;
@@ -148,7 +168,13 @@ public final class AppUpdater {
                     UpdatePolicy.requireRelease(info, candidate, Build.VERSION.SDK_INT);
                     release = candidate;
                     report("AVAILABLE", "Có bản " + candidate.versionName + " / 有新版本 " + candidate.versionName);
+                    if (resumeInstall) {
+                        resumeInstall = false;
+                        // Give the restarted page a moment to load before asking it whether it is idle.
+                        main.postDelayed(() -> { if (!closed) listener.onResumeInstall(); }, 2500);
+                    }
                 } else {
+                    resumeInstall = false;
                     String status = result.optString("status");
                     if ("UP_TO_DATE".equals(status)) report(status, "Đang dùng bản mới nhất đã phát hành / 已使用最新发布版本");
                     else if ("NOT_PUBLISHED".equals(status)) report(status, "Chưa có bản cập nhật được phát hành cho máy này / 此设备暂无已发布更新");
@@ -228,6 +254,7 @@ public final class AppUpdater {
             if (closed || busy || apk == null || target == null || !apk.isFile() || apk.length() != target.sizeBytes) return;
             if (Build.VERSION.SDK_INT >= 26 && !activity.getPackageManager().canRequestPackageInstalls()) {
                 pendingPermission = true;
+                prefs.edit().putLong("resume_until", System.currentTimeMillis() + RESUME_WINDOW_MS).commit();
                 report("PERMISSION_REQUIRED", "Cho phép Lotus cài bản cập nhật, rồi quay lại / 请允许 Lotus 安装更新，然后返回");
                 activity.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + activity.getPackageName())));
                 return;
@@ -243,6 +270,7 @@ public final class AppUpdater {
     public void onResume() {
         if (!pendingPermission) return;
         pendingPermission = false;
+        prefs.edit().remove("resume_until").apply();
         if (Build.VERSION.SDK_INT < 26 || activity.getPackageManager().canRequestPackageInstalls()) listener.onInstallReady();
         else report("PERMISSION_REQUIRED", "Chưa cho phép cài cập nhật / 尚未允许安装更新");
     }

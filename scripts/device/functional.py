@@ -61,20 +61,28 @@ def find(d, pattern, all_nodes=None):
     return [n for n in (all_nodes if all_nodes is not None else nodes(d)) if n['text'] and rx.search(n['text'])]
 
 
-def content_area(all_nodes, size):
-    """Part of the screen where page content can really be tapped: below the sticky header
-    (it ends under the info strip) and above the fixed bottom navigation or the keyboard."""
-    top, bottom = 0, size[1]
-    strip_nodes = [n for n in all_nodes if n['id'] == 'diag']
-    if strip_nodes:
-        top = max(n['box'][3] for n in strip_nodes) + 26
-    navs = [n for n in all_nodes if n['text'] == 'Điều hướng POS']
-    if navs:
-        bottom = min(n['box'][1] for n in navs)
+CHROME = {'header': None, 'nav': None}
+
+
+def webview_box(all_nodes, size):
     views = [n for n in all_nodes if n['cls'] == 'android.webkit.WebView']
-    if views:
-        bottom = min(bottom, views[0]['box'][3])
-    return top, bottom
+    return views[0]['box'] if views else (0, 0, size[0], size[1])
+
+
+def content_area(all_nodes, size):
+    """Part of the screen where page content can really be tapped: below the sticky header and above
+    the fixed bottom navigation (or the keyboard). WebView 83 reports fixed elements at their page
+    position once the page scrolls, so their sizes are measured while they sit where they belong."""
+    w, h = size
+    wv = webview_box(all_nodes, size)
+    for n in all_nodes:
+        if n['id'] == 'diag' and wv[1] < n['box'][3] < wv[1] + h * 0.4:
+            CHROME['header'] = n['box'][3] + 26 - wv[1]
+        if n['text'] == 'Điều hướng POS' and n['box'][3] >= wv[3] - 4 and n['box'][1] > wv[1] + h * 0.5:
+            CHROME['nav'] = n['box'][3] - n['box'][1]
+    header = CHROME['header'] if CHROME['header'] is not None else int(h * 0.2)
+    nav_h = CHROME['nav'] if CHROME['nav'] is not None else int(h * 0.115)
+    return wv[1] + header, wv[3] - nav_h
 
 
 def target_point(n, area):
@@ -154,18 +162,22 @@ def fill(d, element_id, value, timeout=40):
 
 
 def nav(d, pattern):
-    """Bottom navigation: a row of tabs that scrolls sideways on a narrow screen."""
+    """Bottom navigation: tabs in a row that scrolls sideways. Only the x position reported for a tab
+    is trusted; its y is the bottom bar of the WebView."""
     for attempt in range(8):
         all_nodes = nodes(d)
         w, h = screen(all_nodes)
-        hits = sorted([n for n in find(d, pattern, all_nodes) if n['box'][1] > h * 0.75], key=lambda n: -n['box'][1])
-        on = [n for n in hits if visible(n, (w, h))]
+        content_area(all_nodes, (w, h))
+        wv = webview_box(all_nodes, (w, h))
+        nav_h = CHROME['nav'] or int(h * 0.115)
+        y = wv[3] - nav_h // 2
+        hits = [n for n in find(d, pattern, all_nodes) if n['cls'] == 'android.widget.Button' and (n['box'][3] - n['box'][1]) <= nav_h + 8]
+        on = [n for n in hits if n['box'][0] >= 0 and n['box'][2] <= w + 2]
         if on:
-            x1, y1, x2, y2 = on[0]['box']
-            d.click((x1 + x2) // 2, (y1 + y2) // 2)
+            x1, _, x2, _ = on[0]['box']
+            d.click((x1 + x2) // 2, y)
             time.sleep(1.2)
             return True
-        y = (hits[0]['box'][1] + hits[0]['box'][3]) // 2 if hits else int(h * 0.95)
         if attempt < 4:
             d.swipe(int(w * 0.9), y, int(w * 0.1), y, 0.3)
         else:

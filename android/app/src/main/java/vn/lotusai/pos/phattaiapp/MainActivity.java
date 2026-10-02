@@ -88,6 +88,10 @@ public class MainActivity extends Activity {
                 if (webView != null) webView.evaluateJavascript("window.dispatchEvent(new CustomEvent('lotusAppUpdate',{detail:" + json + "}))", null);
             }
             @Override public void onInstallReady() { requestInstallUpdate(true); }
+            @Override public void onResumeInstall() {
+                Toast.makeText(MainActivity.this, "Đã cho phép cài đặt; đang tiếp tục cập nhật / 已允许安装，继续更新", Toast.LENGTH_LONG).show();
+                requestInstallUpdate(false);
+            }
         });
         buildWebView();
         bindPrinter();

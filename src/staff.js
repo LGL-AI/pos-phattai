@@ -65,8 +65,8 @@ export async function handleStaff(req,env,deps){
   if(path==='/api/staff/logout'&&method==='POST'){await env.DB.prepare('DELETE FROM pos_staff_sessions WHERE token_hash=?').bind(await deps.sha(req.headers.get('Authorization').slice(7))).run();return result({})}
   if(path==='/api/staff/members/password'&&method==='POST'){
    if(!allowed(actor,'ORDER_EDIT'))return error(403,'PERMISSION_DENIED','Không có quyền đổi mật khẩu hội viên');const b=await deps.body(req);
-   if(!/^0\d{9,10}$/.test(String(b.phone||'')))return error(400,'INVALID_PHONE','Nhập số điện thoại 10 hoặc 11 chữ số');
-   const member=await env.DB.prepare('SELECT id FROM members WHERE phone=?').bind(b.phone).first();if(!member)return error(404,'MEMBER_NOT_FOUND','Không thấy hội viên');
+   const memberPhone=deps.phone(b.phone);if(!memberPhone)return error(400,'INVALID_PHONE','Số điện thoại phải là 0 + 9–10 số, hoặc +mã nước (12–13 ký tự)');
+   const member=await env.DB.prepare('SELECT id FROM members WHERE phone=?').bind(memberPhone).first();if(!member)return error(404,'MEMBER_NOT_FOUND','Không thấy hội viên');
    return deps.changeMemberPassword(env,new Request(req.url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword:b.currentPassword,newPassword:b.newPassword})}),member.id);
   }
   if(path==='/api/staff/sync-meta'&&method==='GET')return result({revisions:await syncRevisions(env)});
@@ -135,7 +135,7 @@ export async function handleStaff(req,env,deps){
    const baseCode=code?.replace(/(?:\sB|-?B)[1-9]\d*$/i,'');const {results:rows=[]}=await (code?env.DB.prepare('SELECT * FROM qr_orders WHERE code IN (?,?,?) ORDER BY created_at DESC LIMIT 1').bind(baseCode,codeForMethod(baseCode,'BANK'),codeForMethod(baseCode,'CASH')):env.DB.prepare('SELECT * FROM qr_orders ORDER BY created_at DESC LIMIT 100')).all();
    return result({orders:rows.map(deps.hydrate)});
   }
-  if(path==='/api/staff/members'&&method==='GET'){const phone=new URL(req.url).searchParams.get('phone')||'';if(!/^0\d{9,10}$/.test(phone))return error(400,'INVALID_PHONE','Nhập số điện thoại 10 hoặc 11 chữ số');const member=await env.DB.prepare('SELECT id,display_name,phone,points,spend,orders,last_visit,phone_verified,tier_override FROM members WHERE phone=?').bind(phone).first();return result({member:member?{id:member.id,name:member.display_name,phone:member.phone,points:member.points,tier:member.tier_override||tierFor(member.points),spend:member.spend,orders:member.orders,lastVisit:member.last_visit,phoneVerified:!!member.phone_verified}:null})}
+  if(path==='/api/staff/members'&&method==='GET'){const phone=deps.phone(new URL(req.url).searchParams.get('phone'));if(!phone)return error(400,'INVALID_PHONE','Số điện thoại phải là 0 + 9–10 số, hoặc +mã nước (12–13 ký tự)');const member=await env.DB.prepare('SELECT id,display_name,phone,points,spend,orders,last_visit,phone_verified,tier_override FROM members WHERE phone=?').bind(phone).first();return result({member:member?{id:member.id,name:member.display_name,phone:member.phone,points:member.points,tier:member.tier_override||tierFor(member.points),spend:member.spend,orders:member.orders,lastVisit:member.last_visit,phoneVerified:!!member.phone_verified}:null})}
   if(path==='/api/staff/members/register'&&method==='POST')return deps.register(env,req,{scope:'staff-member-register',limit:60});
   if(path==='/api/staff/members/login'&&method==='POST')return deps.login(env,req,{scope:'staff-member-login',limit:120});
   if(path==='/api/staff/voucher'&&method==='POST'){const b=await deps.body(req),v=await deps.calculate(b,env),member=await memberById(env,b.memberId);if(b.memberId&&!member)return error(400,'INVALID_MEMBER','Không thấy hội viên');const offer=await resolveStaffVoucher(env,deps,b.voucherCode,v.subtotal,member);return result({...deps.priceTotals(v.subtotal,offer?.discount||0,await deps.getStore(env)),voucher:offer?.code||null})}

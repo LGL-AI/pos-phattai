@@ -31,8 +31,8 @@ export async function handleCustomers(req,env,actor,deps){
  if(method!=='POST'&&method!=='PATCH')return fail(405,'METHOD_NOT_ALLOWED','Chỉ hỗ trợ GET, POST, PATCH');
  if(method==='POST'&&path!=='/api/staff/customers'||method==='PATCH'&&path==='/api/staff/customers')return fail(405,'METHOD_NOT_ALLOWED','Đường dẫn không phù hợp');
  if(!allowed(actor,method==='POST'?'ORDER_EDIT':'CUSTOMER_MANAGE'))return fail(403,'PERMISSION_DENIED','Không có quyền sửa khách hàng');
- const b=await deps.body(req),name=tidy(b.name,80),phone=tidy(b.phone,11),email=tidy(b.email||'',120),birthday=tidy(b.birthday||'',10),note=tidy(b.note||'',500),tier=tidy(b.tierOverride||'',10);
- if(name.length<2||name.length>80||!/^0\d{9,10}$/.test(phone)||email.length>120||email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||birthday&&!/^\d{4}-\d{2}-\d{2}$/.test(birthday)||birthday&&(Number.isNaN(Date.parse(birthday+'T00:00:00Z'))||new Date(birthday+'T00:00:00Z').toISOString().slice(0,10)!==birthday)||note.length>500||!['','Member','Silver','Gold','Platinum'].includes(tier))return fail(400,'INVALID_CUSTOMER','Kiểm tra tên, số điện thoại, email, ngày sinh và hạng');
+ const b=await deps.body(req),name=tidy(b.name,80),phone=deps.phone(tidy(b.phone,32)),email=tidy(b.email||'',120),birthday=tidy(b.birthday||'',10),note=tidy(b.note||'',500),tier=tidy(b.tierOverride||'',10);
+ if(name.length<2||name.length>80||!phone||email.length>120||email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||birthday&&!/^\d{4}-\d{2}-\d{2}$/.test(birthday)||birthday&&(Number.isNaN(Date.parse(birthday+'T00:00:00Z'))||new Date(birthday+'T00:00:00Z').toISOString().slice(0,10)!==birthday)||note.length>500||!['','Member','Silver','Gold','Platinum'].includes(tier))return fail(400,'INVALID_CUSTOMER','Kiểm tra tên, số điện thoại, email, ngày sinh và hạng');
  try{
   if(method==='POST'){
    const newId=await deps.createCustomer(env,{name,phone,email,birthday,note,tier});

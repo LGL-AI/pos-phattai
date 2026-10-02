@@ -1,3 +1,4 @@
+import {hashPassword,verifyPassword,newSalt} from './password.js';
 // Cloud-owned staff identities, inventory and refund ledger. No browser role is trusted.
 const H={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
 const ok=(data,status=200)=>new Response(JSON.stringify({ok:true,...data}),{status,headers:H});
@@ -8,10 +9,6 @@ const clean=(v,n=100)=>typeof v==='string'?v.trim().slice(0,n):'';
 const integer=n=>Number.isSafeInteger(n)&&n>0&&n<=100000000;
 const now=()=>new Date().toISOString();
 const te=new TextEncoder();
-const hex=b=>Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,'0')).join('');
-const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
-const from64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
-async function derive(password,salt){const key=await crypto.subtle.importKey('raw',te.encode(password),'PBKDF2',false,['deriveBits']);return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:from64(salt),iterations:120000,hash:'SHA-256'},key,256))}
 const permissions=role=>Array.isArray(role)?role:JSON.parse(role||'[]');
 const owner=()=>({id:'OWNER',username:'huang',name:'Chủ cửa hàng',role:'OWNER',permissions:VALID});
 export const allowed=(actor,permission)=>Boolean(actor?.permissions.includes(permission));
@@ -38,8 +35,7 @@ export async function loginActor(env,username,password,deps){
  if(!/^[a-z0-9._-]{3,40}$/.test(name))return null;
  const row=await env.DB.prepare('SELECT u.*,r.permissions_json,r.active AS role_active FROM pos_staff_users u JOIN pos_roles r ON r.id=u.role_id WHERE u.username=? COLLATE NOCASE').bind(name).first();
  if(!row?.active||!row.role_active)return null;
- const hash=await derive(password,row.password_salt);
- if(!deps.equal(hash,row.password_hash))return null;
+ if(!await verifyPassword(env,password,row.password_salt,row.password_hash))return null;
  return {staffId:row.id,actor:{id:row.id,username:row.username,name:row.display_name,role:row.role_id,permissions:permissions(row.permissions_json)}};
 }
 
@@ -159,7 +155,7 @@ export async function handleOps(req,env,actor,deps){
    if(actor.role!=='OWNER')return deny();const b=await deps.body(req),username=clean(b.username,40).toLowerCase(),name=clean(b.name,80),pass=b.password,role=clean(b.role,32).toUpperCase();
    if(!/^[a-z0-9._-]{3,40}$/.test(username)||username==='huang'||!name||typeof pass!=='string'||pass.length<10||pass.length>128||role==='OWNER')throw Error('INVALID_STAFF');
    const found=await env.DB.prepare('SELECT id FROM pos_roles WHERE id=? AND active=1').bind(role).first();if(!found)throw Error('INVALID_ROLE');
-   const salt=b64(crypto.getRandomValues(new Uint8Array(16))),hash=await derive(pass,salt),id=crypto.randomUUID(),time=now();
+   const salt=newSalt(),hash=await hashPassword(env,pass,salt),id=crypto.randomUUID(),time=now();
    await env.DB.prepare('INSERT INTO pos_staff_users(id,username,display_name,role_id,password_salt,password_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)')
     .bind(id,username,name,role,salt,hash,time,time).run();return ok({account:{id,username,name,role,active:true}},201);
   }
@@ -168,7 +164,7 @@ export async function handleOps(req,env,actor,deps){
    if(actor.role!=='OWNER')return deny();if(!uuid(accountPath[1]))throw Error('INVALID_STAFF');const b=await deps.body(req),name=clean(b.name,80),role=clean(b.role,32).toUpperCase();
    if(!name||role==='OWNER'||typeof b.active!=='boolean'||(b.password!==undefined&&(typeof b.password!=='string'||b.password.length<10||b.password.length>128)))throw Error('INVALID_STAFF');
    const found=await env.DB.prepare('SELECT id FROM pos_roles WHERE id=? AND active=1').bind(role).first();if(!found)throw Error('INVALID_ROLE');
-   const salt=b.password?b64(crypto.getRandomValues(new Uint8Array(16))):null,hash=b.password?await derive(b.password,salt):null;
+   const salt=b.password?newSalt():null,hash=b.password?await hashPassword(env,b.password,salt):null;
    const r=await env.DB.prepare('UPDATE pos_staff_users SET display_name=?,role_id=?,active=?,password_salt=COALESCE(?,password_salt),password_hash=COALESCE(?,password_hash),updated_at=? WHERE id=?')
     .bind(name,role,b.active?1:0,salt,hash,now(),accountPath[1]).run();
    if(r.meta.changes)await env.DB.prepare('DELETE FROM pos_staff_sessions WHERE staff_id=?').bind(accountPath[1]).run();

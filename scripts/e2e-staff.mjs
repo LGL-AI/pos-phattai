@@ -112,7 +112,7 @@ try{
  if(!await hp.locator('#member-phone').isVisible())await hp.click('.member-voucher summary');
  await hp.fill('#member-phone','0909 555');globalThis.__answer='Khách E2E';
  await hp.click('[data-action=register]');
- await hp.waitForFunction(()=>/10 hoặc 11 chữ số/.test(document.querySelector('#app').innerText));
+ await hp.waitForFunction(()=>/12–13 ký tự/.test(document.querySelector('#app').innerText));
  check(true,'a phone number that is too short is refused with a clear message');
  await hp.fill('#member-phone','0909555777');await hp.click('[data-action=register]');
  await hp.waitForFunction(()=>/Khách E2E · 0909555777/.test(document.querySelector('#app').innerText));
@@ -175,6 +175,33 @@ try{
  await cp.waitForFunction(()=>/Đơn gọi món đã được ghi nhận/.test(document.body.innerText));
  try{await hp.waitForFunction(()=>/T08/.test(document.querySelector('#app').innerText),null,{timeout:10000});check(true,`QR order visible on the handheld after ${Date.now()-sent} ms`);check((await hp.evaluate(()=>document.querySelector('#app').innerText)).includes('T08'),'member QR order is listed')}
  catch{check(false,'QR order visible on the handheld within 10 s')}
+
+ // 3b. The case reported from the shop: order by QR first, then sign up on the Member tab with an
+ //     international number, sign out, sign in with the phone as first password, change the password.
+ const body=async re=>{try{await cp.waitForFunction(r=>new RegExp(r).test(document.body.innerText),re.source,{timeout:10000});return true}catch{return false}};
+ await cp.click('[data-view=member]');
+ if(await cp.locator('[data-action=logout]').count())await cp.click('[data-action=logout]');
+ await cp.click('[data-auth-mode=register]');
+ await cp.fill('#member-name','Chen QR');await cp.fill('#member-phone','+886 912 345 678');await cp.click('#member-form button[type=submit]');
+ check(await body(/Chen QR[\s\S]*\+886912345678|\+886912345678[\s\S]*Chen QR/),'after ordering, a customer signs up on the Member tab with a +886 number');
+ await cp.click('[data-action=logout]');await cp.click('[data-auth-mode=login]');
+ await cp.fill('#member-phone','+886912345678');await cp.fill('#member-password','+886 912 345 678');await cp.click('#member-form button[type=submit]');
+ check(await body(/Chen QR/),'signs back in with the phone number as the first password');
+ await cp.fill('[name=currentPassword]','+886912345678');await cp.fill('[name=newPassword]','Chen1234');await cp.click('#change-password-form button[type=submit]');
+ await cp.waitForSelector('#member-form',{timeout:10000}).catch(()=>{});
+ if(await cp.locator('[data-auth-mode=login]').count())await cp.click('[data-auth-mode=login]');
+ await cp.fill('#member-phone','+886912345678');await cp.fill('#member-password','Chen1234');await cp.click('#member-form button[type=submit]');
+ check(await body(/Chen QR/),'changes the password and signs in with the new one');
+ // Staff: a +84 number registered at the handheld is stored as 0..., and member management lists both.
+ await hp.click('[data-screen="new"]');await hp.waitForSelector('[data-add]');
+ if(!await hp.locator('#member-phone').isVisible())await hp.click('.member-voucher summary');
+ globalThis.__answer='Khách +84';await hp.fill('#member-phone','+84 977 123 456');await hp.click('[data-action=register]');
+ try{await hp.waitForFunction(()=>/Khách \+84 · 0977123456/.test(document.querySelector('#app').innerText));check(true,'staff registers a +84 number; it is stored as 0977123456')}catch{check(false,'staff registers a +84 number; it is stored as 0977123456')}
+ await hp.click('[data-action=clear-member]');globalThis.__answer=undefined;
+ await hp.click('[data-screen="owner"]');await hp.locator('[data-screen="customers"]').first().click();
+ try{await hp.waitForFunction(()=>{const t=document.querySelector('#app').innerText;return /Chen QR/.test(t)&&/\+886912345678/.test(t)&&/0977123456/.test(t)})}catch{}
+ const list=await hp.evaluate(()=>document.querySelector('#app').innerText);
+ check(/Chen QR/.test(list)&&/\+886912345678/.test(list)&&/0977123456/.test(list)&&/Khách E2E/.test(list),'member management lists the QR, +886 and +84 members');
 
  // 4. Network drop: the handheld must say it is offline, then recover by itself
  await hand.context.setOffline(true);

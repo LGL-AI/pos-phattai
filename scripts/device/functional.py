@@ -94,7 +94,7 @@ def target_point(n, area):
     return (x1 + x2) // 2, (lo + hi) // 2
 
 
-def tap(d, pattern, timeout=60, scroll=True, page=True, by_id=False, accept=True):
+def tap(d, pattern, timeout=60, scroll=True, page=True, by_id=False, accept=True, click=True):
     """Tap the first element whose text (or HTML id) matches. WebView only exposes what is on screen,
     so look at the current screen, then from the top of the page downwards. With page=True only the
     part not covered by the sticky header or the bottom navigation counts."""
@@ -110,6 +110,8 @@ def tap(d, pattern, timeout=60, scroll=True, page=True, by_id=False, accept=True
             area = content_area(all_nodes, size) if page else (0, size[1])
             hits = [n for n in all_nodes if (rx.search(n['id']) if by_id else (n['text'] and rx.search(n['text'])))]
             points = [p for p in (target_point(n, area) for n in hits if n['box'][2] <= size[0] + 2) if p]
+            if points and not click:
+                return True
             if points:
                 d.click(*points[0])
                 time.sleep(0.9)
@@ -367,7 +369,7 @@ def main():
     nav(d, r'Quản trị chủ tiệm')
     check(tap(d, r'Báo cáo ngày & ca'), 'opens Reports', d)
     check(tap(d, r'Cả ngày'), 'taps the whole-day shift', d)
-    check(wait_text(d, r'Tiền mặt', 20), 'report shows cash takings', d)
+    check(tap(d, r'Tiền mặt', click=False), 'report shows cash takings', d)
     shot(d, 'report')
     tap(d, r'In SUNMI')
     time.sleep(2)

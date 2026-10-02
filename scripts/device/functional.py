@@ -44,9 +44,10 @@ def nodes(d):
 
 
 def screen(all_nodes):
-    """Screen size in the same coordinates as the hierarchy (window_size() can disagree after wm size)."""
-    w = max([n['box'][2] for n in all_nodes if n['box'][0] == 0 and n['box'][1] == 0] or [720])
-    h = max([n['box'][3] for n in all_nodes if n['box'][0] == 0 and n['box'][1] == 0] or [1440])
+    """Extent of what is on screen, in the hierarchy's own coordinates (a dialog window may be all
+    the hierarchy holds, so use every node, not only full-screen roots)."""
+    w = max([n['box'][2] for n in all_nodes] or [720])
+    h = max([n['box'][3] for n in all_nodes] or [1440])
     return w, h
 
 

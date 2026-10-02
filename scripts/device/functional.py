@@ -61,44 +61,96 @@ def find(d, pattern, all_nodes=None):
     return [n for n in (all_nodes if all_nodes is not None else nodes(d)) if n['text'] and rx.search(n['text'])]
 
 
-def tap(d, pattern, timeout=40, scroll=True, label=None):
-    """Tap the first on-screen element whose text matches. WebView only exposes what is on screen,
-    so look at the current screen, then from the top of the page downwards."""
+def content_area(all_nodes, size):
+    """Part of the screen where page content can really be tapped: below the sticky header
+    (it ends under the info strip) and above the fixed bottom navigation or the keyboard."""
+    top, bottom = 0, size[1]
+    strip_nodes = [n for n in all_nodes if n['id'] == 'diag']
+    if strip_nodes:
+        top = max(n['box'][3] for n in strip_nodes) + 26
+    navs = [n for n in all_nodes if n['text'] == 'Điều hướng POS']
+    if navs:
+        bottom = min(n['box'][1] for n in navs)
+    views = [n for n in all_nodes if n['cls'] == 'android.webkit.WebView']
+    if views:
+        bottom = min(bottom, views[0]['box'][3])
+    return top, bottom
+
+
+def target_point(n, area):
+    x1, y1, x2, y2 = n['box']
+    lo, hi = max(y1, area[0]), min(y2, area[1])
+    if hi - lo < 24 or x2 <= x1:
+        return None
+    return (x1 + x2) // 2, (lo + hi) // 2
+
+
+def tap(d, pattern, timeout=40, scroll=True, page=True, by_id=False):
+    """Tap the first element whose text (or HTML id) matches. WebView only exposes what is on screen,
+    so look at the current screen, then from the top of the page downwards. With page=True only the
+    part not covered by the sticky header or the bottom navigation counts."""
     deadline = time.time() + timeout
-    plan = ['here'] + (['top'] * 6 + ['down'] * 14 if scroll else [])
+    plan = ['here'] + (['top'] * 6 + ['down'] * 16 if scroll else [])
     step = 0
     last = None
+    rx = re.compile(pattern)
     while time.time() < deadline:
         try:
             all_nodes = nodes(d)
             size = screen(all_nodes)
-            on = [n for n in find(d, pattern, all_nodes) if visible(n, size)]
-            if on:
-                x1, y1, x2, y2 = on[0]['box']
-                d.click((x1 + x2) // 2, (y1 + y2) // 2)
-                time.sleep(0.8)
+            area = content_area(all_nodes, size) if page else (0, size[1])
+            hits = [n for n in all_nodes if (rx.search(n['id']) if by_id else (n['text'] and rx.search(n['text'])))]
+            points = [p for p in (target_point(n, area) for n in hits if n['box'][2] <= size[0] + 2) if p]
+            if points:
+                d.click(*points[0])
+                time.sleep(0.9)
                 return True
+            if not scroll:
+                time.sleep(0.6)
+                continue
             if step >= len(plan):
-                if not scroll:
-                    time.sleep(0.6)
-                    continue
                 step = 1
             move = plan[step]
             step += 1
             w, h = size
             texts_now = tuple(n['text'] for n in all_nodes if n['text'])[:40]
-            if move == 'top':
-                if texts_now == last:
-                    step = plan.index('down')  # already at the top
+            mid_lo, mid_hi = area[0] + (area[1] - area[0]) // 5, area[1] - (area[1] - area[0]) // 5
+            if hits and move != 'here':
+                # Partly hidden: nudge it into the free area.
+                y = hits[0]['box'][1]
+                if y < area[0]:
+                    d.swipe(w // 2, mid_lo, w // 2, min(mid_hi, mid_lo + (area[0] - y) + 80), 0.3)
                 else:
-                    d.swipe(w // 2, int(h * 0.35), w // 2, int(h * 0.80), 0.2)
+                    d.swipe(w // 2, mid_hi, w // 2, max(mid_lo, mid_hi - (hits[0]['box'][3] - area[1]) - 80), 0.3)
+            elif move == 'top':
+                if texts_now == last:
+                    step = plan.index('down')
+                else:
+                    d.swipe(w // 2, mid_lo, w // 2, mid_hi, 0.2)
             elif move == 'down':
-                d.swipe(w // 2, int(h * 0.75), w // 2, int(h * 0.40), 0.25)
+                d.swipe(w // 2, mid_hi, w // 2, mid_lo, 0.3)
             last = texts_now
         except Exception as e:
             print('  (tap retry:', e, ')')
         time.sleep(0.6)
     return False
+
+
+def fill(d, element_id, value, timeout=40):
+    """Type into the input with this HTML id (WebView exposes HTML ids as resource-id)."""
+    if not tap(d, '^' + re.escape(element_id) + '$', by_id=True, timeout=timeout):
+        return False
+    time.sleep(0.4)
+    try:
+        field = d(focused=True)
+        if field.exists:
+            field.set_text(value)
+            time.sleep(0.4)
+            return True
+    except Exception as e:
+        print('  (set_text failed:', e, ')')
+    shell('input', 'text', value)
+    return True
 
 
 def nav(d, pattern):
@@ -148,19 +200,23 @@ def type_into(d, node, value):
     time.sleep(0.4)
 
 
-def dialog_answer(d, value=None, button=r'^(OK|Xác nhận.*)$', timeout=15):
-    """Native AlertDialog used for window.prompt / window.confirm."""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if value is not None:
-            field = d(className='android.widget.EditText', packageName=APP)
-            if field.exists and not find(d, 'Tài khoản POS'):
-                field.set_text(value)
-                time.sleep(0.3)
-        if tap(d, button, timeout=2, scroll=False):
-            return True
-        time.sleep(0.5)
-    return False
+def dialog_answer(d, value=None, timeout=15):
+    """Native AlertDialog that MainActivity shows for window.prompt / window.confirm."""
+    ok = d(resourceId='android:id/button1')
+    if not ok.wait(timeout=timeout):
+        return False
+    if value is not None:
+        field = d(resourceId='android:id/custom').child(className='android.widget.EditText')
+        if not field.exists:
+            field = d(resourceId='android:id/customPanel').child(className='android.widget.EditText')
+        if not field.exists:
+            return False
+        field.set_text(value)
+        time.sleep(0.3)
+    shot(d, 'dialog')
+    ok.click()
+    time.sleep(1)
+    return True
 
 
 def strip(d, timeout=30):
@@ -226,7 +282,7 @@ def main():
         for button in (r'^(UPDATE|Update|INSTALL|Install|CẬP NHẬT|Cập nhật|CÀI ĐẶT|Cài đặt)$',):
             if find(d, button) and any(n['pkg'].startswith('com.android') or 'packageinstaller' in n['pkg'] for n in find(d, button)):
                 shot(d, 'android installer')
-                tap(d, button, timeout=3, scroll=False)
+                tap(d, button, timeout=3, scroll=False, page=False)
                 time.sleep(6)
         if lib.version_code() == 2000002:
             installed = True
@@ -234,7 +290,7 @@ def main():
         time.sleep(2)
     check(installed, f'Android installed the update: version {lib.version_name()} ({lib.version_code()})', d)
     for button in (r'^(OPEN|Open|MỞ|Mở)$', r'^(DONE|Done|XONG|Xong)$'):
-        tap(d, button, timeout=3, scroll=False)
+        tap(d, button, timeout=3, scroll=False, page=False)
     d.app_start(APP, wait=True)
     s = strip(d, 60)
     shot(d, 'after update')
@@ -245,7 +301,7 @@ def main():
     # 3. Sale: order -> kitchen -> add items -> cash payment.
     check(nav(d, r'^Chọn món'), 'opens New order', d)
     check(tap(d, r'Set cơm chân giò'), 'taps a dish', d)
-    check(tap(d, r'Thêm vào giỏ'), 'adds it to the cart', d)
+    check(tap(d, r'Thêm vào giỏ', page=False), 'adds it to the cart', d)
     t0 = time.time()
     check(tap(d, r'^Chốt đơn'), 'submits the order', d)
     code = wait_text(d, r'\d{8}-\d{4}-\d{6}', 30)
@@ -253,7 +309,7 @@ def main():
     check(code, f'order created ({code}) in {time.time() - t0:.1f}s', d)
     check(tap(d, r'Thêm món vào đơn'), 'opens Add items', d)
     check(tap(d, r'Canh thịt lát'), 'picks a soup', d)
-    tap(d, r'Thêm vào giỏ')
+    tap(d, r'Thêm vào giỏ', page=False)
     check(tap(d, r'Lưu thêm món'), 'saves the added items', d)
     check(wait_text(d, r'Canh thịt lát', 20), 'added item is on the order', d)
     check(tap(d, r'Xác nhận đúng đơn'), 'starts payment', d)
@@ -265,12 +321,12 @@ def main():
 
     # 4. Member registration with the native prompt dialog.
     nav(d, r'^Chọn món')
-    tap(d, r'Hội viên & voucher')
-    phone = [n for n in edits(d) if 'member-phone' in n['id']] or edits(d)
-    check(phone, 'member phone field is reachable', d)
-    if phone:
-        type_into(d, phone[0], '0909555777')
-    check(tap(d, r'^Đăng ký(\s*/.*)?$', scroll=False), 'taps Register member', d)
+    typed = fill(d, 'member-phone', '0909555777', timeout=12)
+    if not typed:  # the member panel is folded away until opened
+        tap(d, r'Hội viên & voucher')
+        typed = fill(d, 'member-phone', '0909555777')
+    check(typed, 'types the member phone', d)
+    check(tap(d, r'^Đăng ký(\s*/.*)?$'), 'taps Register member', d)
     check(dialog_answer(d, 'Khach May Ao'), 'answers the member name prompt', d)
     check(wait_text(d, r'Khach May Ao · 0909555777', 20), 'member registered and attached to the order', d)
     shot(d, 'member')

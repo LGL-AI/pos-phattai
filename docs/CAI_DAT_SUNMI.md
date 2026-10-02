@@ -67,6 +67,24 @@ Làm trên máy thật, đánh dấu từng mục:
 
 ## 5. Khi có sự cố
 
+**Đọc dòng thông số ở đầu màn hình.** App SUNMI, POS quầy và trang QR của khách luôn có một dòng chữ nhỏ ghi máy đang chạy bản nào. Khi khách báo lỗi, bảo họ chụp màn hình gửi cho mình, nhìn dòng này trước:
+
+| Mục | Ý nghĩa |
+|---|---|
+| `APK 1.7.18 (1018)` | Bản app cài trên SUNMI (chỉ có trên SUNMI). `APK cũ` = app chưa có bộ cập nhật; `Web quầy` = đang mở bằng trình duyệt. |
+| `Server 2.11.2-…` | Bản Worker (máy chủ) đang trả lời. Khác với bản mình vừa đưa lên nghĩa là chưa deploy xong hoặc máy đang nói chuyện với nơi khác. |
+| `Menu r47` | Số lần thực đơn đã đổi. Hai máy khác số này = một máy chưa cập nhật menu. |
+| `RT ✓` | Kênh realtime. `…` đang nối, `✗` mất kết nối (máy chuyển sang hỏi định kỳ nên chậm hơn), `—` chưa đăng nhập. |
+| `sync 12:43:44` | Lần gần nhất máy nhận được trả lời hợp lệ từ máy chủ (giờ Việt Nam). Số này đứng yên lâu = máy bị đơ hoặc mất mạng. |
+| `giờ 12:43` | Giờ của chính máy (chỉ có trên SUNMI và quầy). |
+| `⚠ máy lệch +5p` | Đồng hồ máy lệch hơn 1 phút so với máy chủ. Chỉnh lại giờ máy, vì ca và ngày bán hàng tính theo giờ. |
+| `⬆ có bản 1.7.19` | Có app mới. Chủ tiệm vào Cập nhật ứng dụng để cài. |
+| `⚠ sai khóa ký …` | APK trên máy không phải do kênh chính thức ký; cài lại từ link `/app`. |
+
+Trang QR của khách chỉ có `Server`, `Menu`, `Mạng ✓/✗`, `bàn` và `sync` (một dòng mỏng trên cùng).
+
+Dòng chuyển sang màu cam (trên SUNMI/quầy) hoặc nền đỏ (trang khách) khi có gì bất thường: mất realtime, mất mạng, đồng hồ lệch, có bản mới.
+
 | Hiện tượng | Kiểm tra |
 |---|---|
 | "Chưa kết nối" kéo dài | Wi-Fi của máy. Sau đó mở `https://pos-phattai.lgl247-ai.workers.dev/api/health` trên trình duyệt; phải thấy `"ok":true`. |

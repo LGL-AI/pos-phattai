@@ -16,6 +16,7 @@ const persist=mkdtempSync(join(tmpdir(),'phattai-e2e-'));
 const env={...process.env,WRANGLER_SEND_METRICS:'false',CI:'1'};
 const MAIN=readFileSync(resolve(root,'android/app/src/main/java/vn/lotusai/pos/phattaiapp/MainActivity.java'),'utf8');
 const filterSource=MAIN.match(/!path\.matches\("((?:[^"\\]|\\.)*)"\)/)[1].replaceAll('\\\\','\\');
+const WORKER_VERSION=JSON.parse(readFileSync(resolve(root,'package.json'),'utf8')).version;
 const failures=[];let server,browser;
 // In GitHub Actions every failure also becomes an annotation, readable without signing in.
 const annotate=label=>{if(process.env.GITHUB_ACTIONS)console.log('::error::E2E: '+String(label).replace(/\r?\n/g,' | ').replace(/\x1b\[[0-9;]*m/g,'').slice(0,900))};
@@ -48,7 +49,7 @@ async function device({native}){
      .catch(e=>reply(0,JSON.stringify({ok:false,code:'NETWORK_ERROR',message:'Không kết nối được Worker: '+e.message})));
    },
    getAuthState:()=>JSON.stringify(auth),getCloudBase:()=>location.origin,logout(){auth.user=null},
-   getAppUpdateState:()=>'{"status":"IDLE"}',checkAppUpdate(){},installAppUpdate(){},getKitchenJobStatus:()=>'QUEUED',
+   getAppUpdateState:()=>'{"status":"IDLE","version":"1.7.18","versionCode":1018,"signerSha256":"e66d9870204bcfef827e3b3ef2d601fb83160a4927619e1354411bc6b7f484b4","available":false,"busy":false}',checkAppUpdate(){},installAppUpdate(){},getKitchenJobStatus:()=>'QUEUED',
    printKitchen(){},retryKitchen(){},getReceiptState:()=>'NEW',printReceipt:()=>'OK',reprintReceipt(){},printDailyReport(id,raw){(window.__printed=window.__printed||[]).push({id,text:JSON.parse(raw).text})},
    getPrinterStatus:()=>'{"state":1}',checkPrinter(){},reconnectPrinter(){},openKitchenSettings(){},openKitchenJobs(){},
    openDiagnostics(){},openCloudConnectivity(){},savePng(){},getAppInfo:()=>'{"native":true}'
@@ -80,6 +81,12 @@ try{
  await hp.waitForTimeout(4000);await hp.evaluate(()=>{window.__calls=[]});await hp.waitForTimeout(20000);
  const idle=await hp.evaluate(()=>window.__calls);
  check(idle.length<=6,`resting handheld makes ${idle.length} API calls in 20 s (limit 6)${idle.length>6?': '+idle.join(', '):''}`);
+ // Always-visible build/health strip: what this device runs and whether it is in sync.
+ const strip=await hp.evaluate(()=>{window.scrollTo(0,400);const el=document.querySelector('#diag'),r=el.getBoundingClientRect();return {text:el.textContent,top:r.top,height:r.height,warn:el.classList.contains('warn')}});
+ check(strip.text.includes('APK 1.7.18 (1018)'),'handheld strip shows the APK version: '+strip.text);
+ check(strip.text.includes('Server '+WORKER_VERSION)&&/Menu r\d+/.test(strip.text)&&strip.text.includes('RT ✓')&&/sync \d\d:\d\d:\d\d/.test(strip.text),'handheld strip shows Server version, menu revision, realtime and last sync');
+ check(strip.top>=0&&strip.top<80&&strip.height<=30&&!strip.warn,`strip stays visible after scrolling and is not highlighted (top=${Math.round(strip.top)}, height=${Math.round(strip.height)})`);
+ await hp.evaluate(()=>window.scrollTo(0,0));
  const menuTop=await hp.evaluate(()=>document.querySelector('[data-add]').getBoundingClientRect().top);
  check(menuTop<500,`menu starts within the first screen on 360x720 (top=${Math.round(menuTop)}px)`);
  await hp.selectOption('#table','T05');
@@ -143,7 +150,13 @@ try{
  // 3. Customer QR order reaches the handheld through realtime sync
  await hp.click('[data-screen="orders"]');await hp.waitForTimeout(1000);
  const cust=await device({native:false}),cp=cust.page;
- await cp.goto(BASE+'/qr/');await cp.click('[data-pick=T08]');await cp.click('[data-action=confirm-table]');
+ await cp.goto(BASE+'/qr/');
+ try{await cp.waitForFunction(()=>/Server \d/.test(document.querySelector('#build-tag')?.textContent||''))}catch(e){throw Error('customer strip never showed the server version; tag='+await cp.evaluate(()=>document.querySelector('#build-tag')?.outerHTML)+' page errors='+JSON.stringify(cust.errors))}
+ await cp.click('[data-pick=T08]');await cp.click('[data-action=confirm-table]');
+ const tag=await cp.evaluate(()=>{const h=document.querySelector('.head')?.getBoundingClientRect(),headTop=h?h.top:null;window.scrollTo(0,300);const el=document.querySelector('#build-tag'),r=el.getBoundingClientRect();return {text:el.textContent,top:r.top,headTop,warn:el.classList.contains('warn')}});
+ check(tag.text.includes('Server '+WORKER_VERSION)&&/Menu r\d+/.test(tag.text)&&tag.text.includes('Mạng ✓'),'customer strip shows Server version, menu revision and network: '+tag.text);
+ check(tag.top>=0&&tag.top<2&&(tag.headTop===null||tag.headTop>=15)&&!tag.warn,`customer strip stays at the top and does not cover the header (top=${tag.top}, headTop=${tag.headTop}, warn=${tag.warn})`);
+ await cp.evaluate(()=>window.scrollTo(0,0));
  await cp.click('[data-add="110"]');await cp.click('[data-action=modal-save]');await cp.click('[data-view=cart]');
  // the customer signs up as a member from the cart, on their own phone, before sending the order
  await cp.click('[data-action=member-from-cart]');await cp.click('[data-auth-mode=register]');

@@ -229,12 +229,32 @@ async function apiRequest(method,path,data){let status,text;
  if(native?.apiRequest){const requestId=id();const response=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{pending.delete(requestId);reject(Error('Hết thời gian chờ Worker; tải lại đơn trước khi thử tiếp'))},20000);pending.set(requestId,{resolve,reject,timer,method});native.apiRequest(requestId,method,path,data===undefined?'':JSON.stringify(data),st.token||'')});status=response.status;text=response.text}
  else{let r;try{r=await fetch(path,{method,headers:{...(data===undefined?{}:{'Content-Type':'application/json'}),...(st.token?{'Authorization':'Bearer '+st.token}:{})},body:data===undefined?undefined:JSON.stringify(data),cache:'no-store',signal:AbortSignal.timeout(12000)})}catch(e){st.online=false;connection();throw e}status=r.status;text=await r.text()}
  let payload;try{payload=JSON.parse(text)}catch{const code=status||0;const error=Error(`Worker trả về HTTP ${code||'không xác định'} thay vì JSON tại ${path} / Worker 在 ${path} 返回 HTTP ${code||'未知'}，不是 JSON`);error.status=status;throw error}
+ if(status>=200&&status<300&&payload.ok){st.lastOkAt=Date.now();if(payload.workerVersion){st.workerVersion=String(payload.workerVersion);if(payload.revision!==undefined)st.menuRev=String(payload.revision);if(Number.isFinite(payload.serverTime))st.skew=st.lastOkAt-payload.serverTime}}
  st.online=status>0;connection();if(status===401&&path!=='/api/staff/login'){st.token=null;st.staff=null;store.del('staff-session');native?.logout?.();closeRealtime();render()}
  if(status<200||status>=300||!payload.ok){const vi=payload.message||payload.code||'Lỗi máy chủ '+status,shown=payload.messageCn&&payload.message?vi+' / '+payload.messageCn:bilingualText(vi);const err=Error(shown);err.status=status;err.code=payload.code;throw err}
  if(!['GET','HEAD'].includes(method)&&(/^\/api\/staff\/(products|store|inventory)/.test(path)))st.catalogFetchedAt=0;
  return payload;
 }
-function connection(){$('#connection').textContent=st.online?'D1 trực tuyến':'Chưa kết nối';$('#connection').classList.toggle('offline',!st.online)}
+function connection(){$('#connection').textContent=st.online?'D1 trực tuyến':'Chưa kết nối';$('#connection').classList.toggle('offline',!st.online);diag()}
+// Always-visible build/health strip (#diag): what is running on this device, and is it in sync.
+const clockSec=new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}),clockMin=new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+function diag(){
+ const el=$('#diag');if(!el)return;const a=st.appInfo,now=Date.now(),parts=[],skew=Math.round((st.skew||0)/1000),late=Math.abs(skew)>=60;
+ parts.push(a?.version?`APK ${a.version}${a.versionCode?` (${a.versionCode})`:''}`:native?'APK cũ':'Web quầy');
+  parts.push('Server '+(st.workerVersion||'—'));
+ parts.push('Menu '+(st.menuRev?'r'+st.menuRev:'—'));
+ parts.push('RT '+(!st.token?'—':({ONLINE:'✓',CONNECTING:'…'}[st.realtimeState]||'✗')));
+ parts.push('sync '+(st.lastOkAt?clockSec.format(st.lastOkAt):'—'));
+ parts.push('giờ '+clockMin.format(now));
+ if(late)parts.push(`⚠ máy lệch ${skew>0?'+':'-'}${Math.abs(skew)>=120?Math.round(Math.abs(skew)/60)+'p':Math.abs(skew)+'s'}`);
+ if(a?.available===true&&a.releaseVersion)parts.push('⬆ có bản '+a.releaseVersion);
+ if(a?.status==='UNSUPPORTED_IDENTITY')parts.push('⚠ sai khóa ký '+String(a.signerSha256||'').slice(0,6));
+ const text=parts.join(' · ');if(el.textContent!==text)el.textContent=text;
+ el.classList.toggle('warn',late||a?.available===true||a?.status==='UNSUPPORTED_IDENTITY'||(!!st.token&&(st.realtimeState!=='ONLINE'||!st.online||(st.lastOkAt&&now-st.lastOkAt>150000))));
+}
+try{st.appInfo=JSON.parse(native?.getAppUpdateState?.()||'null')}catch{}
+window.addEventListener('lotusAppUpdate',event=>{if(event.detail&&typeof event.detail==='object'){st.appInfo=event.detail;diag()}});
+
 const can=permission=>!!st.staff?.permissions?.includes(permission);
 const isOwner=()=>st.staff?.role==='OWNER';
 async function refreshOps(){if(st.screen==='customers'&&can('ORDER_VIEW')){const r=await api('GET','/api/staff/customers?q='+encodeURIComponent(st.customerQuery));st.customers=r.customers;st.customerKpis=r.kpis}if(st.screen==='inventory'&&can('INVENTORY_VIEW'))st.inventory=await api('GET','/api/staff/inventory');if(st.screen==='team'&&can('STAFF_MANAGE')){const [r,a]=await Promise.all([api('GET','/api/staff/roles'),api('GET','/api/staff/accounts')]);st.roles=r.roles;st.accounts=a.accounts;st.availablePermissions=r.availablePermissions}if(st.screen==='products'&&can('CATALOG_MANAGE')){const r=await api('GET','/api/staff/products');st.products=r.products;st.recipes=r.recipes;st.ingredients=r.ingredients}if(st.screen==='vouchers'&&can('VOUCHER_MANAGE'))st.vouchers=(await api('GET','/api/staff/vouchers')).vouchers;if(st.screen==='shifts'){const from=counter?weekStart(st.shiftFrom):st.shiftFrom;const [r,a,c]=await Promise.all([api('GET','/api/staff/schedules?from='+from),api('GET','/api/staff/attendance?from='+from),can('SHIFT_MANAGE')?api('GET','/api/staff/cash-shifts'):Promise.resolve(null)]);st.schedules=r.schedules;st.scheduleStaff=r.staff;st.attendance=a.attendance;st.cashShift=c;if(counter&&window.LotusShiftUI){try{st.shiftOps=await api('GET','/api/staff/shift-ops?from='+encodeURIComponent(st.opsFrom)+'&to='+encodeURIComponent(st.opsTo))}catch(e){st.shiftOps=null;st.error='Dữ liệu quản lý ca chưa sẵn sàng: '+e.message}}}if(st.screen==='dashboard'&&isOwner())await loadReportShifts(st.reportDay);if(st.screen==='store'&&isOwner())st.storeConfig=(await api('GET','/api/staff/store')).store;if(counter&&st.screen==='license'&&st.staff?.role==='OWNER')st.licenseRecord=(await api('GET','/api/staff/license')).license;if(st.selected&&can('REFUND_VIEW'))st.refunds=(await api('GET','/api/staff/refunds?orderId='+encodeURIComponent(st.selected))).refunds}
@@ -717,7 +737,7 @@ function connectRealtime(){
   ws.onclose=()=>{if(realtime.ws!==ws)return;if(realtime.ping){clearInterval(realtime.ping);realtime.ping=null}realtime.ws=null;st.realtimeState='OFFLINE';scheduler.live.next=0;scheduler.service.next=0;scheduleRealtime()};
  }catch{st.realtimeState='OFFLINE';scheduleRealtime()}
 }
-if(typeof window.setInterval==='function')window.setInterval(schedulerTick,1000);
+if(typeof window.setInterval==='function')window.setInterval(schedulerTick,1000);if(typeof window.setInterval==='function')window.setInterval(()=>{if(!document.hidden)diag()},15000);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)closeRealtime();else{for(const task of Object.values(scheduler))task.next=0;schedulerTick();connectRealtime()}});
 start().then(()=>{if(st.token){connectRealtime();schedulerTick()}});
 })();

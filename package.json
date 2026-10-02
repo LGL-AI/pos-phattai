@@ -1,6 +1,6 @@
 {
   "name": "lotus-pos-phattai-cloud-d1",
-  "version": "2.11.0-phattai.1",
+  "version": "2.11.1-phattai.1",
   "private": true,
   "type": "module",
   "description": "Lotus POS online riêng cho TIỆM SÍU LẬP PHÁT TÀI: Worker + D1 + SUNMI handheld source",

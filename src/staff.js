@@ -51,6 +51,9 @@ export async function handleStaff(req,env,deps){
    if(typeof env.POS_STAFF_PASSWORD!=='string'||env.POS_STAFF_PASSWORD.length<6)return error(503,'STAFF_NOT_CONFIGURED','Cần cấu hình POS_STAFF_PASSWORD trong Cloudflare');
    if(typeof pw!=='string'||pw.length<6||pw.length>128)return error(401,'LOGIN_FAILED','Tài khoản hoặc mật khẩu POS không đúng');
    const identity=await loginActor(env,credentials.username,pw,deps);if(!identity)return error(401,'LOGIN_FAILED','Tài khoản hoặc mật khẩu POS không đúng');
+   // Only wrong passwords count against the limit; signing in on several shop devices must not lock the shop out.
+   await deps.rateRefund(env,req,'staff-login');
+   await env.DB.prepare('DELETE FROM pos_staff_sessions WHERE expires_at<?').bind(Date.now()).run();
    const token=btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
    await env.DB.prepare('INSERT INTO pos_staff_sessions(token_hash,expires_at,staff_id) VALUES(?,?,?)').bind(await deps.sha(token),Date.now()+12*3600000,identity.staffId).run();
    return result({token,expiresAt:Date.now()+12*3600000,staff:identity.actor});
@@ -133,8 +136,8 @@ export async function handleStaff(req,env,deps){
    return result({orders:rows.map(deps.hydrate)});
   }
   if(path==='/api/staff/members'&&method==='GET'){const phone=new URL(req.url).searchParams.get('phone')||'';if(!/^0\d{9,10}$/.test(phone))return error(400,'INVALID_PHONE','Nhập số điện thoại 10 hoặc 11 chữ số');const member=await env.DB.prepare('SELECT id,display_name,phone,points,spend,orders,last_visit,phone_verified,tier_override FROM members WHERE phone=?').bind(phone).first();return result({member:member?{id:member.id,name:member.display_name,phone:member.phone,points:member.points,tier:member.tier_override||tierFor(member.points),spend:member.spend,orders:member.orders,lastVisit:member.last_visit,phoneVerified:!!member.phone_verified}:null})}
-  if(path==='/api/staff/members/register'&&method==='POST')return deps.register(env,req);
-  if(path==='/api/staff/members/login'&&method==='POST')return deps.login(env,req);
+  if(path==='/api/staff/members/register'&&method==='POST')return deps.register(env,req,{scope:'staff-member-register',limit:60});
+  if(path==='/api/staff/members/login'&&method==='POST')return deps.login(env,req,{scope:'staff-member-login',limit:120});
   if(path==='/api/staff/voucher'&&method==='POST'){const b=await deps.body(req),v=await deps.calculate(b,env),member=await memberById(env,b.memberId);if(b.memberId&&!member)return error(400,'INVALID_MEMBER','Không thấy hội viên');const offer=await resolveStaffVoucher(env,deps,b.voucherCode,v.subtotal,member);return result({...deps.priceTotals(v.subtotal,offer?.discount||0,await deps.getStore(env)),voucher:offer?.code||null})}
   if(path==='/api/staff/orders'&&method==='POST'){
    if(env.ORDERING_ENABLED!=='true')return error(503,'ORDERING_DISABLED','Cửa hàng chưa bật nhận đơn');

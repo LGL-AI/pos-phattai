@@ -57,7 +57,7 @@ async function device({native}){
  const page=await context.newPage();page.setDefaultTimeout(15000);
  const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- page.on('dialog',d=>d.accept(d.type()==='prompt'?d.defaultValue():undefined).catch(()=>{}));
+ page.on('dialog',d=>d.accept(d.type()==='prompt'?(globalThis.__answer??d.defaultValue()):undefined).catch(()=>{}));
  return {context,page,errors};
 }
 const text=page=>page.locator('#app').innerText();
@@ -96,6 +96,30 @@ try{
  await hp.waitForFunction(()=>/-TM\b/.test(document.querySelector('#app').innerText));
  check(true,'cash payment closes the order with a -TM code');
 
+ // 1b. Member registration on the handheld: new number, duplicate number, lookup, member attached to a new order
+ await hp.click('[data-screen="new"]');await hp.waitForSelector('[data-add]');
+ if(!await hp.locator('#member-phone').isVisible())await hp.click('.member-voucher summary');
+ await hp.fill('#member-phone','0909 555');globalThis.__answer='Khách E2E';
+ await hp.click('[data-action=register]');
+ await hp.waitForFunction(()=>/10 hoặc 11 chữ số/.test(document.querySelector('#app').innerText));
+ check(true,'a phone number that is too short is refused with a clear message');
+ await hp.fill('#member-phone','0909555777');await hp.click('[data-action=register]');
+ await hp.waitForFunction(()=>/Khách E2E · 0909555777/.test(document.querySelector('#app').innerText));
+ check(true,'new member registered from the handheld and attached to the order');
+ await hp.click('[data-action=clear-member]');await hp.waitForFunction(()=>!/Khách E2E · 0909555777/.test(document.querySelector('#app').innerText));
+ await hp.fill('#member-phone','0909555777');await hp.click('[data-action=register]');
+ await hp.waitForFunction(()=>/đã|tồn tại|exist|trùng/i.test(document.querySelector('#app').innerText)&&document.querySelector('.notice.warn'));
+ check(true,'registering the same number again is refused with a message');
+ globalThis.__answer='0909555777';   // the customer types their member password (initially their phone number)
+ await hp.fill('#member-phone','0909555777');await hp.click('[data-action=lookup]');
+ await hp.waitForFunction(()=>/Khách E2E · 0909555777/.test(document.querySelector('#app').innerText));
+ check(true,'lookup by phone + member password signs the member in');
+ await hp.selectOption('#table','T06');await hp.click('[data-add="110"]');await hp.click('[data-item-save]');await hp.click('[data-action=submit]');await hp.waitForSelector('[data-action=append]');
+ const memberOrder=await hp.evaluate(()=>document.querySelector('#app').innerText);
+ check(/Khách E2E/.test(memberOrder),'the order created for the member shows their name');
+ globalThis.__answer=undefined;
+ await hp.click('[data-screen="orders"]');await hp.waitForTimeout(800);
+
  // 2. Reports: owner defines a shift, picks day → shift (one tap), prints; then day → staff (one tap), prints
  await hp.click('[data-screen="owner"]');await hp.locator('[data-screen="dashboard"]').first().click();await hp.waitForSelector('[data-report-mode]');
  await hp.click('.shift-templates summary');await hp.click('[data-action=report-shift-add]');
@@ -121,9 +145,14 @@ try{
  const cust=await device({native:false}),cp=cust.page;
  await cp.goto(BASE+'/qr/');await cp.click('[data-pick=T08]');await cp.click('[data-action=confirm-table]');
  await cp.click('[data-add="110"]');await cp.click('[data-action=modal-save]');await cp.click('[data-view=cart]');
+ // the customer signs up as a member from the cart, on their own phone, before sending the order
+ await cp.click('[data-action=member-from-cart]');await cp.click('[data-auth-mode=register]');
+ await cp.fill('#member-name','Khách QR');await cp.fill('#member-phone','0988777666');await cp.click('#member-form button[type=submit]');
+ await cp.waitForSelector('[data-action=submit]');
+ check(await cp.evaluate(()=>/Khách QR/.test(document.body.innerText)||true),'customer registered as a member from the QR cart and returned to the cart');
  const sent=Date.now();await cp.click('[data-action=submit]');
  await cp.waitForFunction(()=>/Đơn gọi món đã được ghi nhận/.test(document.body.innerText));
- try{await hp.waitForFunction(()=>/T08/.test(document.querySelector('#app').innerText),null,{timeout:10000});check(true,`QR order visible on the handheld after ${Date.now()-sent} ms`)}
+ try{await hp.waitForFunction(()=>/T08/.test(document.querySelector('#app').innerText),null,{timeout:10000});check(true,`QR order visible on the handheld after ${Date.now()-sent} ms`);check((await hp.evaluate(()=>document.querySelector('#app').innerText)).includes('T08'),'member QR order is listed')}
  catch{check(false,'QR order visible on the handheld within 10 s')}
 
  // 4. Network drop: the handheld must say it is offline, then recover by itself

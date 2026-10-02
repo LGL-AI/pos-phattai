@@ -101,7 +101,7 @@ def tap(d, pattern, timeout=60, scroll=True, page=True, by_id=False, accept=True
     deadline = time.time() + timeout
     plan = ['here'] + (['top'] * 6 + ['down'] * 16 if scroll else [])
     step = 0
-    last = None
+    top_ref = None
     rx = re.compile(pattern)
     while time.time() < deadline:
         try:
@@ -113,9 +113,11 @@ def tap(d, pattern, timeout=60, scroll=True, page=True, by_id=False, accept=True
             if points:
                 d.click(*points[0])
                 time.sleep(0.9)
-                # Many actions ask "are you sure?" (confirm) or "how much cash?" (prompt, prefilled)
-                # with the app's native dialog: accept what the app proposes.
-                if page and accept and d(resourceId='android:id/button1').wait(timeout=2):
+                # Many actions ask "are you sure?" (confirm) or "how much cash?" (prompt, prefilled),
+                # sometimes one after the other: accept what the app proposes.
+                for _ in range(3):
+                    if not (page and accept and d(resourceId='android:id/button1').wait(timeout=2)):
+                        break
                     shot(d, 'confirm ' + pattern)
                     d(resourceId='android:id/button1').click()
                     time.sleep(1)
@@ -138,14 +140,14 @@ def tap(d, pattern, timeout=60, scroll=True, page=True, by_id=False, accept=True
                 else:
                     d.swipe(w // 2, mid_hi, w // 2, max(mid_lo, mid_hi - (hits[0]['box'][3] - area[1]) - 80), 0.3)
             elif move == 'top':
-                if texts_now == last:
-                    step = plan.index('down')
+                if top_ref is not None and texts_now == top_ref:
+                    step = plan.index('down')  # the page no longer moves: we are at the top
                 else:
+                    top_ref = texts_now
                     d.swipe(w // 2, mid_lo, w // 2, mid_hi, 0.2)
                     time.sleep(0.6)
             elif move == 'down':
                 d.swipe(w // 2, mid_hi, w // 2, mid_lo, 0.3)
-            last = texts_now
         except Exception as e:
             print('  (tap retry:', e, ')')
         time.sleep(0.6)

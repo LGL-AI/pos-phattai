@@ -53,7 +53,8 @@ async function device({native}){
    },
    getAuthState:()=>JSON.stringify(auth),getCloudBase:()=>location.origin,logout(){auth.user=null},
    getAppUpdateState:()=>'{"status":"IDLE","version":"1.7.18","versionCode":1018,"signerSha256":"e66d9870204bcfef827e3b3ef2d601fb83160a4927619e1354411bc6b7f484b4","available":false,"busy":false}',checkAppUpdate(){},installAppUpdate(){},getKitchenJobStatus:()=>'QUEUED',
-   printKitchen(){},retryKitchen(){},getReceiptState:()=>'NEW',printReceipt:()=>'OK',reprintReceipt(){},printDailyReport(id,raw){(window.__printed=window.__printed||[]).push({id,text:JSON.parse(raw).text})},
+   // Like LanKitchenPrinter: every kitchen job reports back through onNativeEvent shortly after it is sent.
+   printKitchen(id){setTimeout(()=>window.LotusNativeBridge&&window.LotusNativeBridge.onNativeEvent({category:'KITCHEN',code:'KITCHEN_SENT',severity:'INFO',message:'Đã gửi phiếu bếp',requestId:id}),20)},retryKitchen(){},getReceiptState:()=>'NEW',printReceipt:()=>'OK',reprintReceipt(){},printDailyReport(id,raw){(window.__printed=window.__printed||[]).push({id,text:JSON.parse(raw).text})},
    getPrinterStatus:()=>'{"state":1}',checkPrinter(){},reconnectPrinter(){},openKitchenSettings(){},openKitchenJobs(){},
    openDiagnostics(){},openCloudConnectivity(){},savePng(){},getAppInfo:()=>'{"native":true}'
   };

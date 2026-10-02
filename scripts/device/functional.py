@@ -94,7 +94,7 @@ def target_point(n, area):
     return (x1 + x2) // 2, (lo + hi) // 2
 
 
-def tap(d, pattern, timeout=40, scroll=True, page=True, by_id=False, accept=True):
+def tap(d, pattern, timeout=60, scroll=True, page=True, by_id=False, accept=True):
     """Tap the first element whose text (or HTML id) matches. WebView only exposes what is on screen,
     so look at the current screen, then from the top of the page downwards. With page=True only the
     part not covered by the sticky header or the bottom navigation counts."""
@@ -113,9 +113,9 @@ def tap(d, pattern, timeout=40, scroll=True, page=True, by_id=False, accept=True
             if points:
                 d.click(*points[0])
                 time.sleep(0.9)
-                # Many actions ask "are you sure?" with the app's native confirm dialog.
-                if page and accept and d(resourceId='android:id/button1').wait(timeout=2) \
-                        and not d(resourceId='android:id/custom').exists:
+                # Many actions ask "are you sure?" (confirm) or "how much cash?" (prompt, prefilled)
+                # with the app's native dialog: accept what the app proposes.
+                if page and accept and d(resourceId='android:id/button1').wait(timeout=2):
                     shot(d, 'confirm ' + pattern)
                     d(resourceId='android:id/button1').click()
                     time.sleep(1)
@@ -128,7 +128,7 @@ def tap(d, pattern, timeout=40, scroll=True, page=True, by_id=False, accept=True
             move = plan[step]
             step += 1
             w, h = size
-            texts_now = tuple(n['text'] for n in all_nodes if n['text'])[:40]
+            texts_now = tuple(n['text'] for n in all_nodes if n['text'] and n['id'] != 'diag')[:40]
             mid_lo, mid_hi = area[0] + (area[1] - area[0]) // 5, area[1] - (area[1] - area[0]) // 5
             if hits and move != 'here':
                 # Partly hidden: nudge it into the free area.
@@ -142,6 +142,7 @@ def tap(d, pattern, timeout=40, scroll=True, page=True, by_id=False, accept=True
                     step = plan.index('down')
                 else:
                     d.swipe(w // 2, mid_lo, w // 2, mid_hi, 0.2)
+                    time.sleep(0.6)
             elif move == 'down':
                 d.swipe(w // 2, mid_hi, w // 2, mid_lo, 0.3)
             last = texts_now

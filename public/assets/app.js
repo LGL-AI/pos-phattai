@@ -98,7 +98,9 @@ function makeReceiptPng(o){
   const sizeVi=it.mods?.size==='大'?'Tô lớn':'Tô thường',sizeZh=it.mods?.size==='大'?'大碗':'中碗';
   const spiceVi=it.mods?.spice==='不辣'?'Không cay':it.mods?.spice==='小'?'Ít cay':it.mods?.spice==='大'?'Cay nhiều':'Cay vừa';
   const spiceZh=it.mods?.spice==='不辣'?'不辣':it.mods?.spice==='小'?'小辣':it.mods?.spice==='大'?'大辣':'中辣';
-  add(sizeVi+' · '+spiceVi,21);add(sizeZh+' · '+spiceZh,20,false,'left','#75685a');
+  // PT-26: size and spice only exist for products that offer them (soups and combos have neither).
+  const hasSize=!!it.mods?.size,hasSpice=!!it.mods?.spice,join=(a,b)=>[hasSize&&a,hasSpice&&b].filter(Boolean).join(' · ');
+  if(hasSize||hasSpice){add(join(sizeVi,spiceVi),21);add(join(sizeZh,spiceZh),20,false,'left','#75685a')}
   if(it.mods?.note){add('Ghi chú: '+it.mods.note,20);add('备注: '+it.mods.note,19,false,'left','#75685a')}
   add('Số lượng '+it.qty+' × '+money(it.price),22,true);
   add('数量 '+it.qty+' × '+money(it.price),20,false,'left','#75685a');

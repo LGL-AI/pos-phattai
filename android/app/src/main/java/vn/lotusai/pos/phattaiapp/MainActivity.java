@@ -396,10 +396,15 @@ public class MainActivity extends Activity {
         printer.printTextWithFont(p.optString("storeName", "LOTUS POS") + "\n", null, 30f, null);
         if(!p.optString("address").isEmpty())printer.printText(p.optString("address") + "\n", null);
         if(!p.optString("taxNumber").isEmpty())printer.printText("MST: " + p.optString("taxNumber") + "\n", null);
-        printer.printTextWithFont("PHIEU THANH TOAN / 收款小票\n", null, 23f, null);
+        // PT-29: wording comes from the payload (staff.js receiptPayload); fallbacks for older payloads.
+        printer.printTextWithFont(p.optString("title", "BIEN LAI THU TIEN / 收款收据") + "\n", null, 23f, null);
+        printer.printText(p.optString("notice", "Khong phai hoa don / 本单据不是发票") + "\n", null);
         printer.setAlignment(0, null);
         rule(); pair("DON / 订单", p.optString("orderCode")); pair("BAN / 桌", p.optString("table"));
-        pair("NGUON / 来源", p.optString("source")); rule();
+        pair("NGUON / 来源", p.optString("source"));
+        if(!p.optString("paidAtText").isEmpty())pair("GIO THU / 收款时间", p.optString("paidAtText"));
+        if(!p.optString("cashierName").isEmpty())pair("NGUOI THU / 收款人", p.optString("cashierName"));
+        rule();
         JSONArray items = p.optJSONArray("items");
         if (items != null) for (int i=0;i<items.length();i++) {
             JSONObject x=items.optJSONObject(i); if(x==null)continue;
@@ -414,7 +419,7 @@ public class MainActivity extends Activity {
         printer.printTextWithFont("TONG / 合计: "+money(Math.round(p.optDouble("total",0)))+" VND\n",null,27f,null);
         pair("THANH TOAN / 支付",p.optString("paymentMethod"));
         if("CASH".equals(p.optString("paymentMethod"))){pair("KHACH DUA / 实收",money(Math.round(p.optDouble("received",0))));pair("TIEN THOI / 找零",money(Math.round(p.optDouble("change",0))));}
-        rule(); printer.setAlignment(1,null); printer.printText("Cam on quy khach / 谢谢惠顾\n",null);
+        rule(); printer.setAlignment(1,null); printer.printText(p.optString("thanks","Cam on quy khach / 谢谢惠顾")+"\n",null);
     }
 
     private void printTicketData(JSONObject p) throws Exception {

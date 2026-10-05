@@ -10,8 +10,9 @@ public final class TicketBitmap {
     public static Bitmap render(JSONObject p,int width,boolean receipt) throws Exception {
         StringBuilder t=new StringBuilder();
         if(p.optBoolean("reprint"))t.append("*** IN LẠI / 重印 ***\n");
-        t.append(receipt?"HÓA ĐƠN / 收款小票":"PHIẾU BẾP / 厨房单").append('\n');
-        t.append(p.optString("storeName","PHÁT TÀI POS")).append('\n');
+        t.append(receipt?p.optString("title","BIÊN LAI THU TIỀN / 收款收据"):"PHIẾU BẾP / 厨房单").append('\n');
+        if(receipt)t.append(p.optString("notice","Không phải hóa đơn / 本单据不是发票")).append('\n');
+        t.append(p.optString("storeName","LOTUS POS")).append('\n');
         if(receipt&&!p.optString("address").isEmpty())t.append(p.optString("address")).append('\n');
         if(receipt&&!p.optString("taxNumber").isEmpty())t.append("MST: ").append(p.optString("taxNumber")).append('\n');
         t.append("BÀN / 桌: ").append(p.optString("table")).append('\n');
@@ -42,8 +43,8 @@ public final class TicketBitmap {
                 t.append("Tiền thối / 找零: ").append(MainActivity.money(Math.round(p.optDouble("change")))).append('\n');
             }
             if(!p.optString("memberName").isEmpty())t.append("Hội viên: ").append(p.optString("memberName")).append('\n');
-            t.append("Cảm ơn quý khách!\n");
-            t.append("Biên nhận nội bộ, không thay hóa đơn VAT\n");
+            if(!p.optString("cashierName").isEmpty())t.append("Người thu / 收款人: ").append(p.optString("cashierName")).append('\n');
+            t.append(p.optString("thanks","Cảm ơn quý khách! / 谢谢光临")).append('\n');
         }else t.append("PHIẾU BẾP SAU THANH TOÁN\n非付款凭证\n");
         return withCodes(renderText(t.toString(),width),p,width,receipt);
     }

@@ -17,6 +17,11 @@ async function verify(){
  const query=new URLSearchParams({applicationId:identity.productionApplicationId,signerSha256:identity.profiles[identity.productionApplicationId].signerSha256,versionCode:'1',sdk:'30'});
  const update=await read('/api/android/update?'+query),expected=selectAndroidRelease(query,catalog);
  if(update.status!==expected.status||update.available!==expected.available||update.release?.sha256!==expected.release?.sha256)throw Error(`Production updater (${update.status} ${update.release?.sha256||''}) differs from the verified catalog (${expected.status} ${expected.release?.sha256||''})`);
+ // PT-31: pages are served without the Worker, so their security headers come from public/_headers.
+ for(const path of ['/qr/','/staff/','/counter/']){
+  const page=await fetch(origin+path,{headers:{'User-Agent':'Mozilla/5.0'},signal:AbortSignal.timeout(15000)});
+  if(!page.ok||!/frame-ancestors 'none'/.test(page.headers.get('content-security-policy')||'')||page.headers.get('x-content-type-options')!=='nosniff')throw Error(`Production page ${path} HTTP ${page.status} is missing its security headers`);
+ }
  return update.status;
 }
 let lastError;

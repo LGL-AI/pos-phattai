@@ -44,7 +44,7 @@ async function device({native}){
   const filter=new RegExp('^(?:'+filterSource+')$'),auth={user:null};window.__rejected=[];
   window.NativePOS={
    apiRequest(id,method,path,raw,token){(window.__calls=window.__calls||[]).push(path.split('?')[0]);
-    const reply=(status,text)=>setTimeout(()=>window.LotusCloud&&window.LotusCloud.onApi(id,status,text),0);
+    const reply=(status,text)=>setTimeout(()=>window.LotusCloud&&window.LotusCloud.onApi(id,status,text),(window.__slow||{})[path.split('?')[0]]||0);// __slow: answer late, like a SUNMI on weak Wi-Fi
     if(!filter.test(path)||path.includes('..')){window.__rejected.push(path);reply(0,'{"ok":false,"message":"Yêu cầu không hợp lệ"}');return}
     const body=raw&&!['GET','DELETE'].includes(method)?raw:undefined;
     fetch(path,{method,headers:{Accept:'application/json',...(token?{Authorization:'Bearer '+token}:{}),...(body?{'Content-Type':'application/json; charset=utf-8'}:{})},body})
@@ -207,6 +207,27 @@ try{
  const list=await hp.evaluate(()=>document.querySelector('#app').innerText);
  check(/Chen QR/.test(list)&&/\+886912345678/.test(list)&&/0977123456/.test(list)&&/Khách E2E/.test(list),'member management lists the QR, +886 and +84 members');
 
+ // 3c. PT-23: the owner adds a dish and changes a price from the handheld. The product form has a field
+ //     named "id", which shadowed form.id: the submit handler skipped the form and the page reloaded instead.
+ // PT-32: the product list answers late, so the owner types while it loads; the render when it arrives
+ //     used to wipe every field but the focused one, and Save then sent nothing (required fields empty).
+ await hp.click('[data-screen="owner"]');await hp.evaluate(()=>{window.__slow={'/api/staff/products':2500};window.__log=[]});
+ await hp.locator('[data-screen="products"]').first().click();await hp.waitForSelector('#product-form');// the handheld shows the new-dish form under the list
+ const pf=s=>'#product-form '+s;await hp.fill(pf('input[name=id]'),'E2E-CANH');await hp.fill(pf('input[name=sku]'),'E2E-CANH');await hp.fill(pf('input[name=name]'),'Canh E2E');
+ await hp.fill(pf('input[name=nameCn]'),'测试汤');await hp.fill(pf('input[name=category]'),'Canh');await hp.fill(pf('input[name=price]'),'45000');await hp.fill(pf('input[name=largePrice]'),'45000');
+ await hp.waitForFunction(()=>(window.__log||[]).some(x=>x.startsWith('GET /api/staff/products -> 200')));await hp.waitForTimeout(2800);await hp.evaluate(()=>{window.__slow={}});
+ const kept=await hp.evaluate(()=>['id','sku','name','category','price'].map(n=>document.querySelector('#product-form [name='+n+']')?.value).join('|'));
+ check(kept==='E2E-CANH|E2E-CANH|Canh E2E|Canh|45000',`what the owner typed survives the list arriving late (${kept})`);
+ await hp.click(pf('button.primary'));
+ const catalogHas=async(id,test)=>{for(let i=0;i<20;i++){const p=(await (await fetch(BASE+'/api/catalog')).json()).catalog.products.find(x=>String(x.id)===id);if(p&&test(p))return p;await hp.waitForTimeout(500)}return null};
+ const made=await catalogHas('E2E-CANH',()=>true);
+ check(!!made&&!hp.url().includes('?'),`the owner adds a dish from the handheld and it is in the menu (url ${hp.url()}${made?'':'; notice='+JSON.stringify(await hp.evaluate(()=>[...document.querySelectorAll('.notice')].map(n=>n.textContent)))+' calls='+JSON.stringify(await hp.evaluate(()=>(window.__calls||[]).slice(-6)))})`);
+ check(await hp.waitForFunction(()=>{const f=document.querySelector('#product-form');return !!f&&!f.dataset.id&&f.querySelector('[name=id]').value===''&&f.querySelector('[name=name]').value===''},null,{timeout:10000}).then(()=>true,()=>false),'after saving, the new-dish form is empty again (the kept draft is dropped)');
+ await hp.click('[data-screen="owner"]');await hp.locator('[data-screen="products"]').first().click();await hp.waitForSelector('[data-edit-product="E2E-CANH"]');
+ await hp.locator('[data-edit-product="E2E-CANH"]').first().click();await hp.waitForSelector('#product-form[data-id="E2E-CANH"]');
+ await hp.fill(pf('input[name=price]'),'48000');await hp.fill(pf('input[name=largePrice]'),'48000');await hp.click(pf('button.primary'));
+ check(!!await catalogHas('E2E-CANH',p=>p.price===48000),'the owner changes the price of that dish from the handheld');
+
  // 4. Network drop: the handheld must say it is offline, then recover by itself
  await hand.context.setOffline(true);
  try{await hp.waitForFunction(()=>document.querySelector('#connection').textContent.includes('Chưa kết nối'),null,{timeout:25000});check(true,'offline state is shown while the network is down')}
@@ -218,7 +239,7 @@ try{
  const rejected=await hp.evaluate(()=>window.__rejected);
  check(rejected.length===0,`APK bridge rejected no Staff UI request${rejected.length?': '+rejected.join(', '):''}`);
  check(hand.errors.length===0&&cust.errors.length===0,`no uncaught page errors${[...hand.errors,...cust.errors].map(e=>'\n  '+e).join('')}`);
-}catch(error){failures.push(error.message);console.error('FAIL  '+error.message);annotate(error.message)}
+}catch(error){failures.push(error.message);console.error("FAIL  "+error.message+"\n"+(error.stack||"").split("\n").filter(l=>l.includes("e2e-staff")).join("\n"));annotate(error.message)}
 finally{
  await browser?.close();server?.kill('SIGTERM');rmSync(persist,{recursive:true,force:true});
 }

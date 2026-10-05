@@ -127,7 +127,7 @@ test('customer UI requires table selection and contains no customer payment flow
  assert.match(staff,/async function pollAutoPrint/);
  assert.match(staff,/print:\{base:3000/);
  assert.match(staff,/printReceipt\(r\.order,paidBill\)/);
- assert.match(staff,/Đã gửi HÓA ĐƠN tới máy in SUNMI \/ 已发送收据至 SUNMI；phiếu bếp không in lại \/ 厨房单不会重复打印/);
+ assert.match(staff,/Đã gửi biên lai tới máy in SUNMI \/ 已发送收据至 SUNMI；phiếu bếp không in lại \/ 厨房单不会重复打印/);
  assert.match(staff,/o\.payment_status='UNPAID'|paymentStatus==='PAID'/);
  assert.match(staff,/Báo cáo ngày/);
  assert.match(staff,/IP \/ cổng máy in bếp \+ in thử/);

@@ -1,0 +1,43 @@
+# PT-31: security headers for the pages. The Worker runs only for /api/*, /app, /releases/* and the
+# /kitchen guard (wrangler.jsonc run_worker_first), so static files get their headers here.
+/
+  Cache-Control: no-cache, must-revalidate
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: same-origin
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
+/index.html
+  Cache-Control: no-cache, must-revalidate
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: same-origin
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
+/offline.html
+  Cache-Control: no-cache, must-revalidate
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: same-origin
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
+/qr/*
+  Cache-Control: no-cache, must-revalidate
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: same-origin
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
+/staff/*
+  Cache-Control: no-cache, must-revalidate
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: same-origin
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
+/counter/*
+  Cache-Control: no-cache, must-revalidate
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: same-origin
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:18181; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
+/display/*
+  Cache-Control: no-cache, must-revalidate
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
+/manifest.webmanifest
+  Cache-Control: no-cache, must-revalidate
+  X-Content-Type-Options: nosniff
+/sw.js
+  Cache-Control: no-cache, must-revalidate
+  X-Content-Type-Options: nosniff

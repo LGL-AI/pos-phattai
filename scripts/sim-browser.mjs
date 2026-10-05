@@ -31,7 +31,7 @@ async function startWorker(){
 const api=async(method,path,body,token=ownerToken)=>{const r=await fetch(BASE+path,{method,headers:{'Content-Type':'application/json',Origin:BASE,...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});return {status:r.status,data:await r.json().catch(()=>null)}};
 
 const OLD_ENGINE=()=>{delete AbortSignal.timeout;delete String.prototype.replaceAll;delete Object.hasOwn;delete Array.prototype.at;delete String.prototype.at;delete Array.prototype.findLast;delete window.structuredClone;try{delete Crypto.prototype.randomUUID}catch{}};
-async function open({viewport={width:360,height:720},old=true,native=false,slow=4,touch=true}={}){
+async function open({viewport={width:360,height:720},old=true,native=false,slow=Number(process.env.SIM_SLOW||4),touch=true}={}){
  const context=await browser.newContext({viewport,deviceScaleFactor:2,isMobile:touch,hasTouch:touch});
  if(old)await context.addInitScript(OLD_ENGINE);
  if(native)await context.addInitScript(({filterSource})=>{
@@ -328,15 +328,17 @@ try{
   const d=(await api('GET','/api/staff/orders/'+o.id)).data.order;if(d.paymentMethod!=='BANK'||d.paymentStatus!=='PAID')return fail(d.paymentMethod+' '+d.paymentStatus);return await clean(hand)});
  await run('Handheld: cash short of the total is refused and the order stays unpaid',async()=>{
   const o=await newOrder('T46',[['101','中','中']]);await hp.click('[data-start-pay]');await hp.click('[data-choose-pay=CASH]');
-  hp.__answer=String(o.total-1000);await hp.click('[data-pay][data-method=CASH]');await hp.waitForTimeout(1500);hp.__answer=undefined;
+  hp.__answer=String(o.total-1000);await hp.click('[data-pay][data-method=CASH]');
+  let told=true;try{await hp.waitForFunction(()=>/chưa đủ|không đủ/i.test(document.querySelector('#app').innerText),null,{timeout:10000})}catch{told=false}finally{hp.__answer=undefined}
   const d=(await api('GET','/api/staff/orders/'+o.id)).data.order;if(d.paymentStatus!=='UNPAID')return fail('paid with too little cash');
-  if(!/chưa đủ|không đủ/i.test(await hp.locator('#app').innerText()))return fail('no message');return await clean(hand)});
+  if(!told)return fail('no message: '+(await hp.locator('#app').innerText()).replace(/\s+/g,' ').slice(0,200));return await clean(hand)});
  await run('Handheld: add items to an open order, then cancel one portion with a reason',async()=>{
   const o=await newOrder('T47',[['110','中','中']]);await hp.click('[data-action=append]');await hp.waitForSelector('[data-add="113"]');
   await hp.click('[data-add="113"]');await hp.click('[data-item-save]');await hp.click('[data-action=submit]');
   try{await hp.waitForSelector('[data-cancel-unit]',{timeout:10000})}catch{return fail('back on the order after adding, but no cancel button')}
   const cancel=hp.locator('[data-cancel-unit]').first();
-  hp.__answer='khách đổi ý';await cancel.click();await hp.waitForTimeout(1500);hp.__answer=undefined;
+  hp.__answer='khách đổi ý';const units0=(await api('GET','/api/staff/orders/'+o.id)).data.order.items.reduce((n,x)=>n+x.qty,0);await cancel.click();
+  for(let i=0;i<40;i++){if((await api('GET','/api/staff/orders/'+o.id)).data.order.items.reduce((n,x)=>n+x.qty,0)<units0)break;await hp.waitForTimeout(250)}hp.__answer=undefined;
   const d=(await api('GET','/api/staff/orders/'+o.id)).data.order;if(d.items.reduce((n,x)=>n+x.qty,0)!==1)return fail('portions '+d.items.reduce((n,x)=>n+x.qty,0));
   if(d.total!==d.items.reduce((s,x)=>s+x.price*x.qty,0))return fail('total '+d.total);return await clean(hand)});
  await run('Handheld: split a 3-portion order into 2 bills and pay both',async()=>{

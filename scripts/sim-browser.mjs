@@ -394,6 +394,43 @@ try{
   const stale=await hp.evaluate(()=>[...document.querySelectorAll('.notice')].map(n=>n.textContent).filter(t=>/Failed to fetch|Không kết nối được Worker/.test(t)));
   if(stale.length)return fail('a network error is still shown after recovery: '+stale[0].slice(0,120));
   hand.errors.length=0;return await clean(hand)});
+ // Owner's requests 05/10/2026: refunded orders in red, the phone menu keeps its place, dishes & prices live under Quản trị.
+ const paidOrder=async(table,key)=>{const o=(await api('POST','/api/staff/orders',{table,items:[{productId:'115',qty:1,mods:{}}],idempotencyKey:key})).data.order;const d=(await api('GET','/api/staff/orders/'+o.id)).data;const r=await api('POST',`/api/staff/orders/${o.id}/pay`,{version:d.order.version,method:'CASH',received:d.order.total});if(r.status!==200)throw Error('pay '+r.status+' '+JSON.stringify(r.data));return d.order};
+ for(const [part,label] of [[1,'in full'],[0.5,'in part']])await run(`Handheld: an order refunded ${label} shows in red on the order list`,async()=>{
+  const o=await paidOrder('T4'+(part===1?'1':'2'),'sim_refund_red_'+(part===1?'full':'part')+'_0001');
+  const amount=Math.round(o.total*part);
+  const r=await api('POST','/api/staff/refunds',{orderId:o.id,amount,method:'CASH',reason:'Mô phỏng hoàn tiền',idempotencyKey:'sim_refund_red_go_'+(part===1?'full':'part')});
+  if(![200,201].includes(r.status))return fail('refund '+r.status+' '+JSON.stringify(r.data).slice(0,200));
+  await hp.click('nav [data-screen="orders"]');await hp.click('[data-action=refresh]');
+  await hp.locator(`[data-open="${o.id}"]`).waitFor();await hp.waitForFunction(id=>document.querySelector(`[data-open="${id}"]`)?.classList.contains('refunded'),o.id,{timeout:8000}).catch(()=>{});
+  // read the row afresh in one go: live sync may replace it between two reads
+  const got=await hp.evaluate(id=>{const el=document.querySelector(`[data-open="${id}"]`);return el?{cls:el.className,bg:getComputedStyle(el).backgroundColor,text:el.innerText}:{cls:'',bg:'',text:'(row gone)'}},o.id);
+  if(!/refunded/.test(got.cls))return fail('the refunded order is not marked: '+got.text.replace(/\s+/g,' '));
+  if(got.bg!=='rgb(253, 236, 234)')return fail('the refunded order is not red: '+got.bg);
+  if(!(part===1?/ĐÃ HOÀN TIỀN/.test(got.text)&&/Đã hoàn tiền toàn bộ/.test(got.text):/HOÀN MỘT PHẦN/.test(got.text)&&new RegExp('Đã hoàn / 已退 '+vnd(amount)).test(got.text.replace(/ /g,' '))))return fail('label: '+got.text.replace(/\s+/g,' '));
+  const plain=await hp.locator('.listButton:not(.refunded)').first().evaluate(el=>getComputedStyle(el).backgroundColor).catch(()=>'none');
+  if(plain==='rgb(253, 236, 234)')return fail('an order without a refund is red too');
+  return await clean(hand)});
+ await run('Handheld: the phone menu keeps its sideways scroll after a tap, opening an order and live sync',async()=>{
+  await paidOrder('T43','sim_menu_keep_place_0001');// a paid order to open from the refund screen, even when this case runs alone
+  await hp.waitForSelector('nav [data-screen="refunds"]');await hp.waitForTimeout(500);// the full menu, once the account's permissions are in
+  const nav=hp.locator('nav');await nav.evaluate(el=>{el.scrollLeft=el.scrollWidth});const before=await nav.evaluate(el=>el.scrollLeft);
+  if(before<20)return fail('the phone menu does not scroll sideways ('+before+'px), nothing to keep');
+  // Tap only what is on screen at the right end of the menu (a harness click on a hidden item would scroll the menu itself).
+  const at=()=>hp.locator('nav').evaluate(el=>el.scrollLeft);
+  await hp.locator('nav [data-screen="refunds"]').click();await hp.waitForTimeout(400);const afterTap=await at();
+  if(Math.abs(afterTap-before)>2)return fail(`menu jumped from ${before}px to ${afterTap}px after a tap`);
+  await hp.locator('#app [data-open]').first().waitFor({timeout:15000});await hp.locator('#app [data-open]').first().click();await hp.waitForSelector('[data-action=back]');const afterOpen=await at();
+  await hp.click('[data-action=back]');await hp.waitForTimeout(300);await hp.locator('nav [data-screen="shifts"]').click();await hp.waitForTimeout(300);
+  await hp.locator('nav [data-screen="refunds"]').click();await hp.waitForTimeout(6000);const afterSync=await at();// live sync re-renders the screen meanwhile
+  const steps=[['a tap',afterTap],['opening an order',afterOpen],['going back, another tap and live sync',afterSync]].filter(([,x])=>Math.abs(x-before)>2);
+  if(steps.length)return fail(`menu jumped from ${before}px: `+steps.map(([w,x])=>x+'px after '+w).join(', '));
+  return await clean(hand)});
+ await run('Handheld: the owner reaches dishes & prices from Quản trị only, and Quản trị stays lit there',async()=>{
+  if(await hp.locator('nav [data-screen="products"]').count())return fail('Món & giá is still a separate menu entry for the owner');
+  await hp.click('nav [data-screen="owner"]');await hp.locator('#app [data-screen="products"]').first().click();await hp.waitForSelector('#product-form');
+  if(!await hp.locator('nav [data-screen="owner"].active').count())return fail('Quản trị is not highlighted on the dishes screen');
+  return await clean(hand)});
  await run('Handheld: log out and back in keeps working; the old session cannot be used',async()=>{
   const old=await hp.evaluate(()=>localStorage.getItem('staff-session'));
   if(await hp.locator('nav [data-screen="settings"]').count())await hp.click('nav [data-screen="settings"]');else{await hp.click('nav [data-screen="owner"]');await hp.locator('#app [data-screen="settings"]').first().click()}await hp.waitForTimeout(800);

@@ -298,7 +298,7 @@ try{
   try{
    await handheldLogin(dev,'bep.sim','bep-sim-123456');await dev.page.click('nav [data-screen="orders"]');await dev.page.waitForSelector(`[data-open="${r.data.order.id}"]`);
    const list=await dev.page.locator(`[data-open="${r.data.order.id}"]`).innerText();if(!/T60/.test(list)||!/Cơm vịt quay/.test(list))return fail('list entry: '+list);if(/đ\b|\d\.\d{3}/.test(list))return fail('list shows money: '+list);
-   await dev.page.click(`[data-open="${r.data.order.id}"]`);await dev.page.waitForFunction(()=>/Cơm vịt quay/.test(document.querySelector('#app').innerText));
+   await dev.page.click(`[data-open="${r.data.order.id}"]`);await dev.page.waitForSelector('[data-action=back]');await dev.page.waitForFunction(()=>/Cơm vịt quay/.test(document.querySelector('#app').innerText));
    const text=await dev.page.locator('#app').innerText();
    if(!text.includes(r.data.order.code)||!/không da/.test(text)||!/ít hành/.test(text))return fail('detail lacks code or notes: '+text.replace(/\s+/g,' ').slice(0,200));
    if(/\d{1,3}(\.\d{3})+ ?đ|TỔNG|Tạm tính|Thanh toán/.test(text))return fail('detail shows money: '+text.replace(/\s+/g,' ').slice(0,300));

@@ -43,7 +43,7 @@ jobs:
 
   e2e:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -56,6 +56,10 @@ jobs:
         run: |
           if [ -x /usr/bin/google-chrome ]; then export E2E_CHROMIUM=/usr/bin/google-chrome; else npx playwright install --with-deps chromium; fi
           npm run test:e2e
+      - name: Handover simulation, ~100 browser cases (QR page on 6 phone sizes, handheld screens and sales)
+        run: |
+          if [ -x /usr/bin/google-chrome ]; then export E2E_CHROMIUM=/usr/bin/google-chrome; fi
+          npm run test:sim
 
   android-compile:
     if: github.ref != 'refs/heads/main'

@@ -243,7 +243,10 @@ async function apiRequest(method,path,data){let status,text;
  if(!['GET','HEAD'].includes(method)&&(/^\/api\/staff\/(products|store|inventory)/.test(path)))st.catalogFetchedAt=0;
  return payload;
 }
-function connection(){$('#connection').textContent=st.online?'D1 trực tuyến':'Chưa kết nối';$('#connection').classList.toggle('offline',!st.online);diag()}
+// PT-37: a network error shown while the connection was down goes away once requests work again
+// (it stayed on screen, e.g. "Không kiểm tra được lệnh in bếp: … Failed to fetch", after the Wi-Fi came back).
+let wasOnline=true;
+function connection(){$('#connection').textContent=st.online?'D1 trực tuyến':'Chưa kết nối';$('#connection').classList.toggle('offline',!st.online);if(st.online&&!wasOnline&&/Không kết nối được Worker|Failed to fetch|Không kiểm tra được lệnh in bếp/.test(st.error||'')){st.error='';const n=app.firstElementChild;if(n?.classList.contains('notice')&&n.classList.contains('warn'))n.remove()}wasOnline=st.online;diag()}
 // Always-visible build/health strip (#diag): what is running on this device, and is it in sync.
 const clockSec=new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}),clockMin=new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
 function diag(){
@@ -311,7 +314,7 @@ async function syncLive(){
   if(counter&&st.selected&&st.detail)scheduleDisplay();
  }catch(e){st.online=false;connection();throw e}finally{liveSyncing=false}
 }
-function renderLogin(){app.innerHTML=`<h1>Đăng nhập Lotus POS Cloud / 登录 Lotus POS Cloud</h1><div class="card"><p class="muted">Tài khoản nhân viên tách biệt hội viên. Đơn và thanh toán lưu trên D1. / 员工账号与会员账号分开，订单与付款资料保存在 D1。</p><form id="login"><label>Tài khoản POS / POS 账号</label><input name="username" value="huang" autocomplete="username" maxlength="40" required><label>Mật khẩu POS cloud / POS 云端密码</label><input type="password" name="password" autocomplete="current-password" minlength="6" required><div class="buttons"><button class="primary" ${st.busy?'disabled':''}>Đăng nhập / 登录</button></div></form></div>${st.error?`<p class="notice dangerbox">${esc(st.error)}</p>`:''}`;if(counter){const title=$('#counter-page-title');if(title)title.textContent='Đăng nhập / 登录'}}
+function renderLogin(){/* PT-36: the sign-in screen is redrawn when a notice shows (a wrong password, a lost connection); what was typed stays, so a cashier's user name is not reset to the default "huang" and the next try is not the owner's. */const typing=typingField();app.innerHTML=`<h1>Đăng nhập Lotus POS Cloud / 登录 Lotus POS Cloud</h1><div class="card"><p class="muted">Tài khoản nhân viên tách biệt hội viên. Đơn và thanh toán lưu trên D1. / 员工账号与会员账号分开，订单与付款资料保存在 D1。</p><form id="login"><label>Tài khoản POS / POS 账号</label><input name="username" value="huang" autocomplete="username" maxlength="40" required><label>Mật khẩu POS cloud / POS 云端密码</label><input type="password" name="password" autocomplete="current-password" minlength="6" required><div class="buttons"><button class="primary" ${st.busy?'disabled':''}>Đăng nhập / 登录</button></div></form></div>${st.error?`<p class="notice dangerbox">${esc(st.error)}</p>`:''}`;keepDrafts();keepTyping(typing);if(counter){const title=$('#counter-page-title');if(title)title.textContent='Đăng nhập / 登录'}}
 function nav(){
  const owner=isOwner();
  const entries=counter?[

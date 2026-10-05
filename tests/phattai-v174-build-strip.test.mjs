@@ -24,7 +24,7 @@ test('STRIP the strip is in the staff, counter and customer pages and survives r
  assert.match(read('public/staff/index.html'),/<header>.*<small id="diag"[^>]*><\/small><\/header>/);
  assert.match(read('public/counter/index.html'),/<header>.*<small id="diag"[^>]*><\/small><\/header>/);
  assert.match(read('public/qr/index.html'),/<div id="build-tag"[^>]*><\/div><div id="app"/);
- assert.match(STAFF,/function connection\(\)\{[^}]*diag\(\)\}/,'every API answer or failure refreshes the strip');
+ assert.match(STAFF,/function connection\(\)\{[^\n]*diag\(\)\}\n/,'every API answer or failure refreshes the strip');
  assert.match(QR,/finally\{catalogRefreshing=false;buildTag\(\)\}/,'every menu refresh updates the customer strip');
  assert.equal(readFileSync(new URL('../android/app/src/main/assets/staff/staff.js',import.meta.url),'utf8'),STAFF,'APK ships the same UI');
 });

@@ -74,7 +74,7 @@ export async function handleOps(req,env,actor,deps){
  const path=new URL(req.url).pathname,method=req.method;
  if(!/^\/api\/staff\/(?:inventory|refunds|roles|accounts)(?:\/|$)/.test(path))return null;
  try{
-  if(path==='/api/staff/inventory'&&method==='GET')return allowed(actor,'INVENTORY_VIEW')?inventory(env):deny();
+  if(path==='/api/staff/inventory'&&method==='GET')return allowed(actor,'INVENTORY_VIEW')?await inventory(env):deny();
   if(path==='/api/staff/inventory/adjust'&&method==='POST'){
    if(!allowed(actor,'INVENTORY_MANAGE'))return deny();const b=await deps.body(req);
    if(!['PRODUCT','INGREDIENT'].includes(b.target)||!['RECEIPT','ADJUST_PLUS','ADJUST_MINUS'].includes(b.kind)||!integer(b.quantity)||!clean(b.reference,150)||typeof b.idempotencyKey!=='string'||!/^[A-Za-z0-9_-]{16,100}$/.test(b.idempotencyKey))throw Error('INVALID_STOCK');
@@ -82,24 +82,24 @@ export async function handleOps(req,env,actor,deps){
    const id=clean(b.id,60);if(!id)throw Error('INVALID_STOCK');
    const fingerprint=await deps.sha(JSON.stringify({target:b.target,id,delta,kind:b.kind,reference:clean(b.reference,150)}));
    const prior=await env.DB.prepare('SELECT fingerprint FROM pos_inventory_adjustments WHERE idem_key=?').bind(b.idempotencyKey).first();
-   if(prior){if(prior.fingerprint!==fingerprint)return bad(409,'REQUEST_ID_REUSED',errors.REQUEST_ID_REUSED);return inventory(env)}
+   if(prior){if(prior.fingerprint!==fingerprint)return bad(409,'REQUEST_ID_REUSED',errors.REQUEST_ID_REUSED);return await inventory(env)}
    await env.DB.prepare('INSERT INTO pos_inventory_adjustments(id,product_id,ingredient_id,delta,kind,reference,actor_id,idem_key,fingerprint,created_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(idem_key) DO NOTHING')
     .bind(crypto.randomUUID(),b.target==='PRODUCT'?id:null,b.target==='INGREDIENT'?id:null,delta,b.kind,clean(b.reference,150),actor.id,b.idempotencyKey,fingerprint,now()).run();
    const saved=await env.DB.prepare('SELECT fingerprint FROM pos_inventory_adjustments WHERE idem_key=?').bind(b.idempotencyKey).first();
    if(saved?.fingerprint!==fingerprint)return bad(409,'REQUEST_ID_REUSED',errors.REQUEST_ID_REUSED);
-   return inventory(env);
+   return await inventory(env);
   }
   if(path==='/api/staff/inventory/plans'&&method==='POST'){
    if(!allowed(actor,'INVENTORY_MANAGE'))return deny();const b=await deps.body(req),id=clean(b.ingredientId,60),supplier=clean(b.supplier,100);
    if(!integer(b.quantity)||!id||!supplier||typeof b.dueDate!=='string'||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(b.dueDate)||Number.isNaN(Date.parse(b.dueDate)))throw Error('INVALID_PLAN');
-   await env.DB.prepare('INSERT INTO pos_restock_plans(id,ingredient_id,qty,due_date,supplier,actor_id,created_at) VALUES(?,?,?,?,?,?,?)').bind(crypto.randomUUID(),id,b.quantity,b.dueDate,supplier,actor.id,now()).run();return inventory(env);
+   await env.DB.prepare('INSERT INTO pos_restock_plans(id,ingredient_id,qty,due_date,supplier,actor_id,created_at) VALUES(?,?,?,?,?,?,?)').bind(crypto.randomUUID(),id,b.quantity,b.dueDate,supplier,actor.id,now()).run();return await inventory(env);
   }
   const receive=path.match(/^\/api\/staff\/inventory\/plans\/([0-9a-f-]{36})\/receive$/i);
   if(receive&&method==='POST'){
    if(!allowed(actor,'INVENTORY_MANAGE'))return deny();if(!uuid(receive[1]))throw Error('INVALID_PLAN');
    const plan=await env.DB.prepare('SELECT * FROM pos_restock_plans WHERE id=?').bind(receive[1]).first();if(!plan||plan.status!=='PLANNED')return bad(409,'PLAN_CHANGED',errors.PLAN_CHANGED);
    await env.DB.prepare('INSERT INTO pos_inventory_adjustments(id,ingredient_id,delta,kind,reference,actor_id,plan_id,idem_key,fingerprint,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)')
-    .bind(crypto.randomUUID(),plan.ingredient_id,plan.qty,'RECEIPT',plan.supplier,actor.id,plan.id,'receive:'+plan.id,plan.id,now()).run();return inventory(env);
+    .bind(crypto.randomUUID(),plan.ingredient_id,plan.qty,'RECEIPT',plan.supplier,actor.id,plan.id,'receive:'+plan.id,plan.id,now()).run();return await inventory(env);
   }
   if(path==='/api/staff/refunds'&&method==='GET'){
    if(!allowed(actor,'REFUND_VIEW'))return deny();const id=new URL(req.url).searchParams.get('orderId');if(!uuid(id))throw Error('INVALID_REFUND');

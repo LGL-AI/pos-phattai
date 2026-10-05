@@ -136,8 +136,8 @@ export async function handleStaff(req,env,deps){
    return result({orders:rows.map(deps.hydrate)});
   }
   if(path==='/api/staff/members'&&method==='GET'){const phone=deps.phone(new URL(req.url).searchParams.get('phone'));if(!phone)return error(400,'INVALID_PHONE','Số điện thoại phải là 0 + 9–10 số, hoặc +mã nước (12–13 ký tự)');const member=await env.DB.prepare('SELECT id,display_name,phone,points,spend,orders,last_visit,phone_verified,tier_override FROM members WHERE phone=?').bind(phone).first();return result({member:member?{id:member.id,name:member.display_name,phone:member.phone,points:member.points,tier:member.tier_override||tierFor(member.points),spend:member.spend,orders:member.orders,lastVisit:member.last_visit,phoneVerified:!!member.phone_verified}:null})}
-  if(path==='/api/staff/members/register'&&method==='POST')return deps.register(env,req,{scope:'staff-member-register',limit:60});
-  if(path==='/api/staff/members/login'&&method==='POST')return deps.login(env,req,{scope:'staff-member-login',limit:120});
+  if(path==='/api/staff/members/register'&&method==='POST')return await deps.register(env,req,{scope:'staff-member-register',limit:60});
+  if(path==='/api/staff/members/login'&&method==='POST')return await deps.login(env,req,{scope:'staff-member-login',limit:120});
   if(path==='/api/staff/voucher'&&method==='POST'){const b=await deps.body(req),v=await deps.calculate(b,env),member=await memberById(env,b.memberId);if(b.memberId&&!member)return error(400,'INVALID_MEMBER','Không thấy hội viên');const offer=await resolveStaffVoucher(env,deps,b.voucherCode,v.subtotal,member);return result({...deps.priceTotals(v.subtotal,offer?.discount||0,await deps.getStore(env)),voucher:offer?.code||null})}
   if(path==='/api/staff/orders'&&method==='POST'){
    if(env.ORDERING_ENABLED!=='true')return error(503,'ORDERING_DISABLED','Cửa hàng chưa bật nhận đơn');
@@ -151,7 +151,7 @@ export async function handleStaff(req,env,deps){
    const row=await env.DB.prepare('SELECT * FROM qr_orders WHERE idem_key=?').bind(idem).first();if(!row)return error(503,'ORDER_NOT_SAVED','Chưa lưu được đơn');if(row.fingerprint!==fingerprint)return error(409,'REQUEST_ID_REUSED','Mã đơn đã dùng cho giỏ khác');return result({order:deps.hydrate(row),duplicate:row.id!==id},row.id===id?201:200);
   }
   const orderPath=path.match(/^\/api\/staff\/orders\/([a-f0-9-]{36})(?:\/(accept|append|cancel-unit|cancel|pay|split|merge-bills))?$/i);
-  if(orderPath){const id=orderPath[1],action=orderPath[2];if(!uuid(id))return error(400,'INVALID_ID','Mã đơn không hợp lệ');if(method==='GET'&&!action)return overview(env,deps.hydrate,id);if(method!=='POST')return error(405,'METHOD_NOT_ALLOWED','Yêu cầu POST');const b=await deps.body(req),row=await getRow(env,id);
+  if(orderPath){const id=orderPath[1],action=orderPath[2];if(!uuid(id))return error(400,'INVALID_ID','Mã đơn không hợp lệ');if(method==='GET'&&!action)return await overview(env,deps.hydrate,id);if(method!=='POST')return error(405,'METHOD_NOT_ALLOWED','Yêu cầu POST');const b=await deps.body(req),row=await getRow(env,id);
    if(!row)return error(404,'ORDER_NOT_FOUND','Không tìm thấy đơn');
    let appendKey=null,appendFingerprint=null;
    if(action==='append'&&b.idempotencyKey!==undefined){
@@ -159,13 +159,13 @@ export async function handleStaff(req,env,deps){
     if(typeof appendKey!=='string'||!/^[A-Za-z0-9_-]{16,100}$/.test(appendKey))return error(400,'INVALID_REQUEST_ID','Mã yêu cầu không hợp lệ');
     appendFingerprint=await deps.sha(JSON.stringify({orderId:id,items:b.items}));
     const receipt=await env.DB.prepare('SELECT order_id,fingerprint,actor_id FROM pos_order_append_requests WHERE request_key=?').bind(appendKey).first();
-    if(receipt)return receipt.order_id===id&&receipt.fingerprint===appendFingerprint&&receipt.actor_id===actor.id?overview(env,deps.hydrate,id):error(409,'REQUEST_ID_REUSED','Mã yêu cầu đã dùng cho món khác');
+    if(receipt)return receipt.order_id===id&&receipt.fingerprint===appendFingerprint&&receipt.actor_id===actor.id?await overview(env,deps.hydrate,id):error(409,'REQUEST_ID_REUSED','Mã yêu cầu đã dùng cho món khác');
    }
 
    if(action==='accept'){
-    if(row.status==='ACCEPTED')return overview(env,deps.hydrate,id);
+    if(row.status==='ACCEPTED')return await overview(env,deps.hydrate,id);
     if(row.status!=='NEW'||row.version!==b.version)return error(409,'ORDER_CHANGED','Đơn đã đổi trạng thái, tải lại');
-    const r=await env.DB.prepare("UPDATE qr_orders SET status='ACCEPTED',kitchen_revision=1,version=version+1,updated_at=? WHERE id=? AND status='NEW' AND version=?").bind(now(),id,b.version).run();return r.meta.changes?overview(env,deps.hydrate,id):error(409,'ORDER_CHANGED','Tải lại đơn');
+    const r=await env.DB.prepare("UPDATE qr_orders SET status='ACCEPTED',kitchen_revision=1,version=version+1,updated_at=? WHERE id=? AND status='NEW' AND version=?").bind(now(),id,b.version).run();return r.meta.changes?await overview(env,deps.hydrate,id):error(409,'ORDER_CHANGED','Tải lại đơn');
    }
    if(action==='merge-bills'){
     if(row.status!=='SPLIT'||row.version!==b.version||!Array.isArray(b.billIds)||b.billIds.length!==2||b.billIds[0]===b.billIds[1])return error(409,'BILL_CHANGED','Chỉ gộp hai bill chưa thanh toán của cùng một đơn');
@@ -173,24 +173,24 @@ export async function handleStaff(req,env,deps){
     if(!first||!second||first.payment_status!=='UNPAID'||second.payment_status!=='UNPAID')return error(409,'BILL_CHANGED','Bill đã được thanh toán hoặc không cùng đơn');
     const items=[...JSON.parse(first.items_json),...JSON.parse(second.items_json)],time=now(),marker=JSON.stringify({merge:crypto.randomUUID(),billIds:b.billIds});
     const updates=[env.DB.prepare("UPDATE qr_orders SET version=version+1,updated_at=?,last_change_kind='MERGE',last_delta_json=? WHERE id=? AND version=? AND status='SPLIT' AND (SELECT COUNT(*) FROM pos_bills WHERE order_id=? AND id IN (?,?) AND payment_status='UNPAID')=2").bind(time,marker,id,b.version,id,first.id,second.id),env.DB.prepare("UPDATE pos_bills SET items_json=?,subtotal=?,discount=?,tax_amount=?,total=? WHERE id=? AND order_id=? AND payment_status='UNPAID' AND EXISTS(SELECT 1 FROM pos_bills s WHERE s.id=? AND s.order_id=? AND s.payment_status='UNPAID') AND EXISTS(SELECT 1 FROM qr_orders o WHERE o.id=? AND o.version=? AND o.last_delta_json=?)").bind(JSON.stringify(items),first.subtotal+second.subtotal,first.discount+second.discount,(first.tax_amount||0)+(second.tax_amount||0),first.total+second.total,first.id,id,second.id,id,id,b.version+1,marker),env.DB.prepare("DELETE FROM pos_bills WHERE id=? AND order_id=? AND payment_status='UNPAID' AND EXISTS(SELECT 1 FROM qr_orders o WHERE o.id=? AND o.version=? AND o.last_delta_json=?) AND EXISTS(SELECT 1 FROM pos_bills f WHERE f.id=? AND f.payment_status='UNPAID' AND f.total=?)").bind(second.id,id,id,b.version+1,marker,first.id,first.total+second.total)];
-    const results=await env.DB.batch(updates);if(results.some(x=>(x.meta?.changes??x.changes)!==1))return error(409,'BILL_CHANGED','Bill vừa thay đổi; tải lại trước khi gộp');return overview(env,deps.hydrate,id);
+    const results=await env.DB.batch(updates);if(results.some(x=>(x.meta?.changes??x.changes)!==1))return error(409,'BILL_CHANGED','Bill vừa thay đổi; tải lại trước khi gộp');return await overview(env,deps.hydrate,id);
    }
    const bad=editable(row,b.version);if(bad)return bad;
       if(action==='append'){
     const add=await deps.calculate({table:row.table_id,items:b.items,note:''},env),items=JSON.parse(row.items_json).concat(add.items);if(items.length>80||items.reduce((n,x)=>n+x.qty,0)>120)return error(400,'TOO_MANY_ITEMS','Đơn vượt giới hạn món');
     const subtotal=row.subtotal+add.subtotal,v=row.voucher_terms_json?JSON.parse(row.voucher_terms_json):row.voucher_id?await env.DB.prepare('SELECT * FROM vouchers WHERE id=?').bind(row.voucher_id).first():null,discount=row.voucher_id&&!row.voucher_terms_json?Math.min(subtotal,row.discount):discounted(subtotal,v);
     const totals=deps.priceTotals(subtotal,discount,row),time=now();const update=env.DB.prepare("UPDATE qr_orders SET items_json=?,subtotal=?,discount=?,total=?,tax_amount=?,last_delta_json=?,last_change_kind='ADD',payment_status='UNPAID',inventory_tracked=1,kitchen_revision=kitchen_revision+1,version=version+1,updated_at=? WHERE id=? AND status='ACCEPTED' AND version=? AND payment_status='UNPAID'").bind(JSON.stringify(items),subtotal,discount,totals.total,totals.taxAmount,JSON.stringify(add.items),time,id,b.version);
-    if(!appendKey){const r=await update.run();return r.meta.changes?overview(env,deps.hydrate,id):error(409,'ORDER_CHANGED','Tải lại đơn')}
+    if(!appendKey){const r=await update.run();return r.meta.changes?await overview(env,deps.hydrate,id):error(409,'ORDER_CHANGED','Tải lại đơn')}
     try{
      await env.DB.batch([
       env.DB.prepare('INSERT INTO pos_order_append_requests(request_key,order_id,fingerprint,actor_id,base_version,created_at) VALUES(?,?,?,?,?,?)').bind(appendKey,id,appendFingerprint,actor.id,b.version,time),
       update,
       env.DB.prepare('UPDATE pos_order_append_requests SET applied_version=CASE WHEN changes()=1 THEN ? ELSE NULL END WHERE request_key=?').bind(b.version+1,appendKey)
      ]);
-     return overview(env,deps.hydrate,id);
+     return await overview(env,deps.hydrate,id);
     }catch(e){
      const receipt=await env.DB.prepare('SELECT order_id,fingerprint,actor_id FROM pos_order_append_requests WHERE request_key=?').bind(appendKey).first();
-     if(receipt)return receipt.order_id===id&&receipt.fingerprint===appendFingerprint&&receipt.actor_id===actor.id?overview(env,deps.hydrate,id):error(409,'REQUEST_ID_REUSED','Mã yêu cầu đã dùng cho món khác');
+     if(receipt)return receipt.order_id===id&&receipt.fingerprint===appendFingerprint&&receipt.actor_id===actor.id?await overview(env,deps.hydrate,id):error(409,'REQUEST_ID_REUSED','Mã yêu cầu đã dùng cho món khác');
      if(/APPEND_CONFLICT/.test(e.message))return error(409,'ORDER_CHANGED','Tải lại đơn');
      throw e;
     }
@@ -200,15 +200,15 @@ export async function handleStaff(req,env,deps){
     const items=JSON.parse(row.items_json),index=b.index;if(!Number.isSafeInteger(index)||index<0||index>=items.length)return error(400,'INVALID_ITEM','Món không hợp lệ');const reason=safe(b.reason,120);if(!reason)return error(400,'REASON_REQUIRED','Cần ghi lý do hủy');
     const delta={...items[index],qty:1,mods:{...items[index].mods,note:(items[index].mods?.note||'')+' HỦY: '+reason}};items[index].qty--;if(!items[index].qty)items.splice(index,1);
     const subtotal=items.reduce((s,x)=>s+x.qty*x.price,0);const v=row.voucher_terms_json?JSON.parse(row.voucher_terms_json):row.voucher_id?await env.DB.prepare('SELECT * FROM vouchers WHERE id=?').bind(row.voucher_id).first():null;if(v&&row.voucher_terms_json&&subtotal>0&&subtotal<v.min_spend)return error(409,'VOUCHER_MIN','Hủy món làm đơn không đủ điều kiện voucher; hãy xử lý ưu đãi trước');const discount=row.voucher_id&&!row.voucher_terms_json?Math.min(subtotal,row.discount):discounted(subtotal,v),totals=deps.priceTotals(subtotal,discount,row),time=now();
-    const r=await env.DB.prepare("UPDATE qr_orders SET items_json=?,subtotal=?,discount=?,total=?,tax_amount=?,last_delta_json=?,last_change_kind='CANCEL',payment_status='UNPAID',kitchen_revision=kitchen_revision+1,version=version+1,updated_at=?,status=CASE WHEN ?=0 THEN 'CANCELLED' ELSE status END WHERE id=? AND status='ACCEPTED' AND version=? AND payment_status='UNPAID'").bind(JSON.stringify(items),subtotal,discount,totals.total,totals.taxAmount,JSON.stringify([delta]),time,items.length,id,b.version).run();return r.meta.changes?overview(env,deps.hydrate,id):error(409,'ORDER_CHANGED','Tải lại đơn');
+    const r=await env.DB.prepare("UPDATE qr_orders SET items_json=?,subtotal=?,discount=?,total=?,tax_amount=?,last_delta_json=?,last_change_kind='CANCEL',payment_status='UNPAID',kitchen_revision=kitchen_revision+1,version=version+1,updated_at=?,status=CASE WHEN ?=0 THEN 'CANCELLED' ELSE status END WHERE id=? AND status='ACCEPTED' AND version=? AND payment_status='UNPAID'").bind(JSON.stringify(items),subtotal,discount,totals.total,totals.taxAmount,JSON.stringify([delta]),time,items.length,id,b.version).run();return r.meta.changes?await overview(env,deps.hydrate,id):error(409,'ORDER_CHANGED','Tải lại đơn');
    }
    if(action==='cancel'){
     if(!safe(b.reason,120))return error(400,'REASON_REQUIRED','Cần ghi lý do hủy');
-    const time=now();const r=await env.DB.prepare("UPDATE qr_orders SET status='CANCELLED',version=version+1,updated_at=?,last_change_kind='CANCEL',last_delta_json=items_json,kitchen_revision=kitchen_revision+1,items_json='[]',subtotal=0,discount=0,total=0,tax_amount=0 WHERE id=? AND status='ACCEPTED' AND version=? AND payment_status='UNPAID'").bind(time,id,b.version).run();return r.meta.changes?overview(env,deps.hydrate,id):error(409,'ORDER_CHANGED','Tải lại đơn');
+    const time=now();const r=await env.DB.prepare("UPDATE qr_orders SET status='CANCELLED',version=version+1,updated_at=?,last_change_kind='CANCEL',last_delta_json=items_json,kitchen_revision=kitchen_revision+1,items_json='[]',subtotal=0,discount=0,total=0,tax_amount=0 WHERE id=? AND status='ACCEPTED' AND version=? AND payment_status='UNPAID'").bind(time,id,b.version).run();return r.meta.changes?await overview(env,deps.hydrate,id):error(409,'ORDER_CHANGED','Tải lại đơn');
    }
    if(action==='pay'){
     const method=b.method;if(!['CASH','BANK'].includes(method))return error(400,'PAYMENT_METHOD','Chọn tiền mặt hoặc chuyển khoản');if(method==='BANK'&&!paymentFor(row))return error(409,'BANK_NOT_CONFIGURED','Chưa cấu hình tài khoản nhận tiền');if(method==='CASH'&&(!Number.isSafeInteger(b.received)||b.received<row.total))return error(400,'CASH_INSUFFICIENT','Số tiền nhận không đủ');
-    const time=now(),r=await env.DB.prepare("UPDATE qr_orders SET code=?,payment_status='PAID',payment_method=?,cash_received=?,cash_change=?,status='PAID',paid_at=?,paid_by=?,paid_by_name=?,updated_at=?,version=version+1 WHERE id=? AND status='ACCEPTED' AND version=? AND payment_status='UNPAID'").bind(codeForMethod(row.code,method),method,method==='CASH'?b.received:null,method==='CASH'?b.received-row.total:null,time,actor.id,actor.name||actor.username||'',time,id,b.version).run();return r.meta.changes?overview(env,deps.hydrate,id):error(409,'ORDER_CHANGED','Tải lại đơn');
+    const time=now(),r=await env.DB.prepare("UPDATE qr_orders SET code=?,payment_status='PAID',payment_method=?,cash_received=?,cash_change=?,status='PAID',paid_at=?,paid_by=?,paid_by_name=?,updated_at=?,version=version+1 WHERE id=? AND status='ACCEPTED' AND version=? AND payment_status='UNPAID'").bind(codeForMethod(row.code,method),method,method==='CASH'?b.received:null,method==='CASH'?b.received-row.total:null,time,actor.id,actor.name||actor.username||'',time,id,b.version).run();return r.meta.changes?await overview(env,deps.hydrate,id):error(409,'ORDER_CHANGED','Tải lại đơn');
    }
    if(action==='split'){
     const old=JSON.parse(row.items_json),parts=b.parts,units=old.reduce((s,x)=>s+x.qty,0);
@@ -223,7 +223,7 @@ export async function handleStaff(req,env,deps){
     if(counts.some((n,i)=>n!==old[i].qty)||entries.some(x=>x.total<0)||entries.reduce((s,x)=>s+x.total,0)!==row.total||entries.reduce((s,x)=>s+x.taxAmount,0)!==row.tax_amount)return error(400,'INVALID_SPLIT','Mỗi phần ăn phải thuộc đúng một bill');
     const statements=entries.map(x=>env.DB.prepare('INSERT INTO pos_bills(id,order_id,sequence,items_json,subtotal,discount,total,tax_amount,created_at,expected_version) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(x.id,id,x.seq,JSON.stringify(x.items),x.subtotal,x.discount,x.total,x.taxAmount,nowTime,b.version));
     statements.push(env.DB.prepare("UPDATE qr_orders SET status='SPLIT',version=version+1,updated_at=? WHERE id=? AND status='ACCEPTED' AND version=?").bind(nowTime,id,b.version));
-    await env.DB.batch(statements);return overview(env,deps.hydrate,id);
+    await env.DB.batch(statements);return await overview(env,deps.hydrate,id);
    }
    return error(404,'NOT_FOUND','Chức năng không tồn tại');
   }
@@ -232,7 +232,7 @@ export async function handleStaff(req,env,deps){
    const b=await deps.body(req),id=billPath[1],v=await env.DB.prepare('SELECT b.*,o.bank_bin,o.bank_account,o.bank_name,o.bank_label,o.code,o.status,o.transfer_prefix FROM pos_bills b JOIN qr_orders o ON o.id=b.order_id WHERE b.id=?').bind(id).first();
    if(!v)return error(404,'BILL_NOT_FOUND','Không tìm thấy bill');if(v.status!=='SPLIT'||v.payment_status!=='UNPAID')return error(409,'BILL_CLOSED','Bill đã thanh toán hoặc đóng');
    if(!['CASH','BANK'].includes(b.method))return error(400,'PAYMENT_METHOD','Chọn phương thức thanh toán');if(b.method==='BANK'&&!paymentFor({...v,code:codeForBill(v.code,'BANK',v.sequence)}))return error(409,'BANK_NOT_CONFIGURED','Chưa cấu hình ngân hàng');if(b.method==='CASH'&&(!Number.isSafeInteger(b.received)||b.received<v.total))return error(400,'CASH_INSUFFICIENT','Tiền mặt chưa đủ');
-   const r=await env.DB.prepare("UPDATE pos_bills SET payment_status='PAID',payment_method=?,cash_received=?,cash_change=?,paid_at=?,paid_by=?,paid_by_name=? WHERE id=? AND payment_status='UNPAID'").bind(b.method,b.method==='CASH'?b.received:null,b.method==='CASH'?b.received-v.total:null,now(),actor.id,actor.name||actor.username||'',id).run();return r.meta.changes?overview(env,deps.hydrate,v.order_id):error(409,'BILL_CHANGED','Bill vừa thay đổi');
+   const r=await env.DB.prepare("UPDATE pos_bills SET payment_status='PAID',payment_method=?,cash_received=?,cash_change=?,paid_at=?,paid_by=?,paid_by_name=? WHERE id=? AND payment_status='UNPAID'").bind(b.method,b.method==='CASH'?b.received:null,b.method==='CASH'?b.received-v.total:null,now(),actor.id,actor.name||actor.username||'',id).run();return r.meta.changes?await overview(env,deps.hydrate,v.order_id):error(409,'BILL_CHANGED','Bill vừa thay đổi');
   }
   const claimPath=path.match(/^\/api\/staff\/jobs\/(kitchen:[a-f0-9-]{36}:\d+)\/claim$/i);
   if(claimPath&&method==='POST'){

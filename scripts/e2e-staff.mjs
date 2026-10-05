@@ -228,6 +228,10 @@ try{
  await hp.fill(pf('input[name=price]'),'48000');await hp.fill(pf('input[name=largePrice]'),'48000');await hp.click(pf('button.primary'));
  check(!!await catalogHas('E2E-CANH',p=>p.price===48000),'the owner changes the price of that dish from the handheld');
 
+ // The update button on the handheld's Settings and Store screens opens the APK download page (the phone's browser takes it).
+ const updateHref=async tile=>{await hp.click('[data-screen="owner"]');await hp.locator(`[data-screen="${tile}"]`).first().click();return hp.waitForSelector('[data-update-link]',{timeout:10000}).then(a=>a.evaluate(x=>[x.getAttribute('href'),x.getAttribute('target'),x.textContent.trim()].join('|')),()=>'missing')};
+ for(const tile of ['settings','store']){const got=await updateHref(tile);check(got==='https://pos-phattai.lgl247-ai.workers.dev/app||Update phiên bản 更新軟件',`the ${tile} screen has the update button to the APK download page (${got})`)}
+
  // 4. Network drop: the handheld must say it is offline, then recover by itself
  await hand.context.setOffline(true);
  try{await hp.waitForFunction(()=>document.querySelector('#connection').textContent.includes('Chưa kết nối'),null,{timeout:25000});check(true,'offline state is shown while the network is down')}

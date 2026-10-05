@@ -239,7 +239,7 @@ try{
  const rejected=await hp.evaluate(()=>window.__rejected);
  check(rejected.length===0,`APK bridge rejected no Staff UI request${rejected.length?': '+rejected.join(', '):''}`);
  check(hand.errors.length===0&&cust.errors.length===0,`no uncaught page errors${[...hand.errors,...cust.errors].map(e=>'\n  '+e).join('')}`);
-}catch(error){failures.push(error.message);console.error("FAIL  "+error.message+"\n"+(error.stack||"").split("\n").filter(l=>l.includes("e2e-staff")).join("\n"));annotate(error.message)}
+}catch(error){failures.push(error.message);console.error("FAIL  "+error.message+"\n"+(error.stack||"").split("\n").filter(l=>l.includes("e2e-staff")).join("\n"));annotate(error.message+" @ "+(error.stack||"").split("\n").filter(l=>l.includes("e2e-staff")).map(l=>l.trim().replace(/^.*e2e-staff\.mjs:/,"line ")).join(" < "))}
 finally{
  await browser?.close();server?.kill('SIGTERM');rmSync(persist,{recursive:true,force:true});
 }

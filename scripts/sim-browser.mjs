@@ -346,10 +346,14 @@ try{
   const d=(await api('GET','/api/staff/orders/'+o.id)).data.order;if(d.paymentMethod!=='BANK'||d.paymentStatus!=='PAID')return fail(d.paymentMethod+' '+d.paymentStatus);return await clean(hand)});
  await run('Handheld: cash short of the total is refused and the order stays unpaid',async()=>{
   const o=await newOrder('T46',[['101','中','中']]);await hp.click('[data-start-pay]');await hp.click('[data-choose-pay=CASH]');
+  // The warning fades after 7 s; on a loaded CI runner with a 4x slower CPU the click (and its prompt) can outlast that,
+  // so record every notice the moment it appears instead of hoping to catch it on screen.
+  await hp.evaluate(()=>{window.__notices=[];window.__noticeWatch?.disconnect();window.__noticeWatch=new MutationObserver(()=>{for(const n of document.querySelectorAll('#app .notice'))if(!window.__notices.includes(n.textContent))window.__notices.push(n.textContent)});window.__noticeWatch.observe(document.querySelector('#app'),{childList:true,subtree:true,characterData:true})});
+  const dialogs=[];const seen=d=>dialogs.push(d.type()+': '+d.message().slice(0,60));hp.on('dialog',seen);
   hp.__answer=String(o.total-1000);await hp.click('[data-pay][data-method=CASH]');
-  let told=true;try{await hp.waitForFunction(()=>/chưa đủ|không đủ/i.test(document.querySelector('#app').innerText),null,{timeout:10000})}catch{told=false}finally{hp.__answer=undefined}
+  let told=true;try{await hp.waitForFunction(()=>/chưa đủ|không đủ/i.test(document.querySelector('#app').innerText+' '+window.__notices.join(' ')),null,{timeout:10000})}catch{told=false}finally{hp.__answer=undefined;hp.off('dialog',seen)}
   const d=(await api('GET','/api/staff/orders/'+o.id)).data.order;if(d.paymentStatus!=='UNPAID')return fail('paid with too little cash');
-  if(!told)return fail('no message: '+(await hp.locator('#app').innerText()).replace(/\s+/g,' ').slice(0,200));return await clean(hand)});
+  if(!told)return fail(`no message for order ${o.code} (total ${o.total}); dialogs [${dialogs.join(' | ')}]; notices [${(await hp.evaluate(()=>window.__notices)).join(' | ').slice(0,200)}]; screen: `+(await hp.locator('#app').innerText()).replace(/\s+/g,' ').slice(0,300));return await clean(hand)});
  await run('Handheld: add items to an open order, then cancel one portion with a reason',async()=>{
   const o=await newOrder('T47',[['110','中','中']]);await hp.click('[data-action=append]');await hp.waitForSelector('[data-add="113"]');
   await hp.click('[data-add="113"]');await hp.click('[data-item-save]');await hp.click('[data-action=submit]');

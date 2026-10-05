@@ -332,11 +332,13 @@ try{
   const wait=Date.now()-t0;if(wait>8000)return fail(`kitchen slip took ${wait} ms`);return await clean(hand)});
  await run('Handheld: pay cash with change; the receipt goes to the SUNMI printer as "BIÊN LAI THU TIỀN" naming the cashier',async()=>{
   const o=await newOrder('T44',[['110','中','中']]);await hp.click('[data-start-pay]');await hp.click('[data-choose-pay=CASH]');
+  // Wait for the receipt itself: live sync can show the paid code (-TM) before the receipt reaches the printer.
+  const printed=await hp.evaluate(()=>window.__receipts.length);
   hp.__answer=String(o.total+20000);await hp.click('[data-pay][data-method=CASH]');
   await hp.waitForFunction(()=>/-TM\b/.test(document.querySelector('#app').innerText));hp.__answer=undefined;
   const d=(await api('GET','/api/staff/orders/'+o.id)).data.order;if(d.cashChange!==20000)return fail('change '+d.cashChange);
-  const rec=await hp.evaluate(()=>window.__receipts.at?window.__receipts[window.__receipts.length-1]:window.__receipts[window.__receipts.length-1]);
-  if(!rec)return fail('no receipt printed');const p=JSON.parse(rec.raw);
+  if(!await hp.waitForFunction(n=>window.__receipts.length>n,printed,{timeout:15000}).then(()=>true,()=>false))return fail('no receipt printed');
+  const rec=await hp.evaluate(()=>window.__receipts[window.__receipts.length-1]);const p=JSON.parse(rec.raw);
   if(!/BIÊN LAI THU TIỀN/.test(p.title)||!p.cashierName||!/Không phải hóa đơn/.test(p.notice))return fail('receipt '+JSON.stringify({title:p.title,notice:p.notice,cashier:p.cashierName}));
   return await clean(hand)});
  await run('Handheld: bank transfer payment',async()=>{

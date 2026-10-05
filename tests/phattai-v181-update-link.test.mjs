@@ -9,8 +9,8 @@ const ACTIVITY = readFileSync(new URL('../android/app/src/main/java/vn/lotusai/p
 // Owner's request (05/10/2026): the download link is too long to type on a handheld, so Settings and Store setup carry
 // an "Update phiên bản 更新軟件" button straight to the APK download page.
 test('the handheld Settings and Store screens carry the update button to the APK download page', () => {
-  assert.match(STAFF, /const UPDATE_PAGE=native\?'https:\/\/pos-phattai\.lgl247-ai\.workers\.dev\/app':'\/app';/);
-  assert.match(STAFF, /const updateLink=\(\)=>counter\?'':`<div class="card"><a class="linkButton primary" data-update-link href="\$\{UPDATE_PAGE\}"/);
+  assert.match(STAFF, /const updatePage=\(\)=>native\?\(realtimeBase\(\)\|\|'https:\/\/pos-phattai\.lgl247-ai\.workers\.dev'\)\+'\/app':'\/app';/, 'the Worker this handheld is set to');
+  assert.match(STAFF, /const updateLink=\(\)=>counter\?'':`<div class="card"><a class="linkButton primary" data-update-link href="\$\{esc\(updatePage\(\)\)\}"/);
   assert.match(STAFF, />Update phiên bản 更新軟件<\/a>/);
   assert.match(STAFF, /<h1>Quản lý tiệm · chủ tiệm<\/h1>\$\{updateLink\(\)\}/, 'Store setup');
   assert.match(STAFF, /\$\{counter\?deviceForm\(\):''\}\$\{updateLink\(\)\}/, 'Settings & devices, every account');

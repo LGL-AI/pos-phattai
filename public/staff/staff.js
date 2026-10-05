@@ -219,9 +219,9 @@ window.LotusNativeBridge={onNativeEvent:e=>window.LotusCloud.onNativeEvent(e)};
 function canInstallUpdate(){return !st.busy&&!st.uncertain&&!st.submitDraft&&!st.itemDraft&&!st.payFlow&&!st.stockPending&&!st.refundPending&&!st.shiftPending&&st.cart.length===0&&[...pending.values()].every(request=>['GET','HEAD'].includes(request.method))&&printingLabels.size===0}
 const appUpdate=window.LotusAppUpdate?.create({native,canInstall:canInstallUpdate,approve,notice:message});
 // The handheld's download page for the newest APK, one tap from Settings and Store setup. In the APK the page opens in the
-// phone's browser (MainActivity.external); on the web staff page it opens in a new tab so the POS session stays.
-const UPDATE_PAGE=native?'https://pos-phattai.lgl247-ai.workers.dev/app':'/app';
-const updateLink=()=>counter?'':`<div class="card"><a class="linkButton primary" data-update-link href="${UPDATE_PAGE}"${native?'':' target="_blank" rel="noopener"'}>Update phiên bản 更新軟件</a><p class="muted">Mở trang tải APK mới nhất của Phát Tài / 打开最新 APK 下载页面</p></div>`;
+// phone's browser (MainActivity.external) on the Worker this handheld is set to; on the web staff page it opens in a new tab so the POS session stays.
+const updatePage=()=>native?(realtimeBase()||'https://pos-phattai.lgl247-ai.workers.dev')+'/app':'/app';
+const updateLink=()=>counter?'':`<div class="card"><a class="linkButton primary" data-update-link href="${esc(updatePage())}"${native?'':' target="_blank" rel="noopener"'}>Update phiên bản 更新軟件</a><p class="muted">Mở trang tải APK mới nhất của Phát Tài / 打开最新 APK 下载页面</p></div>`;
 window.LotusHandheld={canInstallUpdate,back(){if(st.selected){st.selected=null;st.detail=null;render();return true}if(st.screen!=='orders'){st.screen='orders';render();return true}return false}};
 // The notice fades after 7 s by removing just the notice: a full render() here wiped whatever the
 // staff was typing (member phone, voucher, note) and made the next tap act on an empty field.

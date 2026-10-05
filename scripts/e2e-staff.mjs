@@ -230,7 +230,9 @@ try{
 
  // The update button on the handheld's Settings and Store screens opens the APK download page (the phone's browser takes it).
  const updateHref=async tile=>{await hp.click('[data-screen="owner"]');await hp.locator(`[data-screen="${tile}"]`).first().click();return hp.waitForSelector('[data-update-link]',{timeout:10000}).then(a=>a.evaluate(x=>[x.getAttribute('href'),x.getAttribute('target'),x.textContent.trim()].join('|')),()=>'missing')};
- for(const tile of ['settings','store']){const got=await updateHref(tile);check(got==='https://pos-phattai.lgl247-ai.workers.dev/app||Update phiên bản 更新軟件',`the ${tile} screen has the update button to the APK download page (${got})`)}
+ for(const tile of ['settings','store']){const got=await updateHref(tile);check(got===BASE+'/app||Update phiên bản 更新軟件',`the ${tile} screen has the update button to the download page of the Worker the handheld is set to (${got})`)}
+ // /app redirects to the newest APK; a local build has no APK in its catalog, so it answers with the "no APK published yet" page.
+ {const r=await fetch(BASE+'/app',{redirect:'manual'}),text=await r.text();check(r.status===302&&/\.apk$/.test(r.headers.get('location')||'')||r.status===404&&text.includes('Chưa có bản APK'),`the link behind the update button reaches the APK download handler (${r.status} ${r.headers.get('location')||text.slice(0,40)})`)}
 
  // 4. Network drop: the handheld must say it is offline, then recover by itself
  await hand.context.setOffline(true);

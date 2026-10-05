@@ -17,6 +17,12 @@ async function verify(){
  const query=new URLSearchParams({applicationId:identity.productionApplicationId,signerSha256:identity.profiles[identity.productionApplicationId].signerSha256,versionCode:'1',sdk:'30'});
  const update=await read('/api/android/update?'+query),expected=selectAndroidRelease(query,catalog);
  if(update.status!==expected.status||update.available!==expected.available||update.release?.sha256!==expected.release?.sha256)throw Error(`Production updater (${update.status} ${update.release?.sha256||''}) differs from the verified catalog (${expected.status} ${expected.release?.sha256||''})`);
+ // The handheld's "Update phiên bản" button opens /app, which must hand the phone the APK the updater offers.
+ if(expected.release){
+  const page=await fetch(origin+'/app',{redirect:'manual',headers:{'User-Agent':'Mozilla/5.0'},signal:AbortSignal.timeout(15000)});
+  const location=page.headers.get('location')||'';
+  if(page.status!==302||new URL(location,origin).pathname!==expected.release.path)throw Error(`Production /app HTTP ${page.status} ${location} does not lead to ${expected.release.path}`);
+ }
  // PT-31: pages are served without the Worker, so their security headers come from public/_headers.
  for(const path of ['/qr/','/staff/','/counter/']){
   const page=await fetch(origin+path,{headers:{'User-Agent':'Mozilla/5.0'},signal:AbortSignal.timeout(15000)});

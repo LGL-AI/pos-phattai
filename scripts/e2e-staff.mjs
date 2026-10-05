@@ -112,7 +112,7 @@ try{
  if(!await hp.locator('#member-phone').isVisible())await hp.click('.member-voucher summary');
  await hp.fill('#member-phone','0909 555');globalThis.__answer='Khách E2E';
  await hp.click('[data-action=register]');
- await hp.waitForFunction(()=>/12–13 ký tự/.test(document.querySelector('#app').innerText));
+ await hp.waitForFunction(()=>/12–14 ký tự/.test(document.querySelector('#app').innerText));
  check(true,'a phone number that is too short is refused with a clear message');
  await hp.fill('#member-phone','0909555777');await hp.click('[data-action=register]');
  await hp.waitForFunction(()=>/Khách E2E · 0909555777/.test(document.querySelector('#app').innerText));

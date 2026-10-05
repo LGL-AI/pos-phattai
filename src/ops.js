@@ -12,6 +12,12 @@ const te=new TextEncoder();
 const permissions=role=>Array.isArray(role)?role:JSON.parse(role||'[]');
 const owner=()=>({id:'OWNER',username:'huang',name:'Chủ cửa hàng',role:'OWNER',permissions:VALID});
 export const allowed=(actor,permission)=>Boolean(actor?.permissions.includes(permission));
+// PT-40: an account that may view orders but neither take payment nor edit orders (the KITCHEN role) sees
+// only who ordered, the order code, the table and the dishes: no prices, totals, payments or customer records.
+export const kitchenOnly=actor=>!allowed(actor,'PAYMENT_CONFIRM')&&!allowed(actor,'ORDER_EDIT');
+const dish=x=>({productId:x.productId,sku:x.sku,name:x.name,nameCn:x.nameCn,station:x.station,qty:x.qty,mods:x.mods});
+export const kitchenDishes=items=>(items||[]).map(dish);
+export const kitchenOrder=o=>({id:o.id,code:o.code,table:o.table,memberName:o.memberName,items:kitchenDishes(o.items),note:o.note,status:o.status,createdAt:o.createdAt,updatedAt:o.updatedAt,version:o.version});
 export const SESSION_MS=12*3600000,SESSION_RENEW_AFTER_MS=30*60000;
 // Sliding session: a session in use never expires in the middle of a shift; one idle for 12 hours does.
 // The write happens at most once per 30 minutes per session.

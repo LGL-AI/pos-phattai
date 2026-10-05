@@ -1,4 +1,4 @@
-import {allowed} from './ops.js';
+import {allowed,kitchenOnly} from './ops.js';
 const tierFor=points=>points>=600?'Platinum':points>=300?'Gold':points>=100?'Silver':'Member';
 
 const H={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
@@ -13,7 +13,7 @@ export async function handleCustomers(req,env,actor,deps){
  const path=new URL(req.url).pathname,method=req.method;
  if(!/^\/api\/staff\/customers(?:\/[a-f0-9-]{36})?$/i.test(path))return null;
  if(method==='GET'&&path==='/api/staff/customers'){
-  if(!allowed(actor,'ORDER_VIEW'))return fail(403,'PERMISSION_DENIED','Không có quyền xem khách hàng');
+  if(!allowed(actor,'ORDER_VIEW')||kitchenOnly(actor))return fail(403,'PERMISSION_DENIED','Không có quyền xem khách hàng');
   const search=(new URL(req.url).searchParams.get('q')||'').trim().slice(0,80);
   const like='%'+search.replace(/[\\%_]/g,'\\$&')+'%';
   const query=env.DB.prepare(`SELECT ${fields} FROM members WHERE (?='' OR phone LIKE ? ESCAPE '\\' OR display_name LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\') ORDER BY updated_at DESC LIMIT 200`).bind(search,like,like,like);
@@ -22,7 +22,7 @@ export async function handleCustomers(req,env,actor,deps){
   return ok({customers,kpis:{total:stats.count,gold:stats.gold,totalSpend:stats.spend,averageSpend:stats.count?Math.round(stats.spend/stats.count):0},limited:customers.length===200});
  }
  if(method==='GET'){
-  if(!allowed(actor,'ORDER_VIEW'))return fail(403,'PERMISSION_DENIED','Không có quyền xem khách hàng');
+  if(!allowed(actor,'ORDER_VIEW')||kitchenOnly(actor))return fail(403,'PERMISSION_DENIED','Không có quyền xem khách hàng');
   const member=await env.DB.prepare(`SELECT ${fields} FROM members WHERE id=?`).bind(path.split('/').pop()).first();
   if(!member)return fail(404,'CUSTOMER_NOT_FOUND','Không thấy khách hàng');
   const orders=await env.DB.prepare('SELECT id,code,total,payment_status AS paymentStatus,created_at AS createdAt FROM qr_orders WHERE member_id=? ORDER BY created_at DESC LIMIT 30').bind(member.id).all();

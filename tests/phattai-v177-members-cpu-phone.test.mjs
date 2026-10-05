@@ -80,11 +80,11 @@ const CASES=[
  ['0912345678','0912345678'],['01234567890','01234567890'],['0912 345 678','0912345678'],['0912-345.678','0912345678'],
  ['+84912345678','0912345678'],['+84 0912 345 678','0912345678'],['84912345678','0912345678'],['+841234567890','01234567890'],
  ['+886912345678','+886912345678'],['+11234567890','+11234567890'],['+44 7911 123456','+447911123456'],
- ['091234567',''],['+8491234567',''],['+8613812345678',''],['+0123456789012',''],['+886 9123 4567 89',''],['abc',''],['','']
+ ['091234567',''],['+8491234567',''],['+8613812345678','+8613812345678'],['+86 138 1234 5678','+8613812345678'],['+861381234567890',''],['+0123456789012',''],['+886 9123 4567 89','+8869123456789'],['+886 9123 4567 890',''],['abc',''],['','']
 ];
-test('PHONE local 0 + 9-10 digits, or +country code with 12-13 characters; Vietnamese numbers stored as 0...',()=>{
+test('PHONE local 0 + 9-10 digits, or +country code with 12-14 characters; Vietnamese numbers stored as 0...',()=>{
  for(const [raw,stored] of CASES)assert.equal(phone(raw),stored,raw);
- for(const [raw,stored] of CASES)if(stored.startsWith('+'))assert.ok(stored.length>=12&&stored.length<=13,stored);
+ for(const [raw,stored] of CASES)if(stored.startsWith('+'))assert.ok(stored.length>=12&&stored.length<=14,stored);
 });
 test('PHONE the QR page and the staff app apply exactly the Worker rule',()=>{
  for(const file of ['public/assets/app.js','public/staff/staff.js']){
@@ -105,17 +105,18 @@ test('PHONE international members register, sign in with the phone as first pass
  assert.equal((await fx.call('/api/member/login','POST',{phone:'+886 912-345-678',password:'+886 912 345 678'})).status,200,'typed with spaces');
  const vn=await fx.call('/api/member/register','POST',{phone:'+84 912 345 678',name:'Lan'});assert.equal(vn.data.member.phone,'0912345678');
  assert.equal((await fx.call('/api/member/login','POST',{phone:'0912345678',password:'+84912345678'})).status,200,'first password in +84 form');
- assert.equal((await fx.call('/api/member/register','POST',{phone:'+8613812345678',name:'Wang'})).status,400,'14 characters is too long');
+ assert.equal((await fx.call('/api/member/register','POST',{phone:'+8613812345678',name:'Wang'})).status,201,'PT-39: a mainland China mobile (14 characters) registers');
+ assert.equal((await fx.call('/api/member/register','POST',{phone:'+861381234567890',name:'Too long'})).status,400,'15 characters is too long');
  const found=await fx.call('/api/staff/members?phone='+encodeURIComponent('+886912345678'),'GET',null,h);assert.equal(found.data.member.name,'Chen');
  assert.equal((await fx.call('/api/staff/members?phone='+encodeURIComponent('+84912345678'),'GET',null,h)).data.member.name,'Lan');
- const bad=await fx.call('/api/staff/members?phone=123','GET',null,h);assert.equal(bad.status,400);assert.match(bad.data.message,/12–13 ký tự/);
+ const bad=await fx.call('/api/staff/members?phone=123','GET',null,h);assert.equal(bad.status,400);assert.match(bad.data.message,/12–14 ký tự/);
  const customer=await fx.call('/api/staff/customers','POST',{name:'Khách Mỹ',phone:'+1 123 456 7890'},h);
  assert.equal(customer.status,201,JSON.stringify(customer.data));assert.equal(customer.data.customer.phone,'+11234567890');
  fx.db.close();
 });
 test('PHONE a scanned +country number is treated as a member',()=>{
  const code=readFileSync(new URL('../public/staff/scanner.js',import.meta.url),'utf8');
- assert.match(code,/\^\\\+\[1-9\]\\d\{10,11\}\$/);
+ assert.match(code,/\^\\\+\[1-9\]\\d\{10,12\}\$/);
 });
 
 test('FIRST PASSWORD is the last 6 digits of the phone, whatever format the phone was typed in',async()=>{

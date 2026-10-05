@@ -255,7 +255,9 @@ try{
  // 4. Handheld: every screen for the owner and for a cashier opens without errors (≈30 cases)
  const cashier=await api('POST','/api/staff/accounts',{username:'thungan.sim',name:'Thu ngân Mô Phỏng',role:'CASHIER',password:'thungan-sim-123',active:true});
  if(![200,201].includes(cashier.status))console.log('cashier account not created: '+JSON.stringify(cashier.data));
- for(const [who,user,pass] of [['owner','huang',PASSWORD],['cashier','thungan.sim','thungan-sim-123']]){
+ const kitchenAcc=await api('POST','/api/staff/accounts',{username:'bep.sim',name:'Bếp Mô Phỏng',role:'KITCHEN',password:'bep-sim-123456',active:true});
+ if(![200,201].includes(kitchenAcc.status))console.log('kitchen account not created: '+JSON.stringify(kitchenAcc.data));
+ for(const [who,user,pass] of [['owner','huang',PASSWORD],['cashier','thungan.sim','thungan-sim-123'],['kitchen','bep.sim','bep-sim-123456']]){
   const dev=await open({native:true});
   try{await handheldLogin(dev,user,pass)}catch(e){const log=await dev.page.evaluate(()=>window.__log||[]).catch(()=>[]),vals=await dev.page.evaluate(()=>[...document.querySelectorAll('input')].map(i=>i.name+'='+(i.type==='password'?'*'.repeat(i.value.length):i.value))).catch(()=>[]);await run(`Handheld ${who}: signs in`,async()=>fail(e.message.split('\n')[0]+' log='+JSON.stringify(log)+' fields='+JSON.stringify(vals)));await dev.context.close();continue}
   const screens=new Set(await dev.page.locator('nav [data-screen]').evaluateAll(n=>n.map(x=>x.dataset.screen)));
@@ -269,6 +271,7 @@ try{
     const failed=await httpFails(dev.page);if(failed.length)return fail('requests failed: '+failed.slice(0,3).join(' | '));
     const text=await dev.page.locator('#app').innerText();if(text.trim().length<10)return fail('screen is empty');
     if(/undefined|NaN|\[object Object\]/.test(text))return fail('screen shows '+text.match(/.{0,40}(undefined|NaN|\[object Object\]).{0,20}/)[0]);
+    if(who==='kitchen'&&/\d{1,3}(\.\d{3})+ ?đ|Thanh toán|Tổng|TỔNG|Khách hàng \/ 客户/.test(text))return fail('the kitchen sees money or customers: '+text.match(/.{0,40}(\d{1,3}(\.\d{3})+ ?đ|Thanh toán|Tổng|TỔNG|Khách hàng \/ 客户).{0,20}/)[0]);
     return await clean(dev);
    });
   }
@@ -285,6 +288,21 @@ try{
    await dev.page.fill('input[name=password]','thungan-sim-123');await dev.page.click('button:has-text("Đăng nhập")');await dev.page.waitForSelector('nav [data-screen]');
    const who=await dev.page.evaluate(()=>JSON.parse(window.NativePOS.getAuthState()).user?.username);if(who!=='thungan.sim')return fail('signed in as '+who);
    dev.errors.length=0;return await clean(dev);
+  }finally{await dev.context.close()}
+ });
+
+ await run('Handheld kitchen: opens an order and sees the customer name, code, table and dishes, without any price',async()=>{
+  const r=await api('POST','/api/staff/orders',{table:'T60',items:[{productId:'110',qty:2,mods:{size:'大',spice:'小',note:'không da'}}],note:'ít hành',idempotencyKey:'sim_kitchen_view_order_01'});
+  if(r.status!==201)return fail('order '+JSON.stringify(r.data));
+  const dev=await open({native:true});
+  try{
+   await handheldLogin(dev,'bep.sim','bep-sim-123456');await dev.page.click('nav [data-screen="orders"]');await dev.page.waitForSelector(`[data-open="${r.data.order.id}"]`);
+   const list=await dev.page.locator(`[data-open="${r.data.order.id}"]`).innerText();if(!/T60/.test(list)||!/Cơm vịt quay/.test(list))return fail('list entry: '+list);if(/đ\b|\d\.\d{3}/.test(list))return fail('list shows money: '+list);
+   await dev.page.click(`[data-open="${r.data.order.id}"]`);await dev.page.waitForFunction(()=>/Cơm vịt quay/.test(document.querySelector('#app').innerText));
+   const text=await dev.page.locator('#app').innerText();
+   if(!text.includes(r.data.order.code)||!/không da/.test(text)||!/ít hành/.test(text))return fail('detail lacks code or notes: '+text.replace(/\s+/g,' ').slice(0,200));
+   if(/\d{1,3}(\.\d{3})+ ?đ|TỔNG|Tạm tính|Thanh toán/.test(text))return fail('detail shows money: '+text.replace(/\s+/g,' ').slice(0,300));
+   return await clean(dev);
   }finally{await dev.context.close()}
  });
 

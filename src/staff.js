@@ -1,5 +1,5 @@
 // Server-owned POS ledger. The browser and the SUNMI use this same API.
-import {allowed,handleOps,loginActor,sessionActor} from './ops.js';
+import {allowed,handleOps,loginActor,sessionActor,kitchenOnly,kitchenOrder,kitchenDishes} from './ops.js';
 import {displayStaff} from './display.js';
 import {handleManagement} from './management.js';
 import {settingsStaff} from './settings.js';
@@ -34,6 +34,7 @@ function editable(row,version){if(!row)return error(404,'ORDER_NOT_FOUND','Khôn
 async function getRow(env,id){return env.DB.prepare('SELECT * FROM qr_orders WHERE id=?').bind(id).first()}
 async function memberById(env,id){return id?env.DB.prepare('SELECT id,display_name,phone_verified,phone,points FROM members WHERE id=?').bind(id).first():null}
 function discounted(subtotal,v){if(!v)return 0;const raw=v.kind==='PERCENT'?Math.floor(subtotal*v.value/100):v.value;return Math.min(subtotal,v.max_discount>0?Math.min(raw,v.max_discount):raw)}
+async function kitchenOverview(env,hydrate,id){const row=await getRow(env,id);if(!row||row.payment_status==='PAID')return error(404,'ORDER_NOT_FOUND','Không tìm thấy đơn');const {results:jobs=[]}=await env.DB.prepare("SELECT * FROM pos_kitchen_jobs WHERE order_id=? AND status!='VOID' ORDER BY revision").bind(id).all();return result({order:kitchenOrder(hydrate(row)),jobs:jobs.map(x=>({id:x.id,revision:x.revision,kind:x.kind,status:x.status,items:kitchenDishes(JSON.parse(x.items_json)),createdAt:x.created_at})),bills:[]})}
 async function overview(env,hydrate,id){const row=await getRow(env,id);if(!row)return error(404,'ORDER_NOT_FOUND','Không tìm thấy đơn');const {results:jobs=[]}=await env.DB.prepare("SELECT * FROM pos_kitchen_jobs WHERE order_id=? AND status!='VOID' ORDER BY revision").bind(id).all();const {results:bills=[]}=await env.DB.prepare('SELECT b.*,COALESCE((SELECT SUM(amount) FROM pos_refunds WHERE bill_id=b.id),0) AS refunded_amount FROM pos_bills b WHERE order_id=? ORDER BY sequence').bind(id).all();const earned=await env.DB.prepare('SELECT points FROM loyalty_transactions WHERE order_id=?').bind(id).first();const refunded=await env.DB.prepare('SELECT COALESCE(SUM(amount),0) AS amount FROM pos_refunds WHERE order_id=?').bind(id).first();return result({order:{...hydrate(row),pointsEarned:earned?.points??null,refundedAmount:refunded?.amount||0},jobs:jobs.map(x=>({id:x.id,revision:x.revision,kind:x.kind,status:x.status,items:JSON.parse(x.items_json),createdAt:x.created_at})),bills:bills.map(x=>bill(x,row))})}
 async function resolveStaffVoucher(env,deps,code,subtotal,member){return code?deps.resolveVoucher(env,code,subtotal,member,now()):null}
 export async function handleStaff(req,env,deps){
@@ -65,14 +66,14 @@ export async function handleStaff(req,env,deps){
   if(path==='/api/staff/logout'&&method==='POST'){await env.DB.prepare('DELETE FROM pos_staff_sessions WHERE token_hash=?').bind(await deps.sha(req.headers.get('Authorization').slice(7))).run();return result({})}
   if(path==='/api/staff/members/password'&&method==='POST'){
    if(!allowed(actor,'ORDER_EDIT'))return error(403,'PERMISSION_DENIED','Không có quyền đổi mật khẩu hội viên');const b=await deps.body(req);
-   const memberPhone=deps.phone(b.phone);if(!memberPhone)return error(400,'INVALID_PHONE','Số điện thoại phải là 0 + 9–10 số, hoặc +mã nước (12–13 ký tự)');
+   const memberPhone=deps.phone(b.phone);if(!memberPhone)return error(400,'INVALID_PHONE','Số điện thoại phải là 0 + 9–10 số, hoặc +mã nước (12–14 ký tự)');
    const member=await env.DB.prepare('SELECT id FROM members WHERE phone=?').bind(memberPhone).first();if(!member)return error(404,'MEMBER_NOT_FOUND','Không thấy hội viên');
    return deps.changeMemberPassword(env,new Request(req.url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword:b.currentPassword,newPassword:b.newPassword})}),member.id);
   }
   if(path==='/api/staff/sync-meta'&&method==='GET')return result({revisions:await syncRevisions(env)});
   if(path==='/api/staff/service-requests'&&method==='GET'){
    if(!allowed(actor,'ORDER_VIEW'))return error(403,'PERMISSION_DENIED','Không có quyền xem yêu cầu phục vụ');
-   const {results:requests=[]}=await env.DB.prepare("SELECT s.id,s.order_id AS orderId,s.table_id AS tableName,s.created_at AS createdAt,o.code,o.payment_status AS paymentStatus,o.payment_preference AS paymentPreference FROM pos_service_requests s JOIN qr_orders o ON o.id=s.order_id WHERE s.status='PENDING' AND o.payment_status!='PAID' AND o.status!='CANCELLED' ORDER BY s.created_at LIMIT 30").all();return result({requests});
+   const {results:requests=[]}=await env.DB.prepare("SELECT s.id,s.order_id AS orderId,s.table_id AS tableName,s.created_at AS createdAt,o.code,o.payment_status AS paymentStatus,o.payment_preference AS paymentPreference FROM pos_service_requests s JOIN qr_orders o ON o.id=s.order_id WHERE s.status='PENDING' AND o.payment_status!='PAID' AND o.status!='CANCELLED' ORDER BY s.created_at LIMIT 30").all();return result({requests:kitchenOnly(actor)?requests.map(({paymentStatus,paymentPreference,...x})=>x):requests});
   }
   if(path==='/api/staff/paid-labels'&&method==='GET'){
    if(!allowed(actor,'PRINT_KITCHEN'))return error(403,'PERMISSION_DENIED','Không có quyền in tem');
@@ -80,7 +81,7 @@ export async function handleStaff(req,env,deps){
    if(new URL(req.url).searchParams.get('revision')===revision)return result({jobs:[],unchanged:true,revision});
    const since=new Date(Date.now()-7*86400000).toISOString();
    const {results:rows=[]}=await env.DB.prepare("SELECT j.id,j.revision,j.kind,j.status,j.items_json,j.created_at,o.id AS order_id,o.code,o.table_id,o.payment_status FROM pos_kitchen_jobs j JOIN qr_orders o ON o.id=j.order_id JOIN pos_auto_print_config config ON config.id=1 WHERE o.payment_status='UNPAID' AND (o.status!='CANCELLED' OR j.kind='CANCEL') AND j.status!='VOID' AND j.created_at>=? AND j.created_at>=config.since_at ORDER BY j.created_at DESC LIMIT 100").bind(since).all();
-   return result({revision,jobs:rows.map(x=>({id:x.id,revision:x.revision,kind:x.kind,status:x.status,createdAt:x.created_at,items:JSON.parse(x.items_json),order:{id:x.order_id,code:x.code,table:x.table_id,paymentStatus:x.payment_status}}))});
+   const limited=kitchenOnly(actor);return result({revision,jobs:rows.map(x=>({id:x.id,revision:x.revision,kind:x.kind,status:x.status,createdAt:x.created_at,items:limited?kitchenDishes(JSON.parse(x.items_json)):JSON.parse(x.items_json),order:limited?{id:x.order_id,code:x.code,table:x.table_id}:{id:x.order_id,code:x.code,table:x.table_id,paymentStatus:x.payment_status}}))});
   }
   const serviceAck=path.match(/^\/api\/staff\/service-requests\/([a-f0-9-]{36})\/ack$/i);
   if(serviceAck&&method==='POST'){
@@ -96,7 +97,7 @@ export async function handleStaff(req,env,deps){
   }
   if((path==='/api/staff/summary'||path==='/api/staff/reports/daily'||path==='/api/staff/reports/analytics'||path==='/api/staff/reports/shift'||path==='/api/staff/reports/workers'||path==='/api/staff/reports/staff')&&method==='GET'){
    if(path==='/api/staff/summary'){
-    if(!allowed(actor,'ORDER_VIEW'))return error(403,'PERMISSION_DENIED','Không có quyền xem tổng quan');
+    if(!allowed(actor,'ORDER_VIEW')||kitchenOnly(actor))return error(403,'PERMISSION_DENIED','Không có quyền xem tổng quan');
    }else if(actor.role!=='OWNER')return error(403,'OWNER_ONLY','Chỉ chủ tiệm được xem/xuất báo cáo quản trị');
    if(path==='/api/staff/reports/analytics'){
     const data=await analytics(env,new URL(req.url).searchParams.get('date'));
@@ -133,9 +134,10 @@ export async function handleStaff(req,env,deps){
   if(path==='/api/staff/orders'&&method==='GET'){
    const code=new URL(req.url).searchParams.get('code');if(code!==null&&!(/^(?:\d{8}-\d{4,}-[0-9A-F]{6}(?:-(?:CK|TM))?(?:-?B[1-9]\d*)?|PT-[0-9A-F-]{12,40}(?:\sB[1-9]\d*)?)$/i.test(code)))return error(400,'INVALID_CODE','Mã đơn không hợp lệ');
    const baseCode=code?.replace(/(?:\sB|-?B)[1-9]\d*$/i,'');const {results:rows=[]}=await (code?env.DB.prepare('SELECT * FROM qr_orders WHERE code IN (?,?,?) ORDER BY created_at DESC LIMIT 1').bind(baseCode,codeForMethod(baseCode,'BANK'),codeForMethod(baseCode,'CASH')):env.DB.prepare('SELECT * FROM qr_orders ORDER BY created_at DESC LIMIT 100')).all();
-   return result({orders:rows.map(deps.hydrate)});
+   return result({orders:kitchenOnly(actor)?rows.filter(x=>x.payment_status!=='PAID').map(x=>kitchenOrder(deps.hydrate(x))):rows.map(deps.hydrate)});
   }
-  if(path==='/api/staff/members'&&method==='GET'){const phone=deps.phone(new URL(req.url).searchParams.get('phone'));if(!phone)return error(400,'INVALID_PHONE','Số điện thoại phải là 0 + 9–10 số, hoặc +mã nước (12–13 ký tự)');const member=await env.DB.prepare('SELECT id,display_name,phone,points,spend,orders,last_visit,phone_verified,tier_override FROM members WHERE phone=?').bind(phone).first();return result({member:member?{id:member.id,name:member.display_name,phone:member.phone,points:member.points,tier:member.tier_override||tierFor(member.points),spend:member.spend,orders:member.orders,lastVisit:member.last_visit,phoneVerified:!!member.phone_verified}:null})}
+  if(path==='/api/staff/members'&&method==='GET'&&kitchenOnly(actor))return error(403,'PERMISSION_DENIED','Tài khoản bếp không xem thông tin hội viên');
+  if(path==='/api/staff/members'&&method==='GET'){const phone=deps.phone(new URL(req.url).searchParams.get('phone'));if(!phone)return error(400,'INVALID_PHONE','Số điện thoại phải là 0 + 9–10 số, hoặc +mã nước (12–14 ký tự)');const member=await env.DB.prepare('SELECT id,display_name,phone,points,spend,orders,last_visit,phone_verified,tier_override FROM members WHERE phone=?').bind(phone).first();return result({member:member?{id:member.id,name:member.display_name,phone:member.phone,points:member.points,tier:member.tier_override||tierFor(member.points),spend:member.spend,orders:member.orders,lastVisit:member.last_visit,phoneVerified:!!member.phone_verified}:null})}
   if(path==='/api/staff/members/register'&&method==='POST')return await deps.register(env,req,{scope:'staff-member-register',limit:60});
   if(path==='/api/staff/members/login'&&method==='POST')return await deps.login(env,req,{scope:'staff-member-login',limit:120});
   if(path==='/api/staff/voucher'&&method==='POST'){const b=await deps.body(req),v=await deps.calculate(b,env),member=await memberById(env,b.memberId);if(b.memberId&&!member)return error(400,'INVALID_MEMBER','Không thấy hội viên');const offer=await resolveStaffVoucher(env,deps,b.voucherCode,v.subtotal,member);return result({...deps.priceTotals(v.subtotal,offer?.discount||0,await deps.getStore(env)),voucher:offer?.code||null})}
@@ -151,7 +153,7 @@ export async function handleStaff(req,env,deps){
    const row=await env.DB.prepare('SELECT * FROM qr_orders WHERE idem_key=?').bind(idem).first();if(!row)return error(503,'ORDER_NOT_SAVED','Chưa lưu được đơn');if(row.fingerprint!==fingerprint)return error(409,'REQUEST_ID_REUSED','Mã đơn đã dùng cho giỏ khác');return result({order:deps.hydrate(row),duplicate:row.id!==id},row.id===id?201:200);
   }
   const orderPath=path.match(/^\/api\/staff\/orders\/([a-f0-9-]{36})(?:\/(accept|append|cancel-unit|cancel|pay|split|merge-bills))?$/i);
-  if(orderPath){const id=orderPath[1],action=orderPath[2];if(!uuid(id))return error(400,'INVALID_ID','Mã đơn không hợp lệ');if(method==='GET'&&!action)return await overview(env,deps.hydrate,id);if(method!=='POST')return error(405,'METHOD_NOT_ALLOWED','Yêu cầu POST');const b=await deps.body(req),row=await getRow(env,id);
+  if(orderPath){const id=orderPath[1],action=orderPath[2];if(!uuid(id))return error(400,'INVALID_ID','Mã đơn không hợp lệ');if(method==='GET'&&!action)return kitchenOnly(actor)?await kitchenOverview(env,deps.hydrate,id):await overview(env,deps.hydrate,id);if(method!=='POST')return error(405,'METHOD_NOT_ALLOWED','Yêu cầu POST');const b=await deps.body(req),row=await getRow(env,id);
    if(!row)return error(404,'ORDER_NOT_FOUND','Không tìm thấy đơn');
    let appendKey=null,appendFingerprint=null;
    if(action==='append'&&b.idempotencyKey!==undefined){

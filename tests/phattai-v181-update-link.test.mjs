@@ -13,7 +13,7 @@ test('the handheld Settings and Store screens carry the update button to the APK
   assert.match(STAFF, /const updateLink=\(\)=>counter\?'':`<div class="card"><a class="linkButton primary" data-update-link href="\$\{esc\(updatePage\(\)\)\}"/);
   assert.match(STAFF, />Update phiên bản 更新軟件<\/a>/);
   assert.match(STAFF, /<h1>Quản lý tiệm · chủ tiệm<\/h1>\$\{updateLink\(\)\}/, 'Store setup');
-  assert.match(STAFF, /\$\{counter\?deviceForm\(\):''\}\$\{announceCard\(\)\}\$\{updateLink\(\)\}/, 'Settings & devices, every account');
+  assert.match(STAFF, /\$\{counter\?deviceForm\(\):''\}\$\{updateLink\(\)\}/, 'Settings & devices, every account');
   assert.equal(APK_STAFF, STAFF, 'the APK carries the same staff UI');
 });
 test('inside the APK the download page opens in the phone browser, not inside the POS WebView', () => {

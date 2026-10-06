@@ -34,7 +34,7 @@ test('RECOVERY a committed append followed by payment never creates another orde
 const schedulerSource=STAFF.slice(STAFF.indexOf('const scheduler={'),STAFF.indexOf("if(typeof window.setInterval==='function')window.setInterval(schedulerTick,1000);"));
 function schedulerHarness(){
  let clock=0,serial=0;const timers=new Map(),counts={live:0,service:0,print:0,scanner:0};
- const context={st:{token:'token',syncStats:{realtime:0},realtimeState:'OFFLINE',selected:null},counter:true,native:null,document:{hidden:false},can:()=>true,location:{protocol:'https:',origin:'https://pos.test'},Date:{now:()=>clock},console,Math,setTimeout:(fn,ms)=>{const id=++serial;timers.set(id,{fn,ms});return id},clearTimeout:id=>timers.delete(id),setInterval:()=>++serial,clearInterval(){},syncLive:async()=>{counts.live++},pollService:async()=>{counts.service++},pollScanner:async()=>{counts.scanner++},pollAutoPrint:async()=>{counts.print++},watchOrders:async()=>{counts.announce=(counts.announce||0)+1},announceOn:()=>false,kitchenOnly:()=>false,liveFetchesOrders:()=>true};
+ const context={st:{token:'token',syncStats:{realtime:0},realtimeState:'OFFLINE',selected:null},counter:true,native:null,document:{hidden:false},can:()=>true,location:{protocol:'https:',origin:'https://pos.test'},Date:{now:()=>clock},console,Math,setTimeout:(fn,ms)=>{const id=++serial;timers.set(id,{fn,ms});return id},clearTimeout:id=>timers.delete(id),setInterval:()=>++serial,clearInterval(){},syncLive:async()=>{counts.live++},pollService:async()=>{counts.service++},pollScanner:async()=>{counts.scanner++},pollAutoPrint:async()=>{counts.print++}};
  vm.createContext(context);vm.runInContext(schedulerSource+';globalThis.t={scheduler,runScheduled,taskDelay,taskBase,wakeSync,connectRealtime,closeRealtime,realtime};',context);
  return {context,counts,timers,t:context.t,time:value=>clock=value,flush:async()=>{for(let i=0;i<8;i++)await Promise.resolve()}};
 }
@@ -66,7 +66,7 @@ test('SYNC an unchanged screen makes one small read and no full order or menu re
  const revisions={orders:'2',print:'2',catalog:'1',inventory:'1',staff:'1',reports:'1'},paths=[];
  const state={token:'token',screen:'orders',selected:null,busy:false,syncRevisions:{...revisions},syncStats:{orders:0}};
  const code=STAFF.slice(STAFF.indexOf('async function syncLive(){'),STAFF.indexOf('\nfunction renderLogin()'));
- await vm.runInNewContext('let liveSyncing=false;'+code+';syncLive()',{LIVE_SCREENS:['orders','qrorders','kitchen','new','inventory','dashboard','display','products','team','vouchers','shifts','customers','store'],announceOrders(){},st:state,document:{hidden:false,activeElement:null},can:()=>true,counter:false,api:async(method,path)=>{paths.push(path);return {revisions}},render(){},connection(){}});
+ await vm.runInNewContext('let liveSyncing=false;'+code+';syncLive()',{st:state,document:{hidden:false,activeElement:null},can:()=>true,counter:false,api:async(method,path)=>{paths.push(path);return {revisions}},render(){},connection(){}});
  assert.deepEqual(paths,['/api/staff/sync-meta']);assert.equal(state.syncStats.orders,0);
 });
 test('API concurrent identical reads share one network request',async()=>{

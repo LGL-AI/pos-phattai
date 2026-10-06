@@ -11,9 +11,6 @@ import android.nfc.NfcAdapter;
 import android.os.Build;
 import android.os.Bundle;
 import android.webkit.JavascriptInterface;
-import android.speech.tts.TextToSpeech;
-import android.media.AudioManager;
-import android.media.ToneGenerator;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -72,10 +69,6 @@ public class MainActivity extends Activity {
     private LanKitchenPrinter kitchen;
     private PosAuth auth;
     private AppUpdater updater;
-    // New-order announcements: Chinese text-to-speech when the device has the voice, a chime otherwise.
-    private TextToSpeech tts;
-    private volatile String ttsState = "INIT";
-    private ToneGenerator tone;
     private final android.os.Handler updateTimer = new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable updateCheck = new Runnable() {
         @Override public void run() {
@@ -88,7 +81,6 @@ public class MainActivity extends Activity {
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         preferences = getSharedPreferences("lotus_pos_print", Context.MODE_PRIVATE);
-        initSpeech();
         auth = new PosAuth(this);
         kitchen = new LanKitchenPrinter(this,(code,severity,message,id)->emit("KITCHEN",code,severity,message,id));
         updater = new AppUpdater(this, new AppUpdater.Listener() {
@@ -144,7 +136,6 @@ public class MainActivity extends Activity {
         s.setAllowUniversalAccessFromFileURLs(false);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         s.setCacheMode(WebSettings.LOAD_NO_CACHE);
-        s.setMediaPlaybackRequiresUserGesture(false); // announcements play without a tap
         webView.clearCache(true);
         s.setUserAgentString(s.getUserAgentString() + " LotusPOSPhatTai/" + installedVersionName());
         webView.setWebChromeClient(new WebChromeClient(){
@@ -450,32 +441,7 @@ public class MainActivity extends Activity {
         try{JSONObject e=new JSONObject().put("category",category).put("code",code).put("severity",severity).put("message",message).put("requestId",requestId);String js="window.LotusNativeBridge&&window.LotusNativeBridge.onNativeEvent("+e.toString()+")";runOnUiThread(()->{if(webView!=null)webView.evaluateJavascript(js,null);});}catch(Throwable ignored){}
     }
 
-    private void initSpeech() {
-        try {
-            tts = new TextToSpeech(this, status -> {
-                if (status != TextToSpeech.SUCCESS || tts == null) { ttsState = "NO_ENGINE"; return; }
-                int r = tts.setLanguage(Locale.SIMPLIFIED_CHINESE);
-                ttsState = r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED ? "NO_VOICE" : "READY";
-            });
-        } catch (Throwable t) { ttsState = "NO_ENGINE"; }
-        try { tone = new ToneGenerator(AudioManager.STREAM_MUSIC, 100); } catch (Throwable ignored) { tone = null; }
-    }
-    private String speakNow(String text) {
-        if (!"READY".equals(ttsState) || tts == null || text == null || text.trim().isEmpty()) return ttsState;
-        String clean = text.trim().length() > 200 ? text.trim().substring(0, 200) : text.trim();
-        return tts.speak(clean, TextToSpeech.QUEUE_ADD, null, "lotus-" + System.nanoTime()) == TextToSpeech.SUCCESS ? "OK" : "ERROR";
-    }
-    private String ttsStatusJson() {
-        try { return new JSONObject().put("state", ttsState).put("engine", tts == null ? "" : String.valueOf(tts.getDefaultEngine())).toString(); }
-        catch (Throwable t) { return "{\"state\":\"" + ttsState + "\"}"; }
-    }
-
     public final class Bridge {
-        @JavascriptInterface public String speak(String text){return speakNow(text);}
-        @JavascriptInterface public void chime(){try{if(tone!=null)tone.startTone(ToneGenerator.TONE_PROP_ACK,300);}catch(Throwable ignored){}}
-        // The handheld that announces stays awake: with the screen off the WebView stops and hears nothing.
-        @JavascriptInterface public void keepScreenOn(boolean on){runOnUiThread(()->{if(on)getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);else getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);});}
-        @JavascriptInterface public String ttsStatus(){return ttsStatusJson();}
         @JavascriptInterface public void apiRequest(String id,String method,String path,String raw,String token){cloudApi(id,method,path,raw,token);}
         @JavascriptInterface public void savePng(String filename,String base64){MainActivity.this.savePng(filename,base64);}
         @JavascriptInterface public String getAuthState(){return auth.state();}
@@ -514,5 +480,5 @@ public class MainActivity extends Activity {
     }
 
     @Override public void onBackPressed(){if(webView!=null)webView.evaluateJavascript("window.LotusHandheld&&window.LotusHandheld.back()",result->{if(!"true".equals(result))new AlertDialog.Builder(this).setMessage("Trở về bảng kiểm tra kết nối mạng?").setPositiveButton("Về kiểm tra",(d,w)->finish()).setNegativeButton("Ở lại",null).show();});}
-    @Override protected void onDestroy(){try{if(tts!=null)tts.shutdown();}catch(Throwable ignored){}try{if(tone!=null)tone.release();}catch(Throwable ignored){}updateTimer.removeCallbacksAndMessages(null);network.shutdownNow();if(updater!=null)updater.close();if(printerCallback!=null)try{InnerPrinterManager.getInstance().unBindService(this,printerCallback);}catch(Throwable ignored){}worker.shutdown();if(kitchen!=null)kitchen.close();if(webView!=null)webView.destroy();super.onDestroy();}
+    @Override protected void onDestroy(){updateTimer.removeCallbacksAndMessages(null);network.shutdownNow();if(updater!=null)updater.close();if(printerCallback!=null)try{InnerPrinterManager.getInstance().unBindService(this,printerCallback);}catch(Throwable ignored){}worker.shutdown();if(kitchen!=null)kitchen.close();if(webView!=null)webView.destroy();super.onDestroy();}
 }

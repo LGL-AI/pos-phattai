@@ -50,8 +50,7 @@ async function open({viewport={width:360,height:720},old=true,native=false,slow=
    printKitchen(id,raw){window.__kitchen.push(id);setTimeout(()=>window.LotusNativeBridge&&window.LotusNativeBridge.onNativeEvent({category:'KITCHEN',code:'KITCHEN_SENT',severity:'INFO',message:'Đã gửi phiếu bếp',requestId:id}),20)},retryKitchen(){},
    getReceiptState:()=>'NEW',printReceipt(id,raw){window.__receipts.push({id,raw});return 'OK'},reprintReceipt(){},printDailyReport(){},
    getPrinterStatus:()=>'{"state":1}',checkPrinter(){},reconnectPrinter(){},openKitchenSettings(){},openKitchenJobs(){},
-   openDiagnostics(){},openCloudConnectivity(){},savePng(){},getAppInfo:()=>'{"native":true}',
-   speak(t){(window.__spoken=window.__spoken||[]).push(t);return 'OK'},chime(){window.__chimes=(window.__chimes||0)+1},ttsStatus:()=>'{"state":"READY","engine":"sim"}',keepScreenOn(on){window.__awake=!!on}
+   openDiagnostics(){},openCloudConnectivity(){},savePng(){},getAppInfo:()=>'{"native":true}'
   };
  },{filterSource});
  const page=await context.newPage();page.setDefaultTimeout(15000);lastPage=page;
@@ -477,41 +476,6 @@ try{
   await hp.click(`[data-remove-schedule="${row.id}"]`);await hp.waitForTimeout(1500);await hp.click('[data-action=refresh]');await hp.waitForTimeout(1500);
   const r=(await api('GET','/api/staff/schedules?from='+vnDay())).data;if(r.schedules.some(x=>x.staff_id===row.staff_id&&x.work_date===row.work_date&&x.start_time===row.start_time))return fail('the deleted day came back');
   return await clean(hand)});
- // Owner's request 06/10/2026: one handheld paired with a Bluetooth speaker reads new customer orders out in Chinese.
- const spoken=()=>hp.evaluate(()=>window.__spoken||[]);
- const customerOrder=async table=>{const phone=await open({viewport:{width:390,height:844}});try{await qrOpen(phone,table);await qrAdd(phone.page,catalog.find(p=>String(p.id)==='115'));await qrSubmit(phone.page)}finally{await phone.context.close()}};
- await run('Handheld: the speaker is off by default; turned on, the screen stays awake and a customer QR order is read out ("52号桌，有新订单") on the Settings screen',async()=>{
-  await hp.click('nav [data-screen="owner"]');await hp.locator('#app [data-screen="settings"]').first().click();await hp.waitForSelector('[data-action=announce-toggle]');
-  if(!await hp.locator('[data-action=announce-test][disabled]').count())return fail('the speaker is on by default');
-  const quiet=(await spoken()).length;await customerOrder('T51');await hp.waitForTimeout(5000);if((await spoken()).length>quiet)return fail('read out while off');
-  await hp.click('[data-action=announce-toggle]');await hp.waitForSelector('[data-action=announce-test]:not([disabled])');
-  if(!await hp.evaluate(()=>window.__awake))return fail('the screen is not kept awake');
-  const before=(await spoken()).length;await customerOrder('T52');
-  try{await hp.waitForFunction(n=>(window.__spoken||[]).length>n,before,{timeout:15000})}catch{return fail('nothing was read out within 15 s')}
-  const said=(await spoken()).slice(before);if(!said.includes('52号桌，有新订单'))return fail('read out: '+JSON.stringify(said));
-  if(!/52号桌/.test(await hp.locator('#announce-toast').textContent().catch(()=>'')))return fail('no on-screen notice');if(!(await hp.evaluate(()=>window.__chimes||0)))return fail('no chime');
-  return await clean(hand)});
- await run('Handheld: an order the staff enter themselves is not read out',async()=>{
-  const before=(await spoken()).length;await api('POST','/api/staff/orders',{table:'T53',items:[{productId:'115',qty:1,mods:{}}],idempotencyKey:'sim_announce_staff_0001'});
-  await hp.waitForTimeout(6000);const said=(await spoken()).slice(before);return said.length?fail('read out: '+JSON.stringify(said)):await clean(hand)});
- await run('Handheld: still read out on the order list, where the live sync loads the orders',async()=>{
-  await hp.click('nav [data-screen="orders"]');await hp.waitForTimeout(800);const before=(await spoken()).length;await customerOrder('T56');
-  try{await hp.waitForFunction(n=>(window.__spoken||[]).includes('56号桌，有新订单'),before,{timeout:15000})}catch{return fail('not read out on the order list: '+JSON.stringify((await spoken()).slice(before)))}
-  await hp.click('nav [data-screen="owner"]');await hp.locator('#app [data-screen="settings"]').first().click();await hp.waitForSelector('[data-action=announce-toggle]');return await clean(hand)});
- await run('Handheld: the test button speaks; turning the speaker off lets the screen sleep and stops the announcements',async()=>{
-  const before=(await spoken()).length;await hp.click('[data-action=announce-test]');await hp.waitForTimeout(1200);
-  if(!(await spoken()).slice(before).includes('5号桌，有新订单'))return fail('the test button did not speak');
-  await hp.click('[data-action=announce-toggle]');await hp.waitForSelector('[data-action=announce-test][disabled]');if(await hp.evaluate(()=>window.__awake))return fail('the screen is still kept awake');
-  const after=(await spoken()).length;await customerOrder('T54');await hp.waitForTimeout(6000);
-  if((await spoken()).length>after)return fail('read out while turned off');return await clean(hand)});
- await run('Browser: with no Chinese voice a turned-on page still chimes and shows the notice; after a reload one tap turns the sound back on',async()=>{
-  const web=await open({native:false,old:false,touch:false,viewport:{width:1280,height:800}});
-  try{await handheldLogin(web);await web.page.evaluate(()=>localStorage.setItem('lotus-cloud:announce','on'));await web.page.reload();await web.page.waitForSelector('nav [data-screen]');
-   if(!await web.page.locator('#announce-unlock').count())return fail('no "Bật loa" button after a reload');
-   await web.page.click('#announce-unlock');if(await web.page.locator('#announce-unlock').count())return fail('the button stays after the tap');
-   await web.page.evaluate(()=>{window.__beeps=0;const C=window.AudioContext;const o=C.prototype.createOscillator;C.prototype.createOscillator=function(){window.__beeps++;return o.call(this)}});
-   await customerOrder('T55');try{await web.page.waitForFunction(()=>/55号桌，有新订单/.test(document.querySelector('#announce-toast')?.textContent||''),null,{timeout:15000})}catch{return fail('no notice for the new order')}
-   if(!(await web.page.evaluate(()=>window.__beeps)))return fail('no chime');return await clean(web)}finally{await web.context.close()}});
  await run('Handheld: log out and back in keeps working; the old session cannot be used',async()=>{
   const old=await hp.evaluate(()=>localStorage.getItem('staff-session'));
   if(await hp.locator('nav [data-screen="settings"]').count())await hp.click('nav [data-screen="settings"]');else{await hp.click('nav [data-screen="owner"]');await hp.locator('#app [data-screen="settings"]').first().click()}await hp.waitForTimeout(800);

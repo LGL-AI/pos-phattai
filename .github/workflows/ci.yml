@@ -133,8 +133,13 @@ jobs:
         run: |
           inputs=$(node scripts/android-inputs-hash.mjs)
           echo "inputs=$inputs" >> "$GITHUB_OUTPUT"
-          latest=$(gh release list --limit 50 --json tagName --jq '[.[] | select(.tagName | startswith("android-v"))][0].tagName // ""')
-          if [ -n "$latest" ] && gh release view "$latest" --json body --jq .body | grep -q "inputs:$inputs"; then
+          # Any recent release built from the same app (not only the newest): rolling main back to an earlier app
+          # puts that exact signed APK back on the update channel instead of rebuilding it under a new version.
+          latest=""
+          for tag in $(gh release list --limit 50 --json tagName --jq '.[] | select(.tagName | startswith("android-v")) | .tagName'); do
+            if gh release view "$tag" --json body --jq .body | grep -q "inputs:$inputs"; then latest=$tag; break; fi
+          done
+          if [ -n "$latest" ]; then
             code=${latest#android-v}
             name=$(gh release view "$latest" --json body --jq .body | sed -n 's/.*version:\([0-9.]*\).*/\1/p' | head -1)
             mkdir -p dist && gh release download "$latest" --pattern '*.apk' --dir dist

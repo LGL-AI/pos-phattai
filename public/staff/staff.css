@@ -36,3 +36,5 @@ header{flex-wrap:wrap}
 .listButton.refunded,body[data-mode="counter"] .listButton.refunded{background:#fdecea;border-color:#e3a69e;color:#8b2a20}.listButton.refunded .badge{background:#b3261e;color:#fff}.listButton.refunded .money,.listButton.refunded .muted{color:#9b2c22}
 /* Fixed shifts and the schedule grouped by day (06/10/2026). */
 .fixed-shifts .line{padding:10px 0}.fixed-shifts form{border-top:1px solid #e1e7e0;margin-top:10px;padding-top:6px}.pill .pill-x{min-height:28px;padding:2px 9px;margin-left:4px;background:#f7dedc;color:#8a3028;border-radius:8px;font-size:12px}
+/* New-order announcements (06/10/2026). */
+#announce-toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:120;background:#205747;color:#fff;font-weight:800;font-size:20px;padding:14px 22px;border-radius:14px;box-shadow:0 10px 30px #0004;max-width:calc(100% - 24px);text-align:center}#announce-unlock{position:fixed;right:12px;bottom:92px;z-index:115;background:#b3261e;color:#fff;border-radius:22px;box-shadow:0 6px 18px #0003}

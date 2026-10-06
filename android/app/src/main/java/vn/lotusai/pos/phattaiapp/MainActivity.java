@@ -13,6 +13,7 @@ import android.os.Bundle;
 import android.webkit.JavascriptInterface;
 import android.speech.tts.TextToSpeech;
 import android.media.AudioManager;
+import android.media.AudioDeviceInfo;
 import android.media.ToneGenerator;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -465,6 +466,21 @@ public class MainActivity extends Activity {
         String clean = text.trim().length() > 200 ? text.trim().substring(0, 200) : text.trim();
         return tts.speak(clean, TextToSpeech.QUEUE_ADD, null, "lotus-" + System.nanoTime()) == TextToSpeech.SUCCESS ? "OK" : "ERROR";
     }
+    // Which speaker would play an announcement: the handheld's own speaker is too harsh, so the page only speaks
+    // through a Bluetooth, wired or USB speaker (owner's decision 06/10/2026).
+    private String audioOutputJson() {
+        boolean bluetooth = false, wired = false;
+        try {
+            AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            for (AudioDeviceInfo d : am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
+                int t = d.getType();
+                if (t == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || t == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) bluetooth = true;
+                if (t == AudioDeviceInfo.TYPE_WIRED_HEADSET || t == AudioDeviceInfo.TYPE_WIRED_HEADPHONES || t == AudioDeviceInfo.TYPE_USB_DEVICE || t == AudioDeviceInfo.TYPE_USB_HEADSET || t == AudioDeviceInfo.TYPE_LINE_ANALOG) wired = true;
+            }
+        } catch (Throwable ignored) {}
+        try { return new JSONObject().put("bluetooth", bluetooth).put("wired", wired).toString(); }
+        catch (Throwable t) { return "{}"; }
+    }
     private String ttsStatusJson() {
         try { return new JSONObject().put("state", ttsState).put("engine", tts == null ? "" : String.valueOf(tts.getDefaultEngine())).toString(); }
         catch (Throwable t) { return "{\"state\":\"" + ttsState + "\"}"; }
@@ -476,6 +492,7 @@ public class MainActivity extends Activity {
         // The handheld that announces stays awake: with the screen off the WebView stops and hears nothing.
         @JavascriptInterface public void keepScreenOn(boolean on){runOnUiThread(()->{if(on)getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);else getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);});}
         @JavascriptInterface public String ttsStatus(){return ttsStatusJson();}
+        @JavascriptInterface public String audioOutput(){return audioOutputJson();}
         @JavascriptInterface public void apiRequest(String id,String method,String path,String raw,String token){cloudApi(id,method,path,raw,token);}
         @JavascriptInterface public void savePng(String filename,String base64){MainActivity.this.savePng(filename,base64);}
         @JavascriptInterface public String getAuthState(){return auth.state();}

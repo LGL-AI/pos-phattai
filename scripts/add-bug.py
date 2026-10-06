@@ -12,8 +12,19 @@ ws = wb['Bug List']
 table = ws.tables['Bugs']
 last = ws.max_row
 sev_fill = {'Cao': 'F6D9D6', 'Trung': 'FBECD1', 'Thấp': 'E4ECEA'}
+# Columns with a drop-down list in the sheet take only its values (PT-41..PT-48 were added with free text in
+# Nguồn and one "Đã làm" status, which the summary does not count).
+lists = {}
+for dv in ws.data_validations.dataValidation:
+    if dv.type == 'list' and dv.formula1:
+        for ref in str(dv.sqref).split():
+            lists[ref.rstrip('0123456789:').rstrip('0123456789')[:1]] = dv.formula1.strip('"').split(',')
 for row in rows:
     assert len(row) == 15, row
+    for letter, allowed in lists.items():
+        value = row[ord(letter) - 65]
+        if value not in allowed:
+            sys.exit(f"{row[0]}: column {letter} must be one of {allowed}, not {value!r}")
     last += 1
     for col, value in enumerate(row, 1):
         cell = ws.cell(row=last, column=col, value=value)

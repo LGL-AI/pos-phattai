@@ -1,0 +1,44 @@
+name: D1 ops (manual)
+
+# Run by hand from main against the production D1: inspect the shift data, or add fixed shifts.
+# The repository is public: the script prints counts and checks only, never names, phones or IDs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: inspect | fixed-shifts
+        required: true
+        type: choice
+        options: [inspect, fixed-shifts]
+      plan:
+        description: 'fixed-shifts only: JSON [{name,startTime,endTime,startsOn,staff:[...]}]'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  ops:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Run on the production D1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TASK: ${{ inputs.task }}
+          PLAN: ${{ inputs.plan }}
+        run: node scripts/d1-ops.mjs "$TASK"

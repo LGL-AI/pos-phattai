@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 import pkg from '../package.json' with {type:'json'};
 const STAFF=readFileSync(new URL('../public/staff/staff.js',import.meta.url),'utf8');
 const APK_STAFF=readFileSync(new URL('../android/app/src/main/assets/staff/staff.js',import.meta.url),'utf8');
@@ -16,7 +16,7 @@ test('public staff is the Android source of truth',()=>{assert.equal(STAFF,APK_S
 test('single scheduler replaced independent polling intervals',()=>{assert.match(STAFF,/function schedulerTick\(\)/);assert.match(STAFF,/window\.setInterval\(schedulerTick,1000\)/);assert.doesNotMatch(STAFF,/setInterval\(syncLive,10000\)/);assert.doesNotMatch(STAFF,/setInterval\(pollAutoPrint,3000\)/)});
 test('scheduler has bounded exponential backoff and visibility wake',()=>{assert.match(STAFF,/function taskDelay\(task\)/);assert.match(STAFF,/Math\.min\(task\.max/);assert.match(STAFF,/visibilitychange/)});
 test('catalog sync uses revision endpoint before full payload',()=>{assert.match(STAFF,/\/api\/catalog\/meta/);assert.match(WORKER,/async function catalogMeta\(env\)/);assert.match(WORKER,/pos_sync_revisions WHERE scope='catalog'/)});
-test('readiness is one migration marker probe with cache',()=>{assert.match(WORKER,/SELECT 1 AS ok FROM d1_migrations WHERE name=\?/);assert.match(WORKER,/REQUIRED_MIGRATION='0021_receipt_cashier\.sql'/);assert.doesNotMatch(WORKER,/SELECT id,spend,orders,last_visit FROM members LIMIT 1/)});
+test('readiness is one migration marker probe with cache',()=>{assert.match(WORKER,/SELECT 1 AS ok FROM d1_migrations WHERE name=\?/);assert.ok(WORKER.includes(`REQUIRED_MIGRATION='${readdirSync(new URL('../migrations/',import.meta.url)).filter(n=>/^\d+_.+\.sql$/.test(n)).sort().at(-1)}'`),'the Worker waits for the newest migration');assert.doesNotMatch(WORKER,/SELECT id,spend,orders,last_visit FROM members LIMIT 1/)});
 test('realtime Durable Object exists with polling fallback',()=>{assert.match(WORKER,/export class RealtimeHub/);assert.match(STAFF,/new WebSocket/);assert.match(STAFF,/live:\{base:15000/);assert.equal(WRANGLER.durable_objects.bindings[0].name,'REALTIME')});
 test('health script derives expected version from package',()=>{assert.match(HEALTH,/import pkg from '\.\.\/package\.json'/);assert.match(HEALTH,/EXPECTED_VERSION\|\|pkg\.version/);assert.doesNotMatch(HEALTH,/2\.6\.0-phattai\.4/)});
 test('native bridge exposes configured cloud base for WebSocket',()=>assert.match(MAIN,/getCloudBase\(\)/));

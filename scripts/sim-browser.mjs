@@ -437,6 +437,45 @@ try{
   await hp.click('nav [data-screen="owner"]');await hp.locator('#app [data-screen="products"]').first().click();await hp.waitForSelector('#product-form');
   if(!await hp.locator('nav [data-screen="owner"].active').count())return fail('Quản trị is not highlighted on the dishes screen');
   return await clean(hand)});
+ // Owner's request 06/10/2026: three fixed shifts that repeat every day from a start date (PT-47 for the refused-shift message).
+ const vnDay=(n=0)=>new Date(Date.now()+7*3600000+n*86400000).toISOString().slice(0,10);
+ await run('Handheld: the owner sets up the three fixed shifts from the 24-hour lists and the schedule fills in for 14 days',async()=>{
+  const ids={};for(const [u,n] of [['sim.linh','linh'],['sim.thao','thao'],['sim.yenlinh','yen linh']]){const r=await api('POST','/api/staff/accounts',{username:u,name:n,role:'CASHIER',password:'sim-pass-123456',active:true});ids[n]=r.data.account?.id||(await api('GET','/api/staff/accounts')).data.accounts.find(a=>a.username===u).id}
+  await hp.locator('nav [data-screen="shifts"]').click();await hp.click('[data-action=refresh]');await hp.waitForSelector('#fixed-shift-form');
+  if(await hp.locator('#fixed-shift-form input[type=time]').count())return fail('the form still uses the AM/PM time picker');
+  for(const [name,start,end,people] of [['Ca sáng','10:00','14:00',['linh','thao','yen linh']],['Ca trưa','14:00','17:00',['yen linh','linh']],['Ca tối','17:00','21:00',['thao','linh']]]){
+   await hp.fill('#fixed-shift-form input[name=name]',name);await hp.selectOption('#fixed-shift-form select[name=startTime]',start);await hp.selectOption('#fixed-shift-form select[name=endTime]',end);
+   for(const n of people)await hp.check(`#fixed-shift-form input[name=staffId][value="${ids[n]}"]`);
+   await hp.click('#fixed-shift-form button.primary');
+   try{await hp.waitForFunction(n=>document.querySelector('.fixed-shifts')?.innerText.includes(n),name,{timeout:10000})}catch{return fail(name+' was not saved: '+(await hp.locator('#app').innerText()).replace(/\s+/g,' ').slice(0,200))}
+  }
+  const r=(await api('GET','/api/staff/schedules?from='+vnDay())).data;
+  if(r.fixedShifts.length!==3)return fail('fixed shifts on D1: '+r.fixedShifts.length);
+  const linh=r.schedules.filter(x=>x.staff_id===ids.linh&&x.work_date===vnDay(6)).map(x=>x.start_time+'-'+x.end_time).join(',');
+  if(linh!=='10:00-14:00,14:00-17:00,17:00-21:00')return fail('linh in 6 days: '+linh);
+  const days=new Set(r.schedules.filter(x=>x.fixed_shift_id).map(x=>x.work_date));if(days.size!==14)return fail('days filled in: '+days.size);
+  const text=await hp.locator('#app').innerText();if(!/Ca trưa[\s\S]{0,40}14:00–17:00/.test(text))return fail('the schedule by day does not show Ca trưa 14:00–17:00');
+  return await clean(hand)});
+ await run('Handheld: a refused end time before the start is explained, not "Dữ liệu nhập không hợp lệ"',async()=>{
+  await hp.fill('#fixed-shift-form input[name=name]','Ca thử');await hp.selectOption('#fixed-shift-form select[name=startTime]','14:00');await hp.selectOption('#fixed-shift-form select[name=endTime]','10:00');
+  await hp.check('#fixed-shift-form input[name=staffId] >> nth=1');await hp.click('#fixed-shift-form button.primary');
+  try{await hp.waitForFunction(()=>/Giờ ra phải sau giờ vào/.test(document.querySelector('#app').innerText),null,{timeout:8000})}catch{return fail('no clear message: '+(await hp.locator('#app').innerText()).replace(/\s+/g,' ').slice(0,160))}
+  const r=(await api('GET','/api/staff/schedules?from='+vnDay())).data;if(r.fixedShifts.some(x=>x.name==='Ca thử'))return fail('saved anyway');return await clean(hand)});
+ await run('Handheld: changing the people of Ca trưa from tomorrow keeps today and moves the days after',async()=>{
+  const r0=(await api('GET','/api/staff/schedules?from='+vnDay())).data,trua=r0.fixedShifts.find(x=>x.name==='Ca trưa'),name=id=>r0.staff.find(x=>x.id===id)?.name;
+  await hp.click(`[data-fixed-edit="${trua.id}"]`);await hp.waitForSelector('#fixed-shift-form[data-id="'+trua.id+'"]');
+  const thao=r0.staff.find(x=>x.name==='thao').id,yen=r0.staff.find(x=>x.name==='yen linh').id;
+  await hp.uncheck(`#fixed-shift-form input[name=staffId][value="${yen}"]`);await hp.check(`#fixed-shift-form input[name=staffId][value="${thao}"]`);
+  await hp.fill('#fixed-shift-form input[name=startsOn]',vnDay(1));await hp.click('#fixed-shift-form button.primary');
+  try{await hp.waitForFunction(()=>/Đã lưu người mới/.test(document.querySelector('#app').innerText),null,{timeout:10000})}catch{return fail('not saved: '+(await hp.locator('#app').innerText()).replace(/\s+/g,' ').slice(0,160))}
+  const r=(await api('GET','/api/staff/schedules?from='+vnDay())).data,who=d=>r.schedules.filter(x=>x.fixed_shift_id===trua.id&&x.work_date===d).map(x=>name(x.staff_id)).sort().join('+');
+  if(who(vnDay())!=='linh+yen linh'||who(vnDay(1))!=='linh+thao'||who(vnDay(10))!=='linh+thao')return fail(`today ${who(vnDay())}, tomorrow ${who(vnDay(1))}, in 10 days ${who(vnDay(10))}`);
+  return await clean(hand)});
+ await run('Handheld: taking one person off one day stays off after a refresh',async()=>{
+  const r0=(await api('GET','/api/staff/schedules?from='+vnDay())).data,row=r0.schedules.find(x=>x.fixed_shift_id&&x.work_date===vnDay(3));
+  await hp.click(`[data-remove-schedule="${row.id}"]`);await hp.waitForTimeout(1500);await hp.click('[data-action=refresh]');await hp.waitForTimeout(1500);
+  const r=(await api('GET','/api/staff/schedules?from='+vnDay())).data;if(r.schedules.some(x=>x.staff_id===row.staff_id&&x.work_date===row.work_date&&x.start_time===row.start_time))return fail('the deleted day came back');
+  return await clean(hand)});
  await run('Handheld: log out and back in keeps working; the old session cannot be used',async()=>{
   const old=await hp.evaluate(()=>localStorage.getItem('staff-session'));
   if(await hp.locator('nav [data-screen="settings"]').count())await hp.click('nav [data-screen="settings"]');else{await hp.click('nav [data-screen="owner"]');await hp.locator('#app [data-screen="settings"]').first().click()}await hp.waitForTimeout(800);

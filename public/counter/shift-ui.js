@@ -8,7 +8,7 @@
  const opts=(values)=>values.map(([v,title])=>`<option value="${v}">${title}</option>`).join('');
  const empty='<p class="muted">Chưa có dữ liệu trên D1 trong khoảng đã chọn. / 所选期间暂无数据。</p>';
  function render(st,h){
-  const {esc,fmt,date,can,weekBoard}=h,manager=can('SHIFT_MANAGE'),ops=st.shiftOps||{},people=[{id:'OWNER',name:'Chủ cửa hàng'},...(st.scheduleStaff||[])].filter((x,i,a)=>a.findIndex(y=>y.id===x.id)===i),name=id=>people.find(x=>x.id===id)?.name||id||'—';
+  const {esc,fmt,date,can,weekBoard,fixedShifts}=h,manager=can('SHIFT_MANAGE'),ops=st.shiftOps||{},people=[{id:'OWNER',name:'Chủ cửa hàng'},...(st.scheduleStaff||[])].filter((x,i,a)=>a.findIndex(y=>y.id===x.id)===i),name=id=>people.find(x=>x.id===id)?.name||id||'—';
   const staffOptions=people.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');
   const own=st.staff?.id||'OWNER',today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),tab=st.shiftTab||'overview',cash=st.cashShift?.shift;
   const all=key=>ops[key]||[],count=(key,status)=>all(key).filter(x=>x.status===status).length;
@@ -43,7 +43,7 @@
   }
   if(tab==='schedule'){
    const roster=st.schedules||[],swaps=all('swaps'),ots=all('ot');
-   content=header(label('Lịch ca, OT & đổi ca','排班、加班与换班'),label('Lịch tuần 7 ngày × 16 giờ, yêu cầu OT và đổi ca có duyệt.','周排班、加班与换班审批。'))+`<div class="card shift-date-filter"><label>Chọn tuần / 选择周<input id="shift-from" type="date" value="${esc(st.shiftFrom)}"></label><button data-action="shift-from">Xem lịch / 查看</button></div>`+weekBoard()+
+   content=header(label('Lịch ca, OT & đổi ca','排班、加班与换班'),label('Lịch tuần 7 ngày × 16 giờ, yêu cầu OT và đổi ca có duyệt.','周排班、加班与换班审批。'))+`<div class="card shift-date-filter"><label>Chọn tuần / 选择周<input id="shift-from" type="date" value="${esc(st.shiftFrom)}"></label><button data-action="shift-from">Xem lịch / 查看</button></div>`+weekBoard()+(manager&&fixedShifts?fixedShifts():'')+
    (manager?form('schedule',label('Thêm lịch ca','新增排班'),select('staffId','Nhân viên / 员工',staffOptions)+field('workDate','Ngày / 日期','date')+field('startTime','Từ / 从','time')+field('endTime','Đến / 到','time')+field('note','Ghi chú / 备注','text','data-optional') ):'')+
    `<section class="card"><h3>Lịch đã xếp / 已排班</h3>${roster.map(x=>`<div class="shift-record"><span>${esc(x.work_date)} ${esc(x.start_time)}–${esc(x.end_time)} · ${esc(name(x.staff_id))} · ${esc(x.note)}</span>${manager?`<button data-remove-schedule="${esc(x.id)}">Xóa / 删除</button>`:''}</div>`).join('')||empty}</section>`+
    form('ot',label('Đăng ký OT','加班申请'),(manager?select('staffId','Nhân viên / 员工',staffOptions):'')+field('workDate','Ngày / 日期','date')+field('startTime','Từ / 从','time')+field('endTime','Đến / 到','time')+field('reason','Lý do / 原因'))+

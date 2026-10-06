@@ -1,4 +1,5 @@
 import {allowed} from './ops.js';
+import {ensureFixedShifts,fixedShiftPublic,addDays} from './fixed-shifts.js';
 
 const H={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
 const ok=(data,status=200)=>new Response(JSON.stringify({ok:true,...data}),{status,headers:H});
@@ -12,6 +13,20 @@ const iso=x=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$
 const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(x);
 const vietnamDay=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const check=(condition,code)=>{if(!condition)throw Error(code)};
+// A schedule the server refuses says which field is wrong (PT-47: "Dữ liệu nhập không hợp lệ" left the owner guessing).
+const scheduleFail=detail=>{const e=Error('INVALID_SCHEDULE');e.detail=detail;throw e};
+function shiftHours(b){const start=txt(b.startTime,5),end=txt(b.endTime,5);
+ if(!clock(start)||!clock(end))scheduleFail('Giờ vào và giờ ra phải theo dạng 24 giờ HH:MM / 上下班时间须为 24 小时制');
+ if(start>=end)scheduleFail(`Giờ ra (${end}) phải sau giờ vào (${start}) trong cùng ngày / 下班时间必须晚于上班时间`);
+ return {start,end}}
+async function activeStaff(env,list){const ids=[...new Set((Array.isArray(list)?list:[]).map(x=>txt(x,60)).filter(Boolean))];
+ if(!ids.length)scheduleFail('Chọn ít nhất một nhân viên / 请至少选择一名员工');if(ids.length>20)scheduleFail('Tối đa 20 nhân viên một ca / 每班最多 20 人');
+ const staff=ids.filter(x=>x!=='OWNER');if(!staff.every(uuid))scheduleFail('Có nhân viên đã bị khóa hoặc xóa; tải lại danh sách / 有员工已停用，请刷新');
+ if(staff.length){const found=await env.DB.prepare('SELECT COUNT(*) AS n FROM pos_staff_users WHERE active=1 AND id IN (SELECT value FROM json_each(?))').bind(JSON.stringify(staff)).first();if(found.n!==staff.length)scheduleFail('Có nhân viên đã bị khóa hoặc xóa; tải lại danh sách / 有员工已停用，请刷新')}
+ return ids}
+async function fixedInput(env,b){const name=txt(b.name,80),startsOn=b.startsOn;if(!name)scheduleFail('Nhập tên ca / 请输入班次名称');const {start,end}=shiftHours(b);
+ if(!day(startsOn))scheduleFail('Ngày bắt đầu không hợp lệ / 开始日期无效');if(startsOn<vietnamDay())scheduleFail('Ngày bắt đầu không được trước hôm nay / 开始日期不能早于今天');
+ return {name,start,end,startsOn,staffIds:await activeStaff(env,b.staffIds)}}
 const rowProduct=p=>({id:p.id,sku:p.sku,name:p.name,nameCn:p.name_cn,category:p.category,station:p.station,price:p.price,largePrice:p.large_price,active:!!p.active,icon:p.icon,size:!!p.size,spicy:!!p.spicy,version:p.version});
 const voucherPublic=v=>({id:v.id,code:v.code,titleVi:v.title_vi,titleZh:v.title_zh,kind:v.kind,value:v.value,minSpend:v.min_spend,maxDiscount:v.max_discount,memberOnly:!!v.member_only,active:!!v.active,listed:!!v.listed,startsAt:v.starts_at,endsAt:v.ends_at,maxUses:v.max_uses,used:v.reserved_count+v.redeemed_count,perMemberLimit:v.per_member_limit});
 
@@ -37,7 +52,7 @@ async function cashOverview(env){
 }
 export async function handleManagement(req,env,actor,deps){
  const path=new URL(req.url).pathname,method=req.method;
- if(!/^\/api\/staff\/(?:products|vouchers|schedules|attendance|cash-shifts|license)(?:\/|$)/.test(path))return null;
+ if(!/^\/api\/staff\/(?:products|vouchers|schedules|fixed-shifts|attendance|cash-shifts|license)(?:\/|$)/.test(path))return null;
  try{
   if(path==='/api/staff/products'&&method==='GET'){
    if(!allowed(actor,'CATALOG_MANAGE'))return deny();
@@ -72,14 +87,17 @@ export async function handleManagement(req,env,actor,deps){
   if(path==='/api/staff/schedules'&&method==='GET'){
    const start=new URL(req.url).searchParams.get('from')||vietnamDay();check(day(start),'INVALID_SCHEDULE');
    const until=new Date(Date.parse(start+'T00:00:00Z')+14*86400000).toISOString().slice(0,10),visible=allowed(actor,'SHIFT_MANAGE')||allowed(actor,'ATTENDANCE_VIEW');
-   const [r,staff]=await Promise.all([(visible?env.DB.prepare('SELECT * FROM pos_shift_schedules WHERE work_date>=? AND work_date<? ORDER BY work_date,start_time').bind(start,until):env.DB.prepare('SELECT * FROM pos_shift_schedules WHERE staff_id=? AND work_date>=? AND work_date<? ORDER BY work_date,start_time').bind(actor.id,start,until)).all(),allowed(actor,'SHIFT_MANAGE')?env.DB.prepare('SELECT id,display_name AS name FROM pos_staff_users WHERE active=1 ORDER BY display_name').all():Promise.resolve({results:[]})]);return ok({schedules:r.results,staff:allowed(actor,'SHIFT_MANAGE')?[{id:'OWNER',name:'Chủ cửa hàng'},...staff.results]:[]});
+   await ensureFixedShifts(env,addDays(until,-1));
+   const [r,staff]=await Promise.all([(visible?env.DB.prepare('SELECT * FROM pos_shift_schedules WHERE work_date>=? AND work_date<? ORDER BY work_date,start_time').bind(start,until):env.DB.prepare('SELECT * FROM pos_shift_schedules WHERE staff_id=? AND work_date>=? AND work_date<? ORDER BY work_date,start_time').bind(actor.id,start,until)).all(),allowed(actor,'SHIFT_MANAGE')?env.DB.prepare('SELECT id,display_name AS name FROM pos_staff_users WHERE active=1 ORDER BY display_name').all():Promise.resolve({results:[]})]);
+   const fixed=allowed(actor,'SHIFT_MANAGE')?(await env.DB.prepare('SELECT * FROM pos_fixed_shifts WHERE active=1 ORDER BY start_time,name').all()).results.map(fixedShiftPublic):[];
+   return ok({schedules:r.results,fixedShifts:fixed,staff:allowed(actor,'SHIFT_MANAGE')?[{id:'OWNER',name:'Chủ cửa hàng'},...staff.results]:[]});
   }
   if(path==='/api/staff/schedules/bulk'&&method==='POST'){
    if(!allowed(actor,'SHIFT_MANAGE'))return deny();
-   const b=await deps.body(req),staffIds=[...new Set(Array.isArray(b.staffIds)?b.staffIds.map(x=>txt(x,60)).filter(Boolean):[])],start=txt(b.startTime,5),end=txt(b.endTime,5),workDate=b.workDate,note=txt(b.note,160),shiftName=txt(b.shiftName,80);
-   check(staffIds.length>=1&&staffIds.length<=20&&shiftName&&day(workDate)&&clock(start)&&clock(end)&&start<end&&staffIds.every(x=>x==='OWNER'||uuid(x)),'INVALID_SCHEDULE');
+   const b=await deps.body(req),workDate=b.workDate,note=txt(b.note,160),shiftName=txt(b.shiftName,80);
+   if(!shiftName)scheduleFail('Nhập tên ca / 请输入班次名称');const {start,end}=shiftHours(b);if(!day(workDate))scheduleFail('Ngày không hợp lệ / 日期无效');
+   const staffIds=await activeStaff(env,b.staffIds);
    for(const staffId of staffIds){
-    if(staffId!=='OWNER'){const staff=await env.DB.prepare('SELECT id FROM pos_staff_users WHERE id=? AND active=1').bind(staffId).first();check(staff,'INVALID_SCHEDULE')}
     const overlap=await env.DB.prepare('SELECT id FROM pos_shift_schedules WHERE staff_id=? AND work_date=? AND start_time<? AND end_time>?').bind(staffId,workDate,end,start).first();if(overlap)return bad(409,'SHIFT_OVERLAP','Có nhân viên đã có ca trùng giờ');
    }
    const time=new Date().toISOString(),ids=staffIds.map(()=>crypto.randomUUID());
@@ -87,11 +105,32 @@ export async function handleManagement(req,env,actor,deps){
    return ok({ids,shiftName},201);
   }
   if(path==='/api/staff/schedules'&&method==='POST'){
-   if(!allowed(actor,'SHIFT_MANAGE'))return deny();const b=await deps.body(req),staffId=txt(b.staffId,60),start=txt(b.startTime,5),end=txt(b.endTime,5),workDate=b.workDate,note=txt(b.note,160),shiftName=txt(b.shiftName,80);
-   check((staffId==='OWNER'||uuid(staffId))&&day(workDate)&&clock(start)&&clock(end)&&start<end,'INVALID_SCHEDULE');
-   if(staffId!=='OWNER'){const staff=await env.DB.prepare('SELECT id FROM pos_staff_users WHERE id=? AND active=1').bind(staffId).first();check(staff,'INVALID_SCHEDULE')}
+   if(!allowed(actor,'SHIFT_MANAGE'))return deny();const b=await deps.body(req),workDate=b.workDate,note=txt(b.note,160),shiftName=txt(b.shiftName,80);
+   const {start,end}=shiftHours(b);if(!day(workDate))scheduleFail('Ngày không hợp lệ / 日期无效');const [staffId]=await activeStaff(env,[b.staffId]);
    const overlap=await env.DB.prepare('SELECT id FROM pos_shift_schedules WHERE staff_id=? AND work_date=? AND start_time<? AND end_time>?').bind(staffId,workDate,end,start).first();if(overlap)return bad(409,'SHIFT_OVERLAP','Nhân viên đã có ca trùng giờ');
    const id=crypto.randomUUID();await env.DB.prepare('INSERT INTO pos_shift_schedules(id,staff_id,work_date,start_time,end_time,note,created_by,created_at,shift_name) VALUES(?,?,?,?,?,?,?,?,?)').bind(id,staffId,workDate,start,end,note,actor.id,new Date().toISOString(),shiftName).run();return ok({id},201);
+  }
+  if(path==='/api/staff/fixed-shifts'&&method==='POST'){
+   if(!allowed(actor,'SHIFT_MANAGE'))return deny();const f=await fixedInput(env,await deps.body(req)),id=crypto.randomUUID(),time=new Date().toISOString();
+   await env.DB.prepare('INSERT INTO pos_fixed_shifts(id,name,start_time,end_time,staff_json,starts_on,generated_until,active,version,created_by,created_at,updated_by,updated_at) VALUES(?,?,?,?,?,?,?,1,1,?,?,?,?)').bind(id,f.name,f.start,f.end,JSON.stringify(f.staffIds),f.startsOn,addDays(f.startsOn,-1),actor.id,time,actor.id,time).run();
+   await ensureFixedShifts(env);return ok({id},201);
+  }
+  const fixedShift=path.match(/^\/api\/staff\/fixed-shifts\/([a-f0-9-]{36})(\/stop)?$/i);
+  if(fixedShift&&method==='POST'){
+   if(!allowed(actor,'SHIFT_MANAGE'))return deny();const b=await deps.body(req),id=fixedShift[1],time=new Date().toISOString();
+   if(!Number.isSafeInteger(b.version))scheduleFail('Thiếu phiên bản ca; tải lại / 请刷新后重试');
+   const current=`EXISTS(SELECT 1 FROM pos_fixed_shifts WHERE id=? AND version=? AND active=1)`;
+   if(fixedShift[2]){ // stop: today's shift stays, the days after it are taken off the schedule
+    const r=await env.DB.batch([env.DB.prepare(`DELETE FROM pos_shift_schedules WHERE fixed_shift_id=? AND work_date>? AND ${current}`).bind(id,vietnamDay(),id,b.version),
+     env.DB.prepare('UPDATE pos_fixed_shifts SET active=0,version=version+1,updated_by=?,updated_at=? WHERE id=? AND version=? AND active=1').bind(actor.id,time,id,b.version)]);
+    return r[1].meta.changes?ok({id}):bad(409,'CHANGED','Ca cố định vừa được người khác sửa; tải lại / 固定班次已被修改，请刷新');
+   }
+   // change from a start date: days before it keep their staff (filled in first), days from it on follow the new shift
+   const f=await fixedInput(env,b);await ensureFixedShifts(env,addDays(f.startsOn,-1));
+   const r=await env.DB.batch([env.DB.prepare(`DELETE FROM pos_shift_schedules WHERE fixed_shift_id=? AND work_date>=? AND ${current}`).bind(id,f.startsOn,id,b.version),
+    env.DB.prepare('UPDATE pos_fixed_shifts SET name=?,start_time=?,end_time=?,staff_json=?,starts_on=?,generated_until=?,version=version+1,updated_by=?,updated_at=? WHERE id=? AND version=? AND active=1').bind(f.name,f.start,f.end,JSON.stringify(f.staffIds),f.startsOn,addDays(f.startsOn,-1),actor.id,time,id,b.version)]);
+   if(!r[1].meta.changes)return bad(409,'CHANGED','Ca cố định vừa được người khác sửa; tải lại / 固定班次已被修改，请刷新');
+   await ensureFixedShifts(env);return ok({id});
   }
   const schedule=path.match(/^\/api\/staff\/schedules\/([a-f0-9-]{36})(?:\/remove)?$/i);
   if(schedule&&(method==='DELETE'||method==='POST'&&path.endsWith('/remove'))){
@@ -140,6 +179,7 @@ export async function handleManagement(req,env,actor,deps){
   return bad(405,'METHOD_NOT_ALLOWED','Thao tác chưa hỗ trợ');
  }catch(e){
   const code=e?.message||'';
+  if(code==='INVALID_SCHEDULE'&&e.detail)return bad(400,code,e.detail);
   if(['INVALID_PRODUCT','INVALID_VOUCHER_CONFIG','INVALID_SCHEDULE','INVALID_ATTENDANCE','INVALID_CASH_SHIFT','INVALID_LICENSE'].includes(code))return bad(400,code,'Dữ liệu nhập không hợp lệ');
   if(/STAFF_ON_LEAVE/i.test(code))return bad(409,'STAFF_ON_LEAVE','Nhân viên đã được duyệt nghỉ ngày này; chọn người khác hoặc đổi ngày');
   if(/UNIQUE|constraint|FOREIGN KEY|SHIFT_OVERLAP/i.test(code))return bad(409,'CONFLICT','Dữ liệu vừa thay đổi, đã tồn tại hoặc trùng ca');

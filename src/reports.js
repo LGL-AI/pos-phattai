@@ -1,4 +1,5 @@
 import {codeForBill} from './order-code.js';
+import {ensureFixedShifts} from './fixed-shifts.js';
 const validDay=s=>/^\d{4}-\d{2}-\d{2}$/.test(s||'')&&!Number.isNaN(Date.parse(s+'T00:00:00Z'))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 export async function daily(env,date){const day=date||today();if(!validDay(day))return null;
@@ -13,6 +14,7 @@ export async function daily(env,date){const day=date||today();if(!validDay(day))
 
 const validClock=s=>/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(s||'');
 export async function shiftReport(env,date,start,end,name=''){
+ await ensureFixedShifts(env);// fixed shifts are on today's schedule before the report reads it
  const day=date||today(),shiftName=String(name||'').trim().slice(0,80);
  if(!validDay(day)||!validClock(start)||!validClock(end)||start===end)return null;
  // A shift that ends at or before it starts runs past midnight into the next day (e.g. 18:00–02:00).
@@ -42,6 +44,7 @@ const vnTime=ms=>new Date(ms+7*3600000).toISOString().slice(0,19).replace('T',' 
 // so it wins; a person who did not clock in that day falls back to the published schedule.
 // A clock-in still open counts until now, at most 16 hours, so a forgotten clock-out cannot swallow the next day.
 export async function workedPeriods(env,date,now=Date.now()){
+ await ensureFixedShifts(env);
  const day=date||today();if(!validDay(day))return null;
  const name="COALESCE(u.display_name,CASE WHEN x.staff_id='OWNER' THEN 'Chủ cửa hàng' END,x.staff_id)";
  const [att,sch]=await Promise.all([

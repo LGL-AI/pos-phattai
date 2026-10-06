@@ -34,3 +34,5 @@ header{flex-wrap:wrap}
 #diag.diag-warn{color:#ffd9a0}
 /* Refunded orders stand out in red in the order list (owner request 05/10/2026). */
 .listButton.refunded,body[data-mode="counter"] .listButton.refunded{background:#fdecea;border-color:#e3a69e;color:#8b2a20}.listButton.refunded .badge{background:#b3261e;color:#fff}.listButton.refunded .money,.listButton.refunded .muted{color:#9b2c22}
+/* Fixed shifts and the schedule grouped by day (06/10/2026). */
+.fixed-shifts .line{padding:10px 0}.fixed-shifts form{border-top:1px solid #e1e7e0;margin-top:10px;padding-top:6px}.pill .pill-x{min-height:28px;padding:2px 9px;margin-left:4px;background:#f7dedc;color:#8a3028;border-radius:8px;font-size:12px}

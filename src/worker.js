@@ -11,7 +11,7 @@ import {hashPassword,verifyPassword,newSalt} from './password.js';
 import {handleAndroidUpdate,handleAndroidApk,handleAndroidDownload} from './android-update.js';
 
 const VERSION=packageInfo.version;
-const REQUIRED_MIGRATION='0021_receipt_cashier.sql';
+const REQUIRED_MIGRATION='0022_fixed_shifts.sql';
 const COOKIE='__Host-lotus_qr_member';
 const ERR={
  METHOD_NOT_ALLOWED:['Phương thức không được hỗ trợ','不支持此请求方式'],

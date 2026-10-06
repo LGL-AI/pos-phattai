@@ -1,4 +1,5 @@
 import {allowed} from './ops.js';
+import {ensureFixedShifts} from './fixed-shifts.js';
 
 const H={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
 const ok=(v,status=200)=>new Response(JSON.stringify({ok:true,...v}),{status,headers:H});
@@ -26,6 +27,7 @@ async function insertOnce(env,deps,kind,b,actor,fields,values){
  return saved?.request_hash===hash?ok({id:saved.id,duplicate:saved.id!==id},saved.id===id?201:200):bad(409,'REQUEST_KEY_REUSED','Mã yêu cầu đã dùng cho dữ liệu khác');
 }
 async function list(env,actor,from,to){
+ await ensureFixedShifts(env);
  const staff=actor.id,see=canSee(actor);
  const queries={
   deliveries:see?env.DB.prepare('SELECT * FROM pos_supplier_deliveries WHERE due_date BETWEEN ? AND ? ORDER BY due_date,due_time LIMIT 200').bind(from,to):env.DB.prepare('SELECT * FROM pos_supplier_deliveries WHERE receiver_id=? AND due_date BETWEEN ? AND ? ORDER BY due_date,due_time LIMIT 100').bind(staff,from,to),

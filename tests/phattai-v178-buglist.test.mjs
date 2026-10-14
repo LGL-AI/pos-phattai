@@ -70,7 +70,8 @@ test('PT-25 a render keeps the field being typed in, and the background sync loo
 
 test('PT-32 typed form values survive a re-render until the form is saved or the screen changes', () => {
   assert.match(STAFF, /function render\(\)\{[^\n]*keepDrafts\(\);keepTyping\(typing\);/, 'render puts the drafts back, then the caret');
-  assert.match(STAFF, /document\.addEventListener\('input',e=>\{const el=e\.target,f=el\?\.form,key=draftKey\(f\)/, 'every edit of a form field is kept');
+  assert.match(STAFF, /const rememberField=e=>\{const el=e\.target,f=el\?\.form,key=draftKey\(f\)/, 'every edit of a form field is kept');
+  assert.match(STAFF, /document\.addEventListener\('input',rememberField\);document\.addEventListener\('change',rememberField\);/, 'ticked boxes too (PT-51)');
   assert.match(STAFF, /'password'\]\.includes\(el\.type\)/, 'passwords are never kept');
   assert.match(STAFF, /dkey=draftKey\(f\),dsaved=formDrafts\.get\(dkey\);formDrafts\.delete\(dkey\);try\{/, 'a submitted form starts empty after a successful save');
   assert.match(STAFF, /\}catch\(err\)\{if\(dsaved&&!formDrafts\.has\(dkey\)\)formDrafts\.set\(dkey,dsaved\);message\(err\.message\)\}/, 'a refused save keeps what was typed');

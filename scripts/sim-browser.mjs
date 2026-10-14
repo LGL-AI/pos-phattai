@@ -440,6 +440,15 @@ try{
   return await clean(hand)});
  // Owner's request 06/10/2026: three fixed shifts that repeat every day from a start date (PT-47 for the refused-shift message).
  const vnDay=(n=0)=>new Date(Date.now()+7*3600000+n*86400000).toISOString().slice(0,10);
+ await run('Handheld: a person ticked in the fixed-shift form stays ticked when the screen redraws (PT-51)',async()=>{
+  await hp.locator('nav [data-screen="shifts"]').click();await hp.waitForSelector('#fixed-shift-form input[name=staffId]');
+  const box=hp.locator('#fixed-shift-form input[name=staffId]').first();await box.check();
+  await hp.evaluate(()=>{document.querySelector('#fixed-shift-form').dataset.before='1'});
+  await hp.click('[data-action=refresh]');// refresh() ends with a full render
+  try{await hp.waitForFunction(()=>!document.querySelector('#fixed-shift-form')?.dataset.before&&document.querySelector('#fixed-shift-form input[name=staffId]'),null,{timeout:15000})}catch{return fail('the screen was not redrawn')}
+  const ticked=await box.isChecked();await box.uncheck();
+  if(!ticked)return fail('the redraw unticked the person');
+  return await clean(hand)});
  await run('Handheld: the owner sets up the three fixed shifts from the 24-hour lists and the schedule fills in for 14 days',async()=>{
   const ids={};for(const [u,n] of [['sim.linh','linh'],['sim.thao','thao'],['sim.yenlinh','yen linh']]){const r=await api('POST','/api/staff/accounts',{username:u,name:n,role:'CASHIER',password:'sim-pass-123456',active:true});ids[n]=r.data.account?.id||(await api('GET','/api/staff/accounts')).data.accounts.find(a=>a.username===u).id}
   await hp.locator('nav [data-screen="shifts"]').click();await hp.click('[data-action=refresh]');await hp.waitForSelector('#fixed-shift-form');

@@ -267,9 +267,10 @@ const apiReads=new Map();
 // AbortSignal.timeout needs Chrome 103 / iOS 16; old iPhones (iOS 15) and old WebViews lack it.
 const timeoutSignal=ms=>{if(typeof AbortSignal!=='undefined'&&typeof AbortSignal.timeout==='function')return AbortSignal.timeout(ms);const c=new AbortController();setTimeout(()=>c.abort(),ms);return c.signal};
 function api(method,path,data){
- if(method!=='GET')return apiRequest(method,path,data);
+ // A read never joins one started before a write: it could answer with the data from before the write.
+ if(method!=='GET'){apiReads.clear();return apiRequest(method,path,data).finally(()=>apiReads.clear())}
  const key=(st.token||'')+':'+path;if(apiReads.has(key))return apiReads.get(key);
- const request=apiRequest(method,path,data).finally(()=>apiReads.delete(key));apiReads.set(key,request);return request;
+ const request=apiRequest(method,path,data).finally(()=>{if(apiReads.get(key)===request)apiReads.delete(key)});apiReads.set(key,request);return request;
 }
 async function apiRequest(method,path,data){let status,text;
  if(native?.apiRequest){const requestId=id();const response=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{pending.delete(requestId);reject(Error('Hết thời gian chờ Worker; tải lại đơn trước khi thử tiếp'))},20000);pending.set(requestId,{resolve,reject,timer,method});native.apiRequest(requestId,method,path,data===undefined?'':JSON.stringify(data),st.token||'')});status=response.status;text=response.text}

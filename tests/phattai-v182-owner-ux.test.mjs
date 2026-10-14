@@ -36,7 +36,7 @@ test('PT-42 the order list carries the refunded total of each order', async () =
   } finally { f.db.close(); }
 });
 test('PT-42 a refunded order is drawn in red with its refund state on the order list', () => {
-  assert.match(STAFF, /<button class="listButton\$\{back>0\?' refunded':''\}" data-open=/);
+  assert.match(STAFF, /<button class="listButton\$\{back>0\?' refunded':''\} order-row" data-open=/);
   assert.match(STAFF, /'ĐÃ HOÀN TIỀN \/ 已退款':'HOÀN MỘT PHẦN \/ 部分退款'/);
   const css = readFileSync(new URL('../public/staff/staff.css', import.meta.url), 'utf8');
   assert.match(css, /\.listButton\.refunded,body\[data-mode="counter"\] \.listButton\.refunded\{background:#fdecea/);

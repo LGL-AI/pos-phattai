@@ -135,6 +135,16 @@ export async function handleStaff(req,env,deps){
    const code=new URL(req.url).searchParams.get('code');if(code!==null&&!(/^(?:\d{8}-\d{4,}-[0-9A-F]{6}(?:-(?:CK|TM))?(?:-?B[1-9]\d*)?|PT-[0-9A-F-]{12,40}(?:\sB[1-9]\d*)?)$/i.test(code)))return error(400,'INVALID_CODE','Mã đơn không hợp lệ');
    // The refunded total rides along (idx_refunds_order) so the list can mark refunded orders in red.
    const refunded='(SELECT COALESCE(SUM(amount),0) FROM pos_refunds r WHERE r.order_id=qr_orders.id) AS refunded_total';
+   // Order lookup (Quản trị → Tra cứu đơn hàng): one Vietnam day, or one shift of that day, by order time.
+   const day=new URL(req.url).searchParams.get('day');let span=null;
+   if(code===null&&day!==null){const q=new URL(req.url).searchParams,start=q.get('start')||'',end=q.get('end')||'',clock=/^(?:[01]\d|2[0-3]):[0-5]\d$/;
+    const from=Date.parse(day+'T'+(start||'00:00')+':00+07:00');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(day)||Number.isNaN(from)||new Date(from+7*3600000).toISOString().slice(0,10)!==day||(start||end)&&(!clock.test(start)||!clock.test(end)||start===end))return error(400,'INVALID_DAY','Ngày hoặc giờ ca không hợp lệ / 日期或班次时间无效');
+    // A shift that ends at or before it starts runs past midnight into the next day.
+    const to=!start?from+86400000:Date.parse(day+'T'+end+':00+07:00')+(end>start?0:86400000);
+    span=[new Date(from).toISOString(),new Date(to).toISOString()]}
+   if(span){const {results:rows=[]}=await env.DB.prepare(`SELECT *,${refunded} FROM qr_orders WHERE created_at>=? AND created_at<? ORDER BY created_at DESC LIMIT 501`).bind(...span).all();const list=rows.slice(0,500);
+    return result({orders:kitchenOnly(actor)?list.filter(x=>x.payment_status!=='PAID').map(x=>kitchenOrder(deps.hydrate(x))):list.map(x=>({...deps.hydrate(x),refundedAmount:x.refunded_total||0})),truncated:rows.length>500})}
    const baseCode=code?.replace(/(?:\sB|-?B)[1-9]\d*$/i,'');const {results:rows=[]}=await (code?env.DB.prepare(`SELECT *,${refunded} FROM qr_orders WHERE code IN (?,?,?) ORDER BY created_at DESC LIMIT 1`).bind(baseCode,codeForMethod(baseCode,'BANK'),codeForMethod(baseCode,'CASH')):env.DB.prepare(`SELECT *,${refunded} FROM qr_orders ORDER BY created_at DESC LIMIT 100`)).all();
    return result({orders:kitchenOnly(actor)?rows.filter(x=>x.payment_status!=='PAID').map(x=>kitchenOrder(deps.hydrate(x))):rows.map(x=>({...deps.hydrate(x),refundedAmount:x.refunded_total||0}))});
   }

@@ -263,6 +263,97 @@ def worker(path, body):
         return r.status, json.loads(r.read())
 
 
+def qr_order(table):
+    return worker('/api/orders', {'table': table, 'items': [{'productId': '110', 'qty': 1, 'mods': {'size': '中', 'spice': '中', 'note': ''}}],
+                                  'idempotencyKey': str(uuid.uuid4())})
+
+
+def app_pid():
+    return shell('pidof', APP).strip()
+
+
+def screen_kept_on():
+    """FLAG_KEEP_SCREEN_ON on the app's own window (set through NativePOS.keepScreenOn)."""
+    out = shell('dumpsys', 'window', 'windows')
+    mine = [b for b in re.split(r'\n\s*Window #', out) if APP + '/' in b.split('\n', 1)[0]]
+    return any('KEEP_SCREEN_ON' in b for b in mine)
+
+
+class Page:
+    """The WebView page through Chrome DevTools (DevTools is on in the test build only), to read the
+    page and call the Java bridge (TextToSpeech, tone, audio outputs) for real."""
+
+    def __init__(self):
+        import websocket  # websocket-client, installed by the workflow for this job
+        pid = app_pid().split()
+        if not pid:
+            raise RuntimeError('the app is not running')
+        adb('forward', 'tcp:9333', 'localabstract:webview_devtools_remote_' + pid[0])
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        pages = []
+        for _ in range(15):
+            try:
+                pages = [p for p in json.loads(opener.open('http://127.0.0.1:9333/json', timeout=10).read())
+                         if p.get('type') == 'page' and p.get('webSocketDebuggerUrl')]
+                if pages:
+                    break
+            except Exception as e:
+                print('  (devtools retry:', e, ')')
+            time.sleep(2)
+        if not pages:
+            raise RuntimeError('no WebView page on DevTools')
+        pages.sort(key=lambda p: '/staff' not in p.get('url', ''))
+        self.ws = websocket.create_connection(pages[0]['webSocketDebuggerUrl'], timeout=30, suppress_origin=True)
+        self.n = 0
+
+    def js(self, expression):
+        self.n += 1
+        self.ws.send(json.dumps({'id': self.n, 'method': 'Runtime.evaluate',
+                                 'params': {'expression': expression, 'returnByValue': True, 'awaitPromise': True}}))
+        while True:
+            msg = json.loads(self.ws.recv())
+            if msg.get('id') == self.n:
+                r = msg.get('result', {})
+                if 'exceptionDetails' in r:
+                    raise RuntimeError('JS: ' + json.dumps(r['exceptionDetails'], ensure_ascii=False)[:300])
+                return r.get('result', {}).get('value')
+
+    def wait(self, expression, timeout=30):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                v = self.js(expression)
+                if v:
+                    return v
+            except Exception as e:
+                print('  (js retry:', e, ')')
+            time.sleep(1)
+        return None
+
+    def close(self):
+        try:
+            self.ws.close()
+        except Exception:
+            pass
+        adb('forward', '--remove', 'tcp:9333')
+
+
+TOAST = '(()=>{const el=document.querySelector("#announce-toast");return JSON.stringify(el?[...el.children].map(x=>x.textContent):[])})()'
+
+
+def toast_line(page, word, timeout=45):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            for line in json.loads(page.js(TOAST) or '[]'):
+                if word in line:
+                    return line
+        except Exception as e:
+            print('  (toast retry:', e, ')')
+        time.sleep(1)
+    return None
+
+
 # ---------- the flow ----------
 
 def main():
@@ -384,6 +475,57 @@ def main():
     tap(d, r'In SUNMI')
     time.sleep(2)
 
+    # 6b. Speaker announcements (module of 1.7.98). The emulator has no Bluetooth: first the path the shop
+    #     sees with the speaker off/unpaired, then the Java bridge called for real (TextToSpeech, tone,
+    #     audio outputs), then a QR order announced as if a Bluetooth speaker were paired.
+    nav(d, r'Quản trị chủ tiệm')
+    check(tap(d, r'Thiết bị & máy in'), 'speaker: opens Devices & printers', d)
+    check(tap(d, r'^Bật loa trên máy này'), 'speaker: turns it on for this device', d)
+    pid = app_pid()
+    page = Page()
+    check(page.wait('localStorage.getItem("lotus-cloud:announce")==="on"', 10), 'speaker: setting saved on the device', d)
+    status = page.wait('(document.querySelector("#announce-speaker")||{}).textContent', 10) or ''
+    check('Chưa kết nối loa Bluetooth' in status, f'speaker: no Bluetooth on the emulator and the card says so ({status[:70]})', d)
+    note('speaker: voice line on this emulator: ' + (page.js('(document.querySelector("#announce-voice")||{}).textContent') or '')[:110])
+    time.sleep(2)
+    check(screen_kept_on(), 'speaker: the screen is kept on while the speaker is on (FLAG_KEEP_SCREEN_ON)', d)
+    shot(d, 'speaker on')
+    check(tap(d, r'^Thử loa'), 'speaker: taps Test speaker', d)
+    check(page.wait('document.body.innerText.includes("Chưa kết nối loa Bluetooth: ghép loa")', 10),
+          'speaker: Test speaker without a speaker asks to pair one', d)
+    status, body = qr_order('T05')
+    check(status in (200, 201) and body.get('ok'), f'speaker: QR order T05 accepted by the Worker ({status})')
+    line = toast_line(page, '5号桌')
+    shot(d, 'speaker no bluetooth order')
+    check(line and '有新订单' in line and '未连接音箱' in line, f'speaker: QR order without a speaker is shown, not spoken: {line}', d)
+    raw = json.loads(page.js('JSON.stringify({tts:NativePOS.ttsStatus(),out:NativePOS.audioOutput()})'))
+    tts, out = json.loads(raw['tts']), json.loads(raw['out'])
+    note(f'speaker: TextToSpeech {tts.get("state")} (engine {tts.get("engine") or "none"}); outputs bluetooth={out.get("bluetooth")} wired={out.get("wired")}')
+    check(tts.get('state') in ('READY', 'NO_VOICE', 'NO_ENGINE'), f'speaker: TextToSpeech started ({tts.get("state")}; each state is handled by the page)', d)
+    spoken = page.js('NativePOS.speak("5号桌，有新订单")')
+    page.js('NativePOS.chime(),1')
+    check(spoken == ('OK' if tts.get('state') == 'READY' else tts.get('state')), f'speaker: NativePOS.speak returns {spoken}', d)
+    time.sleep(3)
+    check(app_pid() == pid and page.js('1+1') == 2, 'speaker: app alive and responsive after speak + chime', d)
+    patched = page.js('(()=>{const n=window.NativePOS,speak=n.speak;window.__spoken=[];try{'
+                      'n.audioOutput=()=>JSON.stringify({bluetooth:true,wired:false});'
+                      'n.speak=t=>{const r=speak.call(n,t);window.__spoken.push(r);return r}}catch(e){return "error "+e}'
+                      'return JSON.parse(n.audioOutput()).bluetooth===true?"patched":"read-only"})()')
+    if patched == 'patched':
+        status, body = qr_order('T06')
+        check(status in (200, 201) and body.get('ok'), f'speaker: QR order T06 accepted by the Worker ({status})')
+        line = toast_line(page, '6号桌')
+        time.sleep(3)
+        results = json.loads(page.js('JSON.stringify(window.__spoken)') or '[]')
+        shot(d, 'speaker bluetooth order')
+        check(line and '有新订单' in line and '未连接音箱' not in line, f'speaker: with a Bluetooth speaker the QR order is announced: {line}', d)
+        check(results and all(r == (spoken if spoken != 'OK' else 'OK') for r in results),
+              f'speaker: the order text went to Android TextToSpeech: {results}', d)
+        check(app_pid() == pid, 'speaker: app alive after the announcement', d)
+    else:
+        note('speaker: bridge methods not replaceable from DevTools (' + str(patched) + '); Bluetooth path covered by the browser cross-check only')
+    page.close()
+
     # 7. Network loss and recovery.
     shell('svc', 'wifi', 'disable')
     shell('svc', 'data', 'disable')
@@ -404,6 +546,19 @@ def main():
     d.app_start(APP, wait=True)
     check(wait_text(d, r'Chọn món|Đơn hàng', 60) and not find(d, r'^Đăng nhập /'), 'after a cold start, still signed in', d)
     shot(d, 'cold start')
+
+    # 9. The speaker setting survives a cold start (screen still kept on), then turning it off clears it.
+    page = Page()
+    check(page.wait('localStorage.getItem("lotus-cloud:announce")==="on"', 10), 'speaker: still on after a cold start', d)
+    page.close()
+    time.sleep(2)
+    check(screen_kept_on(), 'speaker: screen kept on again after a cold start', d)
+    nav(d, r'Quản trị chủ tiệm')
+    tap(d, r'Thiết bị & máy in')
+    check(tap(d, r'^Tắt loa trên máy này'), 'speaker: turns it off', d)
+    time.sleep(2)
+    check(not screen_kept_on(), 'speaker: off releases the screen (normal sleep again)', d)
+    shot(d, 'speaker off')
     return finish()
 
 

@@ -13,6 +13,9 @@ node -e 'const fs=require("fs"),p="android/app-identity.json",j=JSON.parse(fs.re
 src=android/app/src/main/java/vn/lotusai/pos/phattaiapp
 sed -i "s#https://pos-phattai.lgl247-ai.workers.dev#${TEST_WORKER_URL}#g" "$src/MainActivity.java" "$src/CloudConnectivityActivity.java"
 grep -q "$TEST_WORKER_URL" "$src/MainActivity.java"
+# Test build only: WebView DevTools on, so the device check can call the Java bridge (speak, ttsStatus, audioOutput) directly.
+sed -i 's#webView = new WebView(this);#webView = new WebView(this); WebView.setWebContentsDebuggingEnabled(true);#' "$src/MainActivity.java"
+grep -q 'setWebContentsDebuggingEnabled(true)' "$src/MainActivity.java"
 export LOTUS_APP_ID="$TEST_APP_ID" LOTUS_ALLOW_ALT_APP_ID=1 LOTUS_KEYSTORE="$PWD/device/test.jks" LOTUS_KEY_ALIAS=devicetest LOTUS_KEYSTORE_PASSWORD=devicetest
 for v in 1 2; do
   rm -rf android/app/build/outputs/apk/release

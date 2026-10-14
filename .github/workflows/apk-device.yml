@@ -12,6 +12,15 @@ name: APK on Android emulator
 
 on:
   workflow_dispatch:
+    inputs:
+      old_tag:
+        description: 'release-apk: published APK installed first (e.g. android-v1085, what the shop runs); empty = the second newest'
+        required: false
+        default: ''
+      new_tag:
+        description: 'release-apk: published APK installed over it; empty = the newest'
+        required: false
+        default: ''
   push:
     branches: ['device-test']
 
@@ -47,6 +56,9 @@ jobs:
           mkdir -p device/new device/old
           tags=$(gh release list --limit 30 --json tagName -q '.[].tagName' | grep '^android-v' | head -2)
           new=$(echo "$tags" | sed -n 1p); old=$(echo "$tags" | sed -n 2p)
+          # the update the shop will actually make, when given (e.g. android-v1085 -> android-v1098)
+          if [ -n "${{ inputs.new_tag }}" ]; then new="${{ inputs.new_tag }}"; fi
+          if [ -n "${{ inputs.old_tag }}" ]; then old="${{ inputs.old_tag }}"; fi
           echo "newest=$new previous=$old"
           gh release download "$new" -p '*.apk' -D device/new
           gh release download "$old" -p '*.apk' -D device/old
@@ -85,7 +97,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - run: pip install --quiet uiautomator2==3.7.0
+      - run: pip install --quiet uiautomator2==3.7.0 websocket-client==1.8.0
       - run: npm ci --no-audit --no-fund
       - name: Android SDK 35
         run: yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.1" > /dev/null

@@ -272,11 +272,16 @@ def app_pid():
     return shell('pidof', APP).strip()
 
 
-def screen_kept_on():
-    """FLAG_KEEP_SCREEN_ON on the app's own window (set through NativePOS.keepScreenOn)."""
+def app_window_flags():
+    """The fl= flags of the app's own windows (dumpsys window), one string per window."""
     out = shell('dumpsys', 'window', 'windows')
     mine = [b for b in re.split(r'\n\s*Window #', out) if APP + '/' in b.split('\n', 1)[0]]
-    return any('KEEP_SCREEN_ON' in b for b in mine)
+    return [' '.join(re.findall(r'\bfl=([^\n}]*)', b)) for b in mine]
+
+
+def screen_kept_on():
+    """FLAG_KEEP_SCREEN_ON on the app's own window (set through NativePOS.keepScreenOn)."""
+    return any('KEEP_SCREEN_ON' in f for f in app_window_flags())
 
 
 class Page:
@@ -480,6 +485,7 @@ def main():
     #     audio outputs), then a QR order announced as if a Bluetooth speaker were paired.
     nav(d, r'Quản trị chủ tiệm')
     check(tap(d, r'Thiết bị & máy in'), 'speaker: opens Devices & printers', d)
+    check(not screen_kept_on(), f'speaker: off by default, normal screen sleep ({app_window_flags()})', d)
     check(tap(d, r'^Bật loa trên máy này'), 'speaker: turns it on for this device', d)
     pid = app_pid()
     page = Page()
@@ -541,7 +547,8 @@ def main():
     d.press('home')
     time.sleep(10)
     d.app_start(APP)
-    check(wait_text(d, r'Chọn món|Đơn hàng', 30) and not find(d, r'^Đăng nhập /'), 'back from Home, still signed in', d)
+    # The page is where it was left (any tab): the sticky info strip is always on screen.
+    check(wait_text(d, r'^APK \S+ \(\d+\) · Server |Chọn món|Đơn hàng', 30) and not find(d, r'^Đăng nhập /'), 'back from Home, still signed in', d)
     shell('am', 'force-stop', APP)
     d.app_start(APP, wait=True)
     check(wait_text(d, r'Chọn món|Đơn hàng', 60) and not find(d, r'^Đăng nhập /'), 'after a cold start, still signed in', d)
@@ -557,7 +564,11 @@ def main():
     tap(d, r'Thiết bị & máy in')
     check(tap(d, r'^Tắt loa trên máy này'), 'speaker: turns it off', d)
     time.sleep(2)
-    check(not screen_kept_on(), 'speaker: off releases the screen (normal sleep again)', d)
+    page = Page()
+    state = page.js('JSON.stringify({announce:localStorage.getItem("lotus-cloud:announce"),'
+                    'button:((document.querySelector("[data-action=announce-toggle]")||{}).textContent||"")})')
+    page.close()
+    check(not screen_kept_on(), f'speaker: off releases the screen (normal sleep again); page {state}; window fl={app_window_flags()}', d)
     shot(d, 'speaker off')
     return finish()
 

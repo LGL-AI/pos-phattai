@@ -319,9 +319,11 @@ try{
  await run('H2 on the order list the watcher stays off (the live sync already loads orders): no extra order reads',async()=>{
   await go(a,'orders');await sleep(3000);const l0=await a.page.evaluate(()=>window.__log.length);await sleep(30000);
   const reads=(await a.page.evaluate(n=>window.__log.slice(n),l0)).filter(x=>/\/api\/staff\/orders -/.test(x));return reads.length<=1?await clean(a):fail(reads.length+' order reads while idle')});
- await run('H3 one new order costs at most two reads on an announcing device on Settings (sync-meta + orders)',async()=>{
+ await run('H3 one new order costs one order-list read (and at most 4 tiny sync-meta checks) on an announcing device on Settings',async()=>{
   await go(a,'settings');await sleep(3000);const l0=await a.page.evaluate(()=>window.__log.length),s0=(await spoken(a)).length;await qrOrder('T73');await heard(a,s0,phrase('T73'));await sleep(2000);
-  const calls=(await a.page.evaluate(n=>window.__log.slice(n),l0)).filter(x=>/sync-meta|\/api\/staff\/orders -/.test(x));return calls.length<=3?await clean(a):fail(calls.join(', '))});
+  // the order list (the heavy read) once; sync-meta is a few bytes, woken by the order and by its kitchen slip being claimed/printed
+  const calls=(await a.page.evaluate(n=>window.__log.slice(n),l0)),orders=calls.filter(x=>/\/api\/staff\/orders -/.test(x)).length,meta=calls.filter(x=>/sync-meta/.test(x)).length;
+  return orders===1&&meta<=4?await clean(a):fail(`${orders} order-list reads, ${meta} sync-meta: `+calls.filter(x=>/sync-meta|\/api\/staff\/orders -/.test(x)).join(', '))});
 
  // ---------- I. The real QR page end to end ----------
  for(const [label,old] of [['old engine (iOS 15 / WebView 83)',true],['current Chrome',false]])

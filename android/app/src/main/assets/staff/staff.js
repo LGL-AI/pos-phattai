@@ -831,7 +831,7 @@ function connectRealtime(){
  try{
   const ws=new WebSocket(base.replace(/^http/,'ws')+'/api/realtime',['lotus-pos',st.token]);realtime.ws=ws;st.realtimeState='CONNECTING';
   ws.onopen=()=>{if(realtime.ws!==ws)return;realtime.retry=1000;scheduler.announce.fail=0;st.realtimeState='ONLINE';realtime.lastPong=Date.now();if(realtime.ping)clearInterval(realtime.ping);wakeSync('state');realtime.ping=setInterval(()=>{if(realtime.ws!==ws)return;if(Date.now()-realtime.lastPong>60000){ws.close();return}try{ws.send('ping')}catch{ws.close()}},25000)};
-  ws.onmessage=e=>{if(realtime.ws!==ws)return;if(e.data==='pong'){realtime.lastPong=Date.now();return}try{const m=JSON.parse(e.data);if(m.type==='invalidate'){wakeSync(m.scope||'state',m.detail?.scopes);if(document.hidden&&announceOn())runScheduled('announce',true)}}catch{wakeSync('state')}};// a hidden tab's timers are throttled; the socket message is not
+  ws.onmessage=e=>{if(realtime.ws!==ws)return;if(e.data==='pong'){realtime.lastPong=Date.now();return}try{const m=JSON.parse(e.data);if(m.type==='invalidate'){/* the server just spoke: earlier failures say nothing about now */if(announceOn()){scheduler.announce.fail=0;scheduler.announce.next=0}wakeSync(m.scope||'state',m.detail?.scopes);if(document.hidden&&announceOn())runScheduled('announce',true)}}catch{wakeSync('state')}};// a hidden tab's timers are throttled; the socket message is not
   ws.onerror=()=>{try{ws.close()}catch{}};
   ws.onclose=()=>{if(realtime.ws!==ws)return;if(realtime.ping){clearInterval(realtime.ping);realtime.ping=null}realtime.ws=null;st.realtimeState='OFFLINE';scheduler.live.next=0;scheduler.service.next=0;scheduleRealtime()};
  }catch{st.realtimeState='OFFLINE';scheduleRealtime()}

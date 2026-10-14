@@ -68,7 +68,8 @@ async function device({native=true,old=native,viewport=native?{width:360,height:
   // the browser's own voices: a Chinese one or none; what it is asked to say is recorded
   window.__spoken=[];window.__beeps=0;
   const voices=zhVoice?[{name:'Sim 普通话',lang:'zh-CN'},{name:'Sim English',lang:'en-US'}]:[{name:'Sim English',lang:'en-US'}];
-  window.speechSynthesis={getVoices:()=>voices,speak(u){if(u.text.trim())window.__spoken.push(u.text+'|'+(u.lang||''))},addEventListener(){},cancel(){}};
+  // window.speechSynthesis is a read-only getter in Chromium: a plain assignment is silently ignored
+  Object.defineProperty(window,'speechSynthesis',{configurable:true,value:{getVoices:()=>voices,speak(u){if(u.text.trim())window.__spoken.push(u.text+'|'+(u.lang||''))},addEventListener(){},cancel(){}}});
   window.SpeechSynthesisUtterance=function(t){this.text=t};
   const C=window.AudioContext;if(C){const o=C.prototype.createOscillator;C.prototype.createOscillator=function(){window.__beeps++;return o.call(this)}}
  },{zhVoice});
@@ -228,8 +229,8 @@ try{
  await run('D4 log out: nothing is read and the screen may sleep; log in again: only new orders are read',async()=>{
   await go(a,'settings');await a.page.click('[data-action=logout]');await a.page.waitForSelector('input[name=password]');if(await a.page.evaluate(()=>window.__awake))return fail('awake while logged out');
   const s0=(await spoken(a)).length;await qrOrder('T53');await sleep(4000);if((await spoken(a)).length>s0)return fail('read out while logged out');
-  await login(a);await sleep(3000);if((await spoken(a)).length>s0)return fail('read out the order placed before login');
-  await qrOrder('T54');return await heard(a,s0,phrase('T54'))?await clean(a):fail('not heard after login')});
+  await login(a);await sleep(3000);if((await spoken(a)).length)return fail('read out the order placed before login');// login() reloads the page: the record starts again at 0
+  await qrOrder('T54');return await heard(a,0,phrase('T54'))?await clean(a):fail('not heard after login; screen '+(await a.page.evaluate(()=>document.querySelector('nav .active')?.dataset.screen))+'; log '+(await a.page.evaluate(()=>window.__log.slice(-8).join(', '))))});
 
  // ---------- E. Several devices ----------
  const b=await device();await login(b,'sim.thungan',PASSWORD+'x');
@@ -267,12 +268,14 @@ try{
   await a.page.evaluate(()=>{window.__offline=false});await a.context.setOffline(false);if(!await heard(a,s0,phrase('T62'),40000))return fail('not heard after reconnect');
   await sleep(3000);const x=(await said(a,s0)).filter(v=>v===phrase('T62'));return x.length===1?await clean(a):fail('read '+x.length+' times')});
  await run('F2 without the realtime socket the order is still read out by polling (≤ 20 s)',async()=>{
-  await a.page.evaluate(()=>{window.__noWs=true});await a.page.routeWebSocket?.(/\/api\/realtime/,ws=>ws.close());await a.page.reload();await a.page.waitForSelector('nav [data-screen]');await go(a,'settings');await sleep(3000);
-  const s0=(await spoken(a)).length;await qrOrder('T63');const ok=await heard(a,s0,phrase('T63'),25000);await a.page.unrouteAll?.();return ok?await clean(a):fail('not heard')});
- await run('F3 the server failing for a while: retries back off, then the order is read out',async()=>{
+  // its own handheld: a blocked socket must not leak into the cases after it
+  const v=await device();try{await v.context.routeWebSocket(/\/api\/realtime/,ws=>ws.close());await login(v);await speaker(v,true);await sleep(3000);
+   const s0=(await spoken(v)).length;await qrOrder('T63');return await heard(v,s0,phrase('T63'),25000)?await clean(v):fail('not heard')}finally{await v.context.close()}});
+ await run('F3 the server failing for 15 s: once it answers again the next order is read out within 20 s',async()=>{
   await a.page.reload();await a.page.waitForSelector('nav [data-screen]');await go(a,'settings');await sleep(2000);
-  let fails=0;await a.page.route('**/api/staff/sync-meta',r=>{if(fails++<3)return r.fulfill({status:503,body:'{"ok":false}'});return r.continue()});
-  const s0=(await spoken(a)).length;await qrOrder('T64');const ok=await heard(a,s0,phrase('T64'),45000);await a.page.unroute('**/api/staff/sync-meta');a.bad.length=0;return ok?await clean(a):fail('not heard')});
+  let down=true;await a.page.route('**/api/staff/sync-meta',r=>down?r.fulfill({status:503,body:'{"ok":false}'}):r.continue());
+  await a.page.evaluate(()=>window.dispatchEvent(new Event('focus')));await sleep(15000);down=false;
+  const s0=(await spoken(a)).length;await qrOrder('T64');const ok=await heard(a,s0,phrase('T64'),20000);await a.page.unroute('**/api/staff/sync-meta');a.bad.length=0;return ok?await clean(a):fail('not heard: '+JSON.stringify(await said(a,s0)))});
 
  // ---------- G. A browser with an ordinary speaker (how the owner tests before the shop) ----------
  const w=await device({native:false,hidden:true});await login(w);

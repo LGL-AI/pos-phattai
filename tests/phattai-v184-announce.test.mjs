@@ -50,3 +50,12 @@ test('PT-48 off by default, turned on per device; the APK reads Chinese, chimes 
   assert.match(MANIFEST, /<action android:name="android\.intent\.action\.TTS_SERVICE" \/>/, 'Android 11+ only sees the TTS engine when it is declared');
   assert.equal(APK, STAFF);
 });
+test('PT-49 plays only through a connected speaker; every service call; no stale backoff after the network or server comes back', () => {
+  assert.match(STAFF, /function say\(text\)\{if\(!announceOn\(\)\)return;if\(!speakerOut\(\)\.ready\)\{announce\.silent\+\+;showAnnounce\(text\+' · chưa kết nối loa/);
+  assert.match(MAIN, /@JavascriptInterface public String audioOutput\(\)\{return audioOutputJson\(\);\}/);
+  assert.match(MAIN, /TYPE_BLUETOOTH_A2DP/);
+  assert.match(STAFF, /for\(const r of data\.requests\|\|\[\]\)if\(r\?\.id&&!announce\.serviceSeen\.has\(r\.id\)\)/, 'every new service call, not only the first listed');
+  assert.match(STAFF, /window\.addEventListener\('online',\(\)=>\{for\(const task of Object\.values\(scheduler\)\)\{task\.fail=0;task\.next=0\}/);
+  assert.match(STAFF, /if\(announceOn\(\)\)\{scheduler\.announce\.fail=0;scheduler\.announce\.next=0\}wakeSync/, 'a realtime message clears the backoff');
+  assert.match(STAFF, /if\(document\.hidden\)\{if\(!announceOn\(\)\)closeRealtime\(\)\}/, 'a hidden browser tab keeps listening while the speaker is on');
+});

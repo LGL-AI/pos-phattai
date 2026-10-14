@@ -359,6 +359,16 @@ def toast_line(page, word, timeout=45):
     return None
 
 
+def open_devices(d):
+    """Owner hub -> Devices & printers, checked by the speaker card; the bottom row scrolls sideways and a
+    tap can land on the neighbouring tab, so try again from the hub when the card is not there."""
+    for _ in range(3):
+        nav(d, r'Quản trị chủ tiệm')
+        if tap(d, r'Thiết bị & máy in', timeout=25) and tap(d, r'^Loa thông báo đơn mới', timeout=25, click=False):
+            return True
+    return False
+
+
 # ---------- the flow ----------
 
 def main():
@@ -483,8 +493,7 @@ def main():
     # 6b. Speaker announcements (module of 1.7.98). The emulator has no Bluetooth: first the path the shop
     #     sees with the speaker off/unpaired, then the Java bridge called for real (TextToSpeech, tone,
     #     audio outputs), then a QR order announced as if a Bluetooth speaker were paired.
-    nav(d, r'Quản trị chủ tiệm')
-    check(tap(d, r'Thiết bị & máy in'), 'speaker: opens Devices & printers', d)
+    check(open_devices(d), 'speaker: opens Devices & printers', d)
     check(not screen_kept_on(), f'speaker: off by default, normal screen sleep ({app_window_flags()})', d)
     check(tap(d, r'^Bật loa trên máy này'), 'speaker: turns it on for this device', d)
     pid = app_pid()
@@ -560,8 +569,7 @@ def main():
     page.close()
     time.sleep(2)
     check(screen_kept_on(), 'speaker: screen kept on again after a cold start', d)
-    nav(d, r'Quản trị chủ tiệm')
-    tap(d, r'Thiết bị & máy in')
+    check(open_devices(d), 'speaker: opens Devices & printers again', d)
     check(tap(d, r'^Tắt loa trên máy này'), 'speaker: turns it off', d)
     time.sleep(2)
     page = Page()
